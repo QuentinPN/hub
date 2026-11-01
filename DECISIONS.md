@@ -1,0 +1,14 @@
+# Decision log
+
+| Date | Sujet | Options | Décision | Justification |
+|---|---|---|---|---|
+| 2026-11-01 | Maquettes Phase 0 | A Cinematic TV / B Glass Command Center / C Minimal Spatial | Produites (canevas https://claude.ai/artifact/YP9oAnZPuRSqH7GLsyXEtg : desktop 1440, mobile 390, widgets et états pour chaque direction) | Exigence DESIGN.md. Données affichées = exemples |
+| 2026-11-01 | Direction design | A / B / C / hybride | VALIDÉ : A (Cinematic TV) + fiche par service reprise de C, en style A (desktop + mobile) | Choix explicite de l'utilisateur. Reste à dessiner pendant la phase 1 : le catalogue « Tous les services » (grille filtrable, 34 services ou plus) |
+| 2026-11-01 | Langage serveur | TypeScript (SvelteKit server) / Go / Rust | VALIDÉ : Go pour l'agent et l'API ; l'UI reste en SvelteKit + TypeScript strict, compilée en statique et embarquée dans le binaire Go | Docker est écrit en Go et a un SDK officiel en Go. Binaire statique multi-arch (Pi arm64, QNAP x86). Faible empreinte mémoire. Le goulot réel est l'I/O vers les API des apps, pas le CPU |
+| 2026-11-01 | Skills | apple-design, ui-ux-pro-max, karpathy-guidelines, unslop | karpathy-guidelines (multica-ai, commit 2c60614) et unslop (heydamir, commit 1d13095, CC-BY-4.0) installés dans `.claude/skills/` après accord. apple-design et ui-ux-pro-max NON installés | karpathy = Markdown seul. unslop = Markdown + scripts Playwright/ffmpeg locaux optionnels, aucun téléchargement distant. Les deux autres passent par npx/npm : il faut inspecter la source d'abord |
+| 2026-11-01 | Versions du front | — | SvelteKit 3.1, Svelte 5.57, Vite 8, TypeScript 6, adapter-static 4 | Dernières versions au moment de l'installation. Avec Kit 3, la config passe dans `sveltekit({...})` (vite.config.ts), `svelte.config.js` n'existe plus, `$lib` est remplacé par `#lib` (imports Node) et les imports TypeScript prennent l'extension `.ts` |
+| 2026-11-01 | Lint du front | Biome / ESLint + Prettier | ESLint + Prettier | Biome ne couvre pas encore complètement les fichiers `.svelte`. 17 vulnérabilités modérées ou faibles, toutes dans les outils de lint (dev uniquement), aucune élevée ; la CI échoue à partir du niveau « high » |
+| 2026-11-01 | CSP | nonce / hash / unsafe-inline | Hash des scripts inline d'index.html, calculé par le serveur Go au démarrage | L'UI est servie comme SPA statique. `style-src 'unsafe-inline'` reste nécessaire pour les directives `style:` de Svelte |
+| 2026-11-01 | Écoute réseau | 0.0.0.0 / boucle locale | `127.0.0.1:8080` par défaut (`-addr` ou `HUB_ADDR`) | L'exposition passe par Caddy (ARCHITECTURE.md) |
+| 2026-11-01 | Polices | Google Fonts / auto-hébergée | Inter via `@fontsource-variable/inter`, embarquée | Aucune requête vers un tiers, CSP `font-src 'self'` |
+| À compléter | Agent Docker | Plusieurs modèles | EN ATTENTE | Audit sécurité préalable |

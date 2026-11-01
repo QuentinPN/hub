@@ -1,0 +1,7 @@
+# Prompt initial à coller dans Claude Code
+
+Tu es un lead product designer, architecte logiciel et ingénieur full-stack senior. Ta mission est de concevoir un HomeLab Dashboard auto-hébergé pour centraliser TOUS mes services Docker présents et futurs sur plusieurs machines (mini-PC Debian 13, NAS QNAP, Raspberry Pi). Je veux que tous les services existants soient importés automatiquement au premier scan, et que chaque nouveau service soit ajouté sans intervention. Je veux des widgets intelligents Emby, Sonarr, Radarr, qBittorrent et d’autres services reconnus, plus des widgets génériques. Interface premium Apple TV/tvOS × visionOS, glassmorphism moderne et sobre, fluide, accessible et responsive.
+
+Lis entièrement CLAUDE.md, PRODUCT.md, ARCHITECTURE.md, DESIGN.md, WIDGETS.md, SECURITY.md, ROADMAP.md, TESTING.md, SKILLS.md et DECISIONS.md. Consulte les quatre skills indiqués dans SKILLS.md, vérifie leur installation et propose les skills complémentaires réellement utiles.
+
+CONTRAINTE IMPÉRATIVE : commence UNIQUEMENT par la PHASE 0. Présente trois directions de design distinctes, avec maquettes visuelles desktop/mobile, variantes de home et widgets, exemples d’états, comparatif et recommandation. Je dois valider une direction AVANT tout développement applicatif. Ne crée aucun code de production, ne touche pas à mes services existants et n’installe rien sans accord. Si nécessaire, demande uniquement les informations bloquantes. Après validation, avance par jalons testés, sécurisés et documentés.

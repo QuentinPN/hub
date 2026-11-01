@@ -1,0 +1,147 @@
+// Package fixture is the jalon 1 data source: fixed example data in the shape real
+// discovery will produce, so the UI can be built and tested without touching any host.
+// It is replaced by the PostgreSQL inventory in phase 2.
+package fixture
+
+import (
+	"hub/server/internal/api"
+	"hub/server/internal/domain"
+)
+
+type Store struct {
+	hosts    []api.Host
+	services []api.ServiceDetail
+	sessions []api.Session
+	upcoming []api.UpcomingItem
+}
+
+func ms(v int) *int { return &v }
+
+func New() *Store {
+	s := &Store{
+		hosts: []api.Host{
+			{ID: "debian-mini", Name: "debian-mini", OS: "Debian 13", Containers: 22, Reachable: true, LastSeenLabel: "il y a 3 s",
+				Metrics: []api.HostMetric{{Label: "CPU", Percent: 18}, {Label: "RAM", Percent: 41}, {Label: "Disque", Percent: 63}}},
+			{ID: "qnap-ts464", Name: "qnap-ts464", OS: "QTS", Containers: 9, Reachable: true, LastSeenLabel: "il y a 5 s",
+				Metrics: []api.HostMetric{{Label: "CPU", Percent: 9}, {Label: "RAM", Percent: 52}, {Label: "Volume", Percent: 71}}},
+			{ID: "rpi5", Name: "rpi5", OS: "Raspberry Pi OS", Containers: 3, Reachable: false, LastSeenLabel: "il y a 6 min"},
+		},
+		sessions: []api.Session{
+			{Title: "Dune : Deuxième partie", Device: "Salon · Apple TV 4K", Progress: 0.62, DurationLabel: "1:42 sur 2:46"},
+			{Title: "Severance · S02E06", Device: "Chambre · iPad", Progress: 0.28, DurationLabel: "14 min sur 52"},
+			{Title: "Interstellar", Device: "Bureau · navigateur", Progress: 0.81, DurationLabel: "2:20 sur 2:49", Transcoding: true},
+		},
+		upcoming: []api.UpcomingItem{
+			{Title: "Severance", Detail: "S02E07 · série", When: "Ce soir · 21:00", Kind: "episode", Tone: "#2b3a4a"},
+			{Title: "The Last of Us", Detail: "S02E03 · série", When: "Demain", Kind: "episode", Tone: "#3b3326"},
+			{Title: "Andor", Detail: "S02E04 · série", When: "Mer. 5", Kind: "episode", Tone: "#213a33"},
+			{Title: "Mickey 17", Detail: "Film · surveillé", When: "Sortie numérique", Kind: "movie", Tone: "#40262a"},
+			{Title: "The Bear", Detail: "S04E01 · série", When: "Jeu. 6", Kind: "episode", Tone: "#2c2c3a"},
+			{Title: "Sinners", Detail: "Film · Radarr", When: "Téléchargement 48 %", Kind: "movie", Tone: "#3a3122"},
+		},
+	}
+
+	key := func(last4 string) []api.KeyValue {
+		return []api.KeyValue{
+			{Label: "Clé API", Value: "••••••••" + last4, Mono: true},
+			{Label: "Stockage", Value: "chiffrée côté serveur, jamais envoyée au navigateur"},
+			{Label: "Rafraîchir", Value: "toutes les 60 s"},
+		}
+	}
+
+	s.services = []api.ServiceDetail{
+		{
+			ServiceSummary: api.ServiceSummary{Slug: "emby", Name: "Emby", Monogram: "E", Color: "#2e7d4f", Category: "Médias", HostID: "debian-mini", Status: domain.StatusOnline, LatencyMs: ms(42), Note: "3 lectures"},
+			Version:        "v4.9", Tint: "#1e4f35",
+			Stats:          []api.Stat{{Value: "3", Label: "lectures en cours"}, {Value: "1", Label: "transcodage"}},
+			Identification: []api.KeyValue{{Label: "Reconnu par", Value: "image emby/embyserver"}, {Label: "Confiance", Value: "97 %"}, {Label: "Projet", Value: "Compose media"}},
+			Access:         []api.KeyValue{{Label: "Conteneur", Value: "emby · en cours · 12 j"}, {Label: "URL", Value: "https://emby.lan", Mono: true}, {Label: "Vérifiée", Value: "il y a 2 min"}},
+			Connection:     key("81c2"),
+		},
+		{
+			ServiceSummary: api.ServiceSummary{Slug: "sonarr", Name: "Sonarr", Monogram: "S", Color: "#1f6fb2", Category: "Médias", HostID: "debian-mini", Status: domain.StatusOnline, LatencyMs: ms(18), Note: "4 cette semaine"},
+			Version:        "v4 · 214 séries suivies", Tint: "#24466f",
+			Stats:          []api.Stat{{Value: "4", Label: "épisodes cette semaine"}, {Value: "2", Label: "en téléchargement"}, {Value: "0", Label: "épisodes manquants"}},
+			Upcoming:       s.upcoming[:3],
+			Identification: []api.KeyValue{{Label: "Reconnu par", Value: "image linuxserver/sonarr"}, {Label: "Confiance", Value: "98 % · confirmé"}, {Label: "Projet", Value: "Compose media"}, {Label: "Catégorie", Value: "Médias · modifiable"}},
+			Access:         []api.KeyValue{{Label: "Conteneur", Value: "sonarr · en cours · 12 j"}, {Label: "Hôte", Value: "debian-mini · agent connecté"}, {Label: "URL", Value: "https://sonarr.lan", Mono: true}, {Label: "Vérifiée", Value: "il y a 2 min · label homelab.url"}},
+			Connection:     key("3f9a"),
+		},
+		{
+			ServiceSummary: api.ServiceSummary{Slug: "radarr", Name: "Radarr", Monogram: "R", Color: "#b8860b", Category: "Médias", HostID: "debian-mini", Status: domain.StatusOnline, LatencyMs: ms(21), Note: "2 en file"},
+			Version:        "v5", Tint: "#5a4512",
+			Stats:          []api.Stat{{Value: "2", Label: "en file"}, {Value: "1", Label: "sortie cette semaine"}},
+			Upcoming:       s.upcoming[3:4],
+			Identification: []api.KeyValue{{Label: "Reconnu par", Value: "image linuxserver/radarr"}, {Label: "Confiance", Value: "98 %"}},
+			Access:         []api.KeyValue{{Label: "Conteneur", Value: "radarr · en cours · 12 j"}, {Label: "URL", Value: "https://radarr.lan", Mono: true}},
+			Connection:     key("0d17"),
+		},
+		{
+			ServiceSummary: api.ServiceSummary{Slug: "qbittorrent", Name: "qBittorrent", Monogram: "qB", Color: "#3d5a80", Category: "Téléchargements", HostID: "qnap-ts464", Status: domain.StatusOnline, LatencyMs: ms(9), Note: "↓ 24,6 Mo/s"},
+			Version:        "v5.0", Tint: "#1d2f44",
+			Stats:          []api.Stat{{Value: "24,6 Mo/s", Label: "réception"}, {Value: "3", Label: "actifs"}},
+			Identification: []api.KeyValue{{Label: "Reconnu par", Value: "image linuxserver/qbittorrent"}, {Label: "Confiance", Value: "95 %"}},
+			Access:         []api.KeyValue{{Label: "Conteneur", Value: "qbittorrent · en cours · 4 j"}, {Label: "URL", Value: "https://qbit.lan", Mono: true}},
+			Connection:     key("5e60"),
+		},
+		{
+			ServiceSummary: api.ServiceSummary{Slug: "jellyseerr", Name: "Jellyseerr", Monogram: "J", Color: "#6b4e9b", Category: "Médias", HostID: "debian-mini", Status: domain.StatusDegraded, LatencyMs: ms(820), Note: "lent (820 ms)"},
+			Version:        "v2.1", Tint: "#2e2442",
+			Stats:          []api.Stat{{Value: "2", Label: "demandes en attente"}},
+			Identification: []api.KeyValue{{Label: "Reconnu par", Value: "image fallenbagel/jellyseerr"}, {Label: "Confiance", Value: "72 % · à confirmer"}},
+			Access:         []api.KeyValue{{Label: "Conteneur", Value: "jellyseerr · en cours · 1 j"}, {Label: "URL", Value: "https://requests.lan", Mono: true}},
+			Connection:     []api.KeyValue{{Label: "Clé API", Value: "non configurée"}},
+		},
+		{
+			ServiceSummary: api.ServiceSummary{Slug: "pihole", Name: "Pi-hole", Monogram: "Pi", Color: "#8c2f39", Category: "Réseau", HostID: "rpi5", Status: domain.StatusOnline, Note: "état inconnu"},
+			Version:        "v6", Tint: "#3a1d22",
+			Stats:          []api.Stat{{Value: "18 %", Label: "bloquées (il y a 6 min)"}},
+			Identification: []api.KeyValue{{Label: "Reconnu par", Value: "image pihole/pihole"}, {Label: "Confiance", Value: "99 %"}},
+			Access:         []api.KeyValue{{Label: "Conteneur", Value: "pihole · dernier état connu"}, {Label: "Hôte", Value: "rpi5 · agent injoignable"}},
+			Connection:     key("aa42"),
+		},
+	}
+
+	reachable := map[string]bool{}
+	for _, h := range s.hosts {
+		reachable[h.ID] = h.Reachable
+	}
+	for i := range s.services {
+		svc := &s.services[i]
+		svc.Status = domain.EffectiveStatus(svc.Status, reachable[svc.HostID])
+		if svc.Status == domain.StatusUnknown {
+			svc.LatencyMs = nil
+		}
+	}
+	return s
+}
+
+func (s *Store) Home() api.Home {
+	favorites := make([]api.ServiceSummary, 0, len(s.services))
+	online := 0
+	for _, svc := range s.services {
+		favorites = append(favorites, svc.ServiceSummary)
+		if svc.Status == domain.StatusOnline {
+			online++
+		}
+	}
+	return api.Home{
+		Summary:   api.Summary{Online: online, Total: len(s.services)},
+		Sessions:  s.sessions,
+		Favorites: favorites,
+		Upcoming:  s.upcoming,
+		Hosts:     s.hosts,
+	}
+}
+
+func (s *Store) Service(slug string) (api.ServiceDetail, bool) {
+	for _, svc := range s.services {
+		if svc.Slug == slug {
+			if svc.Upcoming == nil {
+				svc.Upcoming = []api.UpcomingItem{}
+			}
+			return svc, true
+		}
+	}
+	return api.ServiceDetail{}, false
+}

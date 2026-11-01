@@ -1,0 +1,7 @@
+node_modules/
+web/build/
+web/.svelte-kit/
+server/internal/webui/dist/*
+!server/internal/webui/dist/.gitkeep
+bin/
+.claude/settings.local.json
