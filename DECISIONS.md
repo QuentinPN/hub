@@ -11,4 +11,6 @@
 | 2026-11-01 | CSP | nonce / hash / unsafe-inline | Hash des scripts inline d'index.html, calculé par le serveur Go au démarrage | L'UI est servie comme SPA statique. `style-src 'unsafe-inline'` reste nécessaire pour les directives `style:` de Svelte |
 | 2026-11-01 | Écoute réseau | 0.0.0.0 / boucle locale | `127.0.0.1:8080` par défaut (`-addr` ou `HUB_ADDR`) | L'exposition passe par Caddy (ARCHITECTURE.md) |
 | 2026-11-01 | Polices | Google Fonts / auto-hébergée | Inter via `@fontsource-variable/inter`, embarquée | Aucune requête vers un tiers, CSP `font-src 'self'` |
+| 2026-11-01 | Catalogue et réglages | — | VALIDÉ (maquettes A-Catalogue et A-Reglages), codés sur données fictives : `GET /api/v1/services` et `GET /api/v1/settings` | Réglages en lecture seule (`editable: false`) tant que PostgreSQL n'est pas en place. « Déduire une URL d'un port publié » toujours désactivé (ARCHITECTURE.md, étape 7). Le bandeau du catalogue ne signale que les services « configuration requise » : l'API ne connaît pas encore la date de découverte, donc pas de « nouveaux depuis hier » |
+| 2026-11-01 | Raccourcis clavier | Style Mac (⌘) / Windows (Ctrl) | `Ctrl+K`, testé sur `ctrlKey` uniquement | Demande explicite de l'utilisateur, malgré l'inspiration Apple |
 | À compléter | Agent Docker | Plusieurs modèles | EN ATTENTE | Audit sécurité préalable |

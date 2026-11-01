@@ -1,4 +1,4 @@
-import type { Home, ServiceDetail } from './types';
+import type { Home, ServiceDetail, ServiceSummary, Settings } from './types';
 
 export class ApiError extends Error {
 	constructor(
@@ -20,6 +20,11 @@ async function getJson<T>(fetchFn: Fetch, path: string): Promise<T> {
 }
 
 export const getHome = (fetchFn: Fetch) => getJson<Home>(fetchFn, '/api/v1/home');
+
+export const getServices = (fetchFn: Fetch) =>
+	getJson<ServiceSummary[]>(fetchFn, '/api/v1/services');
+
+export const getSettings = (fetchFn: Fetch) => getJson<Settings>(fetchFn, '/api/v1/settings');
 
 export const getService = (fetchFn: Fetch, slug: string) =>
 	getJson<ServiceDetail>(fetchFn, `/api/v1/services/${encodeURIComponent(slug)}`);

@@ -86,3 +86,42 @@ func TestSecurityHeaders(t *testing.T) {
 		t.Fatal("missing nosniff")
 	}
 }
+
+func TestServicesListsWholeInventory(t *testing.T) {
+	srv := newServer(t)
+	res, err := http.Get(srv.URL + "/api/v1/services")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	var list []api.ServiceSummary
+	if err := json.NewDecoder(res.Body).Decode(&list); err != nil {
+		t.Fatal(err)
+	}
+	counts := map[domain.Status]int{}
+	for _, s := range list {
+		counts[s.Status]++
+		if s.HostID == "rpi5" && s.Status != domain.StatusUnknown {
+			t.Errorf("%s on unreachable rpi5 has status %q", s.Name, s.Status)
+		}
+	}
+	if len(list) != 34 || counts[domain.StatusConfigRequired] != 1 || counts[domain.StatusUnknown] != 3 {
+		t.Fatalf("got %d services, counts %v", len(list), counts)
+	}
+}
+
+func TestSettingsNeverInferURLFromPorts(t *testing.T) {
+	srv := newServer(t)
+	res, err := http.Get(srv.URL + "/api/v1/settings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	var s api.Settings
+	if err := json.NewDecoder(res.Body).Decode(&s); err != nil {
+		t.Fatal(err)
+	}
+	if s.Discovery.InferURLFromPorts || s.Editable || len(s.Hosts) != 3 {
+		t.Fatalf("unexpected settings: %+v", s)
+	}
+}

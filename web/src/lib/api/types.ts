@@ -13,6 +13,7 @@ export interface ServiceSummary {
 	status: ServiceStatus;
 	latencyMs: number | null;
 	note: string;
+	favorite: boolean;
 }
 
 export interface Session {
@@ -69,4 +70,35 @@ export interface ServiceDetail extends ServiceSummary {
 	identification: KeyValue[];
 	access: KeyValue[];
 	connection: KeyValue[];
+}
+
+export interface AgentHost {
+	id: string;
+	name: string;
+	os: string;
+	arch: string;
+	containers: number;
+	reachable: boolean;
+	lastSeenLabel: string;
+	agentVersion: string;
+	certExpiresLabel: string;
+}
+
+export type RemovalPolicy = 'absent_then_archive' | 'absent_only' | 'archive_now';
+
+export interface Discovery {
+	followEvents: boolean;
+	rescanMinutes: number;
+	onRemoval: RemovalPolicy;
+	archiveAfterDays: number;
+	confirmBelowPercent: number;
+	/** Toujours faux : un port publié n'est jamais pris pour une URL utilisable. */
+	inferUrlFromPorts: boolean;
+}
+
+export interface Settings {
+	/** Faux tant que les réglages ne sont pas enregistrés dans PostgreSQL. */
+	editable: boolean;
+	hosts: AgentHost[];
+	discovery: Discovery;
 }

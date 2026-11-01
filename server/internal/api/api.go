@@ -10,7 +10,9 @@ import (
 // Store is where the API reads the inventory from.
 type Store interface {
 	Home() Home
+	Services() []ServiceSummary
 	Service(slug string) (ServiceDetail, bool)
+	Settings() Settings
 }
 
 // NewHandler returns the full HTTP handler: API routes under /api/v1, health check, and
@@ -25,6 +27,12 @@ func NewHandler(store Store, ui http.Handler, scriptHashes []string) http.Handle
 	})
 	mux.HandleFunc("GET /api/v1/home", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, store.Home())
+	})
+	mux.HandleFunc("GET /api/v1/services", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, store.Services())
+	})
+	mux.HandleFunc("GET /api/v1/settings", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, store.Settings())
 	})
 	mux.HandleFunc("GET /api/v1/services/{slug}", func(w http.ResponseWriter, r *http.Request) {
 		svc, ok := store.Service(r.PathValue("slug"))

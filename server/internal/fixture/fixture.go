@@ -4,11 +4,15 @@
 package fixture
 
 import (
+	"strconv"
+	"strings"
+
 	"hub/server/internal/api"
 	"hub/server/internal/domain"
 )
 
 type Store struct {
+	agents   []api.AgentHost
 	hosts    []api.Host
 	services []api.ServiceDetail
 	sessions []api.Session
@@ -102,6 +106,61 @@ func New() *Store {
 		},
 	}
 
+	for i := range s.services {
+		s.services[i].Favorite = true
+	}
+
+	// The rest of the inventory: summary only, no widget connected yet.
+	type row struct {
+		name, mono, color, category, host, note string
+		status                                  domain.Status
+		latency                                 int // 0 = no web UI to probe
+	}
+	online, cfg := domain.StatusOnline, domain.StatusConfigRequired
+	for _, r := range []row{
+		{"Bazarr", "B", "#4b6b3a", "Médias", "debian-mini", "", online, 25},
+		{"Prowlarr", "P", "#5c5c66", "Médias", "debian-mini", "URL à confirmer", cfg, 0},
+		{"Lidarr", "L", "#2f6b5e", "Médias", "debian-mini", "", online, 19},
+		{"Readarr", "Rd", "#6b4a2a", "Médias", "debian-mini", "", online, 23},
+		{"Tdarr", "T", "#3a4f6b", "Médias", "qnap-ts464", "", online, 31},
+		{"SABnzbd", "Sa", "#6b5a2a", "Téléchargements", "qnap-ts464", "", online, 12},
+		{"FlareSolverr", "F", "#44515c", "Téléchargements", "debian-mini", "sans interface", online, 0},
+		{"Unpackerr", "U", "#4d4d55", "Téléchargements", "debian-mini", "sans interface", online, 0},
+		{"Gluetun", "G", "#2a5c4a", "Téléchargements", "qnap-ts464", "VPN actif", online, 0},
+		{"WireGuard", "W", "#6b2a2a", "Réseau", "rpi5", "", online, 0},
+		{"Unbound", "Ub", "#3d3d6b", "Réseau", "rpi5", "", online, 0},
+		{"Caddy", "C", "#1f5f6b", "Réseau", "debian-mini", "", online, 3},
+		{"Tailscale", "Ts", "#3a3a40", "Réseau", "debian-mini", "sans interface", online, 0},
+		{"Portainer", "Po", "#13708a", "Infrastructure", "debian-mini", "", online, 14},
+		{"Dockhand", "D", "#2a4f6b", "Infrastructure", "qnap-ts464", "", online, 16},
+		{"PostgreSQL", "Pg", "#335f8a", "Infrastructure", "debian-mini", "sans interface", online, 0},
+		{"Redis", "Re", "#8a2f2f", "Infrastructure", "debian-mini", "sans interface", online, 0},
+		{"Diun", "Di", "#555b6b", "Infrastructure", "debian-mini", "sans interface", online, 0},
+		{"Vaultwarden", "V", "#1a5c8a", "Infrastructure", "debian-mini", "", online, 11},
+		{"Nextcloud", "N", "#1f5f8a", "Infrastructure", "qnap-ts464", "", online, 48},
+		{"Immich", "I", "#4a3a7a", "Infrastructure", "qnap-ts464", "", online, 37},
+		{"Syncthing", "Sy", "#2a6b6b", "Infrastructure", "qnap-ts464", "", online, 22},
+		{"Uptime Kuma", "K", "#2a7a4a", "Surveillance", "debian-mini", "", online, 15},
+		{"Grafana", "Gr", "#8a5a1f", "Surveillance", "debian-mini", "", online, 27},
+		{"Prometheus", "Pr", "#8a3f1f", "Surveillance", "debian-mini", "", online, 13},
+		{"Loki", "Lo", "#5a4a2a", "Surveillance", "debian-mini", "sans interface", online, 0},
+		{"cAdvisor", "cA", "#3f5a6b", "Surveillance", "debian-mini", "sans interface", online, 0},
+		{"Gotify", "Go", "#2a5a7a", "Surveillance", "debian-mini", "", online, 10},
+	} {
+		sum := api.ServiceSummary{Slug: slugify(r.name), Name: r.name, Monogram: r.mono, Color: r.color, Category: r.category, HostID: r.host, Status: r.status, Note: r.note}
+		if r.latency > 0 {
+			sum.LatencyMs = ms(r.latency)
+		}
+		s.services = append(s.services, api.ServiceDetail{
+			ServiceSummary: sum,
+			Tint:           "#1f2a36",
+			Stats:          []api.Stat{},
+			Identification: []api.KeyValue{{Label: "Catégorie", Value: r.category}},
+			Access:         []api.KeyValue{{Label: "Hôte", Value: r.host}},
+			Connection:     []api.KeyValue{{Label: "Widget", Value: "non configuré"}},
+		})
+	}
+
 	reachable := map[string]bool{}
 	for _, h := range s.hosts {
 		reachable[h.ID] = h.Reachable
@@ -111,16 +170,57 @@ func New() *Store {
 		svc.Status = domain.EffectiveStatus(svc.Status, reachable[svc.HostID])
 		if svc.Status == domain.StatusUnknown {
 			svc.LatencyMs = nil
+			if svc.Note == "" {
+				svc.Note = "agent muet"
+			}
+		}
+		if svc.Note == "" && svc.LatencyMs != nil {
+			svc.Note = strconv.Itoa(*svc.LatencyMs) + " ms"
 		}
 	}
+
+	s.agents = []api.AgentHost{
+		{ID: "debian-mini", Name: "debian-mini", OS: "Debian 13", Arch: "amd64", Containers: 22, Reachable: true, LastSeenLabel: "il y a 3 s", AgentVersion: "v0.3.0", CertExpiresLabel: "12 févr."},
+		{ID: "qnap-ts464", Name: "qnap-ts464", OS: "QTS", Arch: "amd64", Containers: 9, Reachable: true, LastSeenLabel: "il y a 5 s", AgentVersion: "v0.3.0", CertExpiresLabel: "12 févr."},
+		{ID: "rpi5", Name: "rpi5", OS: "Raspberry Pi OS", Arch: "arm64", Containers: 3, Reachable: false, LastSeenLabel: "il y a 6 min", AgentVersion: "v0.3.0", CertExpiresLabel: "12 févr."},
+	}
 	return s
+}
+
+func slugify(name string) string {
+	return strings.ReplaceAll(strings.ToLower(name), " ", "-")
+}
+
+func (s *Store) Services() []api.ServiceSummary {
+	out := make([]api.ServiceSummary, 0, len(s.services))
+	for _, svc := range s.services {
+		out = append(out, svc.ServiceSummary)
+	}
+	return out
+}
+
+func (s *Store) Settings() api.Settings {
+	return api.Settings{
+		Editable: false,
+		Hosts:    s.agents,
+		Discovery: api.Discovery{
+			FollowEvents:        true,
+			RescanMinutes:       5,
+			OnRemoval:           api.RemovalAbsentThenArchive,
+			ArchiveAfterDays:    7,
+			ConfirmBelowPercent: 80,
+			InferURLFromPorts:   false,
+		},
+	}
 }
 
 func (s *Store) Home() api.Home {
 	favorites := make([]api.ServiceSummary, 0, len(s.services))
 	online := 0
 	for _, svc := range s.services {
-		favorites = append(favorites, svc.ServiceSummary)
+		if svc.Favorite {
+			favorites = append(favorites, svc.ServiceSummary)
+		}
 		if svc.Status == domain.StatusOnline {
 			online++
 		}

@@ -15,6 +15,7 @@ type ServiceSummary struct {
 	Status    domain.Status `json:"status"`
 	LatencyMs *int          `json:"latencyMs"`
 	Note      string        `json:"note"`
+	Favorite  bool          `json:"favorite"`
 }
 
 type Session struct {
@@ -71,6 +72,46 @@ type KeyValue struct {
 type Stat struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
+}
+
+type AgentHost struct {
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	OS               string `json:"os"`
+	Arch             string `json:"arch"`
+	Containers       int    `json:"containers"`
+	Reachable        bool   `json:"reachable"`
+	LastSeenLabel    string `json:"lastSeenLabel"`
+	AgentVersion     string `json:"agentVersion"`
+	CertExpiresLabel string `json:"certExpiresLabel"`
+}
+
+// RemovalPolicy is what happens to a service whose containers disappear. Its settings are
+// kept in every case (PRODUCT.md, acceptance criterion 3).
+type RemovalPolicy string
+
+const (
+	RemovalAbsentThenArchive RemovalPolicy = "absent_then_archive"
+	RemovalAbsentOnly        RemovalPolicy = "absent_only"
+	RemovalArchiveNow        RemovalPolicy = "archive_now"
+)
+
+type Discovery struct {
+	FollowEvents        bool          `json:"followEvents"`
+	RescanMinutes       int           `json:"rescanMinutes"`
+	OnRemoval           RemovalPolicy `json:"onRemoval"`
+	ArchiveAfterDays    int           `json:"archiveAfterDays"`
+	ConfirmBelowPercent int           `json:"confirmBelowPercent"`
+	// InferURLFromPorts is always false: a published port is never assumed to be a usable
+	// URL (ARCHITECTURE.md, discovery step 7). It is exposed so the UI can explain why.
+	InferURLFromPorts bool `json:"inferUrlFromPorts"`
+}
+
+type Settings struct {
+	// Editable is false until settings are persisted in PostgreSQL.
+	Editable  bool        `json:"editable"`
+	Hosts     []AgentHost `json:"hosts"`
+	Discovery Discovery   `json:"discovery"`
 }
 
 type ServiceDetail struct {

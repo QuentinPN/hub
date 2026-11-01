@@ -4,17 +4,36 @@
 	import Monogram from './Monogram.svelte';
 	import StatusDot from './StatusDot.svelte';
 
-	let { service }: { service: ServiceSummary } = $props();
+	let {
+		service,
+		sub,
+		showFavorite = false
+	}: { service: ServiceSummary; sub?: string; showFavorite?: boolean } = $props();
+	const subtitle = $derived(sub ?? `${service.hostId} · ${service.note}`);
 </script>
 
-<a class="app" href={resolve('/services/[slug]', { slug: service.slug })}>
+<a
+	class="app"
+	class:cfg={service.status === 'config_required'}
+	class:unk={service.status === 'unknown'}
+	href={resolve('/services/[slug]', { slug: service.slug })}
+>
 	<div class="row">
 		<Monogram text={service.monogram} color={service.color} />
-		<StatusDot status={service.status} />
+		<span class="marks">
+			{#if showFavorite && service.favorite}
+				<svg width="15" height="15" viewBox="0 0 24 24" fill="var(--accent-play)" role="img"
+					><title>Favori</title><path
+						d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"
+					></path></svg
+				>
+			{/if}
+			<StatusDot status={service.status} />
+		</span>
 	</div>
 	<div>
 		<div class="name">{service.name}</div>
-		<div class="meta muted">{service.hostId} · {service.note}</div>
+		<div class="meta muted">{subtitle}</div>
 	</div>
 </a>
 
@@ -41,6 +60,20 @@
 		background: var(--surface-2);
 		box-shadow: var(--shadow-lift);
 		outline: none;
+	}
+	/* Configuration requise : bord pointillé ; hôte injoignable : hachures grises. */
+	.cfg {
+		border-style: dashed;
+		border-color: rgba(255, 255, 255, 0.25);
+		background: transparent;
+	}
+	.unk {
+		background: var(--hatch);
+	}
+	.marks {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
 	}
 	.row {
 		display: flex;

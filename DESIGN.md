@@ -26,6 +26,7 @@ Tokens de départ, à formaliser en phase 1 :
 - **À dessiner en phase 1 :** le catalogue « Tous les services » (grille filtrable par hôte et catégorie, pour 34 services ou plus) et les réglages.
 
 ## Principes
+- Raccourcis clavier affichés et gérés à la façon Windows (`Ctrl+K`), jamais avec les symboles Mac (`⌘`). Demande explicite de l'utilisateur, malgré l'inspiration Apple.
 - Dark mode premium en priorité; mode clair éventuel.
 - Verre sobre : blur ciblé, bordures fines, transparence lisible, pas de halo gratuit.
 - Contrastes WCAG AA, focus visible, clavier et lecteur d’écran.

@@ -4,7 +4,7 @@
 [x] Examiner les skills et la documentation
 [ ] Confirmer hypothèses sans modifier l’infrastructure
 [x] Produire 3 propositions design desktop/mobile et comparatif
-[ ] Montrer exemple de home, catalogue, détail service, widgets et paramètres
+[x] Montrer exemple de home, catalogue, détail service, widgets et paramètres (maquettes validées, pages codées sur données fictives)
 [x] Recueillir validation explicite de l’utilisateur (2026-11-01 : A + fiche service, backend Go)
 
 ## Phase 1 — Foundation

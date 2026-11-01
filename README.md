@@ -4,6 +4,10 @@ Dashboard auto-hébergé pour les services Docker du mini-PC Debian, du QNAP et 
 
 **État : jalon 1.** Les données sont **fictives** (`server/internal/fixture`). Aucun hôte n'est contacté et rien n'accède à Docker.
 
+Pages : accueil (`/`), catalogue « Tous les services » (`/services`, `Ctrl+K` depuis n'importe quelle page), fiche service (`/services/{slug}`), réglages en lecture seule (`/settings`).
+
+API en lecture seule : `GET /api/v1/home`, `/api/v1/services`, `/api/v1/services/{slug}`, `/api/v1/settings`, et `GET /healthz`.
+
 ## Structure
 
 - `server/` : API Go et binaire unique. Il embarque l'UI compilée dans `server/internal/webui/dist`.
