@@ -34,7 +34,7 @@ Premier démarrage : tant qu'aucun compte n'existe, le serveur écrit dans ses l
 
 Le cookie de session est `__Host-` et `Secure` : le navigateur ne l'accepte qu'en HTTPS, ou sur `http://localhost` (contexte sûr). Un accès en HTTP par l'IP du poste (`http://192.0.2.x:8080`) ne permet donc pas de se connecter ; en production, l'accès passe par Caddy en HTTPS.
 
-Passkeys (Windows Hello, téléphone, clé de sécurité) : une passkey est liée à un nom de domaine servi en HTTPS, jamais à une IP. En production, définir `HUB_ORIGIN` sur l'adresse du dashboard (par exemple `HUB_ORIGIN=https://hub.maison.example`). Sans elle, les passkeys ne marchent que sur `http://localhost:5173` et `http://localhost:8080`. Changer de domaine rend les passkeys existantes inutilisables ; le mot de passe reste valable. On les ajoute dans Réglages → Sécurité et accès, en confirmant avec le mot de passe.
+Passkeys (Windows Hello, téléphone, clé de sécurité) : une passkey est liée à un nom de domaine servi en HTTPS, jamais à une IP. En production, définir `HUB_ORIGIN` sur l'adresse du dashboard (`HUB_ORIGIN=https://home.example.com`). Sans elle, les passkeys ne marchent que sur `http://localhost:5173` et `http://localhost:8080`. Changer de domaine rend les passkeys existantes inutilisables ; le mot de passe reste valable. On les ajoute dans Réglages → Sécurité et accès, en confirmant avec le mot de passe.
 
 UI avec rechargement à chaud (port 5173 ; Vite redirige `/api` vers 8080) :
 
