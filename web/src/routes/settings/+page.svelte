@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import DiscoveryForm from '#lib/components/DiscoveryForm.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
+	import SessionsList from '#lib/components/SessionsList.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
 	import StatusDot from '#lib/components/StatusDot.svelte';
 	import TopNav from '#lib/components/TopNav.svelte';
@@ -9,7 +10,8 @@
 
 	let { data }: PageProps = $props();
 
-	// Seules « Hôtes et agents » et « Découverte » ont du contenu ; le reste arrive par jalons.
+	// Seules « Hôtes et agents », « Découverte » et « Sécurité et accès » ont du contenu ; le
+	// reste arrive par jalons.
 	const sections = [
 		{ label: 'Général', id: null },
 		{ label: 'Hôtes et agents', id: 'hosts' },
@@ -17,7 +19,7 @@
 		{ label: 'Widgets et connexions', id: null },
 		{ label: 'Notifications', id: null },
 		{ label: 'Apparence', id: null },
-		{ label: 'Sécurité et accès', id: null },
+		{ label: 'Sécurité et accès', id: 'security' },
 		{ label: 'Sauvegarde', id: null }
 	] as const;
 </script>
@@ -102,6 +104,15 @@
 					onretry={() => invalidateAll()}
 				/>
 			{/await}
+
+			<section class="card" id="security" aria-labelledby="security-title">
+				<h2 id="security-title">Sécurité et accès</h2>
+				<p class="muted intro">
+					Connecté en tant que <strong>{data.auth.username}</strong>. Chaque navigateur connecté
+					ouvre une session de 30 jours, prolongée à chaque visite.
+				</p>
+				<SessionsList />
+			</section>
 		</main>
 	</div>
 </div>

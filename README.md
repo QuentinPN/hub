@@ -24,11 +24,15 @@ PostgreSQL de développement (Docker Desktop, sur ce poste uniquement) :
 docker compose -f deploy/dev/compose.yml up -d --wait
 ```
 
-API (port 8080, écoute sur la boucle locale par défaut). Les migrations s'appliquent au démarrage. Sans `HUB_DATABASE_URL`, le serveur tourne sur les données d'exemple, en lecture seule :
+API (port 8080, écoute sur la boucle locale par défaut). `HUB_DATABASE_URL` est obligatoire : le compte et les sessions vivent en base. Les migrations s'appliquent au démarrage :
 
 ```bash
 cd server && HUB_DATABASE_URL="postgres://hub:hub-dev-only@127.0.0.1:55432/hub?sslmode=disable" go run ./cmd/hub-server
 ```
+
+Premier démarrage : tant qu'aucun compte n'existe, le serveur écrit dans ses logs un code à usage unique (`setup_code=XXXX-XXXX-XXXX-XXXX`, renouvelé à chaque démarrage). Ouvrir le dashboard, saisir ce code, puis choisir l'identifiant et le mot de passe (12 caractères minimum).
+
+Le cookie de session est `__Host-` et `Secure` : le navigateur ne l'accepte qu'en HTTPS, ou sur `http://localhost` (contexte sûr). Un accès en HTTP par l'IP du poste (`http://192.0.2.x:8080`) ne permet donc pas de se connecter ; en production, l'accès passe par Caddy en HTTPS.
 
 UI avec rechargement à chaud (port 5173 ; Vite redirige `/api` vers 8080) :
 

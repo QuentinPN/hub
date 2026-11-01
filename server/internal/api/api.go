@@ -9,6 +9,8 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+
+	"hub/server/internal/auth"
 )
 
 // Store is where the API reads the inventory from.
@@ -29,11 +31,12 @@ type SettingsWriter interface {
 // ErrNotFound is returned by a Store for an unknown resource.
 var ErrNotFound = errors.New("not found")
 
-// NewHandler returns the full HTTP handler: API routes under /api/v1, health check, and
-// ui for everything else. scriptHashes are CSP sources ('sha256-…') for the UI's inline
-// bootstrap scripts.
-func NewHandler(store Store, ui http.Handler, scriptHashes []string) http.Handler {
+// NewHandler returns the full HTTP handler: API routes under /api/v1, all behind a session
+// except the auth routes in publicAPI, a health check, and ui for everything else.
+// scriptHashes are CSP sources ('sha256-…') for the UI's inline bootstrap scripts.
+func NewHandler(store Store, authSvc *auth.Service, ui http.Handler, scriptHashes []string) http.Handler {
 	mux := http.NewServeMux()
+	registerAuth(mux, authSvc)
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -65,6 +68,8 @@ func NewHandler(store Store, ui http.Handler, scriptHashes []string) http.Handle
 				internalError(w, r, err)
 				return
 			}
+			p, _ := current(r.Context())
+			authSvc.Audit(r.Context(), auth.Event{Kind: "settings_updated", UserID: &p.user.ID, IP: clientOf(r).IP, Detail: "discovery"})
 			respond(w, r)(store.Settings(r.Context()))
 		})
 	}
@@ -73,7 +78,7 @@ func NewHandler(store Store, ui http.Handler, scriptHashes []string) http.Handle
 	})
 	mux.Handle("/", ui)
 
-	return securityHeaders(sameOrigin(mux), contentSecurityPolicy(scriptHashes))
+	return securityHeaders(sameOrigin(requireSession(authSvc, mux)), contentSecurityPolicy(scriptHashes))
 }
 
 // respond writes v as JSON, or the matching error status.
@@ -116,7 +121,7 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 
 // sameOrigin rejects state-changing requests sent by another site (CSRF). Browsers set
 // Sec-Fetch-Site and Origin on such requests; a missing header is accepted for non-browser
-// clients, which the authentication step will cover.
+// clients, which still need a session cookie.
 func sameOrigin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

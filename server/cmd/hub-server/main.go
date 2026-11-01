@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"hub/server/internal/api"
+	"hub/server/internal/auth"
 	"hub/server/internal/db"
 	"hub/server/internal/fixture"
 	"hub/server/internal/pgstore"
@@ -36,10 +37,24 @@ func main() {
 	}
 	defer closeStore()
 
+	authSvc, err := auth.New(store)
+	if err != nil {
+		slog.Error("startup", "err", err)
+		os.Exit(1)
+	}
+	// The setup code goes to the logs only: reading them already requires access to the
+	// server. A new code is issued at each start until the account exists.
+	if code, err := authSvc.PrepareSetup(ctx); err != nil {
+		slog.Error("startup", "err", err)
+		os.Exit(1)
+	} else if code != "" {
+		slog.Warn("no account yet: open the dashboard and create it with this one-time code", "setup_code", code)
+	}
+
 	ui := webui.New()
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           api.NewHandler(store, ui.Handler, ui.ScriptHashes),
+		Handler:           api.NewHandler(store, authSvc, ui.Handler, ui.ScriptHashes),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -62,13 +77,11 @@ func main() {
 	}
 }
 
-// openStore uses PostgreSQL when a database URL is set, and otherwise the read-only
-// example data, which is enough to work on the UI.
-func openStore(ctx context.Context, databaseURL string) (api.Store, func(), error) {
-	live := fixture.New()
+// openStore connects, migrates and returns the PostgreSQL store. The database is required:
+// the account and sessions live there, and without them nothing is reachable.
+func openStore(ctx context.Context, databaseURL string) (*pgstore.Store, func(), error) {
 	if databaseURL == "" {
-		slog.Warn("HUB_DATABASE_URL is not set: example data, settings are read-only")
-		return live, func() {}, nil
+		return nil, nil, errors.New("HUB_DATABASE_URL is required")
 	}
 	pool, err := db.Open(ctx, databaseURL)
 	if err != nil {
@@ -78,7 +91,7 @@ func openStore(ctx context.Context, databaseURL string) (api.Store, func(), erro
 		pool.Close()
 		return nil, nil, err
 	}
-	store, err := pgstore.New(ctx, pool, live)
+	store, err := pgstore.New(ctx, pool, fixture.New())
 	if err != nil {
 		pool.Close()
 		return nil, nil, err

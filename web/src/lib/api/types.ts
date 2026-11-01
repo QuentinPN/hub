@@ -102,3 +102,20 @@ export interface Settings {
 	hosts: AgentHost[];
 	discovery: Discovery;
 }
+
+export interface AuthState {
+	/** Vrai tant qu'aucun compte n'existe : la page de connexion propose alors de le créer. */
+	setupRequired: boolean;
+	authenticated: boolean;
+	username?: string;
+}
+
+export interface SessionInfo {
+	id: number;
+	/** La session de ce navigateur. */
+	current: boolean;
+	userAgent: string;
+	ip: string;
+	createdAt: string;
+	lastSeenAt: string;
+}
