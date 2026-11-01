@@ -5,7 +5,7 @@
 </script>
 
 <section class="info" aria-labelledby={id}>
-	<h3 {id}>{title}</h3>
+	<h2 {id}>{title}</h2>
 	<dl>
 		{#each rows as row (row.label)}
 			<dt class="muted">{row.label}</dt>
@@ -26,7 +26,7 @@
 		border-radius: var(--r-card);
 		background: var(--surface-1);
 	}
-	h3 {
+	h2 {
 		margin: 0;
 		font-size: 17px;
 		font-weight: 600;

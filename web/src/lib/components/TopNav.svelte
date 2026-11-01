@@ -234,6 +234,8 @@
 			border: 1px solid rgba(255, 255, 255, 0.1);
 			border-radius: 26px;
 			background: rgba(28, 28, 32, 0.72);
+			backdrop-filter: var(--blur);
+			-webkit-backdrop-filter: var(--blur);
 		}
 		.btab {
 			display: flex;

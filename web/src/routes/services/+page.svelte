@@ -4,7 +4,6 @@
 	import AppCard from '#lib/components/AppCard.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
-	import TopNav from '#lib/components/TopNav.svelte';
 	import {
 		SEARCH_INPUT_ID,
 		catalogueView,
@@ -41,8 +40,6 @@
 <svelte:head><title>Tous les services · Hub</title></svelte:head>
 
 <div class="page">
-	<TopNav />
-
 	<div class="head">
 		<div>
 			<h1>Tous les services</h1>
@@ -182,7 +179,7 @@
 		flex-direction: column;
 		gap: 28px;
 		min-height: 100vh;
-		padding: 28px var(--space-page) 64px;
+		padding: calc(var(--shell-h) + 48px) var(--space-page) 64px;
 		background: radial-gradient(90% 40% at 70% 0%, #17222d 0%, rgba(7, 8, 10, 0) 70%), var(--bg);
 	}
 	.head {
@@ -191,7 +188,6 @@
 		align-items: flex-end;
 		justify-content: space-between;
 		gap: 20px;
-		margin-top: 20px;
 	}
 	h1 {
 		margin: 0;
@@ -220,6 +216,11 @@
 	}
 	.search:focus-within {
 		border-color: var(--border-focus);
+	}
+	/* Le champ n'a pas d'outline propre : l'anneau entoure toute la pilule. */
+	.search:has(input:focus-visible) {
+		outline: 2px solid var(--text);
+		outline-offset: 3px;
 	}
 	.search input {
 		flex: 1;
@@ -364,9 +365,7 @@
 	@media (max-width: 720px) {
 		.page {
 			gap: 20px;
-		}
-		.head {
-			margin-top: 4px;
+			padding-top: calc(var(--shell-h) + 24px);
 		}
 		.search {
 			flex-basis: 100%;

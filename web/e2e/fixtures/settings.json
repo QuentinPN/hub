@@ -1,0 +1,46 @@
+{
+	"editable": true,
+	"hosts": [
+		{
+			"id": "debian-mini",
+			"name": "debian-mini",
+			"os": "Debian 13",
+			"arch": "amd64",
+			"containers": 22,
+			"reachable": true,
+			"lastSeenLabel": "il y a 3 s",
+			"agentVersion": "v0.3.0",
+			"certExpiresLabel": "12 févr."
+		},
+		{
+			"id": "qnap-ts464",
+			"name": "qnap-ts464",
+			"os": "QTS",
+			"arch": "amd64",
+			"containers": 9,
+			"reachable": true,
+			"lastSeenLabel": "il y a 5 s",
+			"agentVersion": "v0.3.0",
+			"certExpiresLabel": "12 févr."
+		},
+		{
+			"id": "rpi5",
+			"name": "rpi5",
+			"os": "Raspberry Pi OS",
+			"arch": "arm64",
+			"containers": 3,
+			"reachable": false,
+			"lastSeenLabel": "il y a 6 min",
+			"agentVersion": "v0.3.0",
+			"certExpiresLabel": "12 févr."
+		}
+	],
+	"discovery": {
+		"followEvents": true,
+		"rescanMinutes": 5,
+		"onRemoval": "absent_then_archive",
+		"archiveAfterDays": 7,
+		"confirmBelowPercent": 80,
+		"inferUrlFromPorts": false
+	}
+}

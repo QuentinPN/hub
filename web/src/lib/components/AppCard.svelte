@@ -59,7 +59,6 @@
 		border-color: var(--border-focus);
 		background: var(--surface-2);
 		box-shadow: var(--shadow-lift);
-		outline: none;
 	}
 	/* Configuration requise : bord pointillé ; hôte injoignable : hachures grises. */
 	.cfg {

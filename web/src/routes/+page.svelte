@@ -7,17 +7,30 @@
 	import PosterCard from '#lib/components/PosterCard.svelte';
 	import Shelf from '#lib/components/Shelf.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
-	import TopNav from '#lib/components/TopNav.svelte';
+	import { shell } from '#lib/shell.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	// Le compteur « en ligne » de la barre du haut n'apparaît que sur l'accueil.
+	$effect(() => {
+		let current = true;
+		data.home
+			.then((home) => {
+				if (current) shell.summary = home.summary;
+			})
+			.catch(() => {});
+		return () => {
+			current = false;
+			shell.summary = null;
+		};
+	});
 </script>
 
 <svelte:head><title>Accueil · Hub</title></svelte:head>
 
 {#await data.home}
 	<section class="hero">
-		<TopNav />
 		<div class="hero-body" aria-busy="true">
 			<Skeleton width="180px" height="16px" />
 			<Skeleton width="min(560px, 90%)" height="56px" radius="14px" />
@@ -27,7 +40,6 @@
 {:then home}
 	{@const main = home.sessions[0]}
 	<section class="hero">
-		<TopNav online={home.summary.online} total={home.summary.total} />
 		{#if main}
 			<div class="hero-body">
 				<div class="hero-text">
@@ -55,7 +67,10 @@
 						<a class="btn primary" href={resolve('/services/[slug]', { slug: 'emby' })}
 							>Ouvrir la fiche Emby</a
 						>
-						<span class="btn glass">Toutes les sessions · {home.sessions.length}</span>
+						<span class="muted sessions"
+							>{home.sessions.length}
+							{home.sessions.length > 1 ? 'sessions' : 'session'} en cours</span
+						>
 					</div>
 				</div>
 				<ul class="others">
@@ -74,13 +89,13 @@
 		{/if}
 	</section>
 
-	<main class="content">
+	<div class="content">
 		<Shelf title="Favoris" id="fav">
 			{#each home.favorites as service (service.slug)}
 				<AppCard {service} />
 			{/each}
 		</Shelf>
-		<Shelf title="À venir · Sonarr et Radarr" id="soon">
+		<Shelf title="À venir · Sonarr et Radarr" id="soon" focusable>
 			{#each home.upcoming as item (item.title + item.detail)}
 				<PosterCard {item} />
 			{/each}
@@ -93,10 +108,9 @@
 				{/each}
 			</div>
 		</section>
-	</main>
+	</div>
 {:catch err}
 	<section class="hero">
-		<TopNav />
 		<div class="hero-body">
 			<ErrorPanel
 				title="Le serveur Hub ne répond pas"
@@ -111,10 +125,9 @@
 	.hero {
 		display: flex;
 		flex-direction: column;
-		justify-content: space-between;
-		gap: 48px;
+		justify-content: flex-end;
 		min-height: 480px;
-		padding: 28px var(--space-page) 48px;
+		padding: calc(var(--shell-h) + 48px) var(--space-page) 48px;
 		background:
 			radial-gradient(120% 90% at 78% 30%, #3a2a1c 0%, rgba(58, 42, 28, 0) 60%),
 			linear-gradient(180deg, #14202b 0%, #0c1218 55%, var(--bg) 100%);
@@ -187,10 +200,9 @@
 		background: var(--text);
 		color: var(--text-inverse);
 	}
-	.glass {
-		border: 1px solid var(--border-2);
-		background: var(--surface-3);
-		backdrop-filter: var(--blur);
+	.sessions {
+		align-self: center;
+		font-size: 15px;
 	}
 	.others {
 		display: flex;

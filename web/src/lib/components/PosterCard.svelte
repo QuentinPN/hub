@@ -27,12 +27,10 @@
 			transform var(--dur) var(--ease),
 			box-shadow var(--dur) var(--ease);
 	}
-	.poster:hover,
-	.poster:focus-visible {
+	.poster:hover {
 		transform: scale(var(--focus-scale));
 		border-color: var(--border-focus);
 		box-shadow: var(--shadow-lift);
-		outline: none;
 	}
 	.chip {
 		align-self: flex-start;

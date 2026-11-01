@@ -9,3 +9,5 @@ __pycache__/
 *.pyc
 # Clés de chiffrement des secrets (HUB_SECRET_KEY_FILE)
 *.key
+test-results/
+playwright-report/

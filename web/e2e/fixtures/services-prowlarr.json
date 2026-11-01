@@ -1,0 +1,34 @@
+{
+	"slug": "prowlarr",
+	"name": "Prowlarr",
+	"monogram": "P",
+	"color": "#5c5c66",
+	"category": "Médias",
+	"hostId": "debian-mini",
+	"status": "config_required",
+	"latencyMs": null,
+	"note": "URL à confirmer",
+	"favorite": false,
+	"version": "",
+	"tint": "#1f2a36",
+	"stats": [],
+	"upcoming": [],
+	"identification": [
+		{
+			"label": "Catégorie",
+			"value": "Médias"
+		}
+	],
+	"access": [
+		{
+			"label": "Hôte",
+			"value": "debian-mini"
+		}
+	],
+	"connection": [
+		{
+			"label": "Widget",
+			"value": "non configuré"
+		}
+	]
+}

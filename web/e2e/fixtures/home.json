@@ -1,0 +1,205 @@
+{
+	"summary": {
+		"online": 29,
+		"total": 34
+	},
+	"sessions": [
+		{
+			"title": "Dune : Deuxième partie",
+			"subtitle": "",
+			"device": "Salon · Apple TV 4K",
+			"progress": 0.62,
+			"durationLabel": "1:42 sur 2:46",
+			"transcoding": false
+		},
+		{
+			"title": "Severance · S02E06",
+			"subtitle": "",
+			"device": "Chambre · iPad",
+			"progress": 0.28,
+			"durationLabel": "14 min sur 52",
+			"transcoding": false
+		},
+		{
+			"title": "Interstellar",
+			"subtitle": "",
+			"device": "Bureau · navigateur",
+			"progress": 0.81,
+			"durationLabel": "2:20 sur 2:49",
+			"transcoding": true
+		}
+	],
+	"favorites": [
+		{
+			"slug": "emby",
+			"name": "Emby",
+			"monogram": "E",
+			"color": "#2e7d4f",
+			"category": "Médias",
+			"hostId": "debian-mini",
+			"status": "online",
+			"latencyMs": 42,
+			"note": "3 lectures",
+			"favorite": true
+		},
+		{
+			"slug": "sonarr",
+			"name": "Sonarr",
+			"monogram": "S",
+			"color": "#1f6fb2",
+			"category": "Médias",
+			"hostId": "debian-mini",
+			"status": "online",
+			"latencyMs": 18,
+			"note": "4 cette semaine",
+			"favorite": true
+		},
+		{
+			"slug": "radarr",
+			"name": "Radarr",
+			"monogram": "R",
+			"color": "#b8860b",
+			"category": "Médias",
+			"hostId": "debian-mini",
+			"status": "online",
+			"latencyMs": 21,
+			"note": "2 en file",
+			"favorite": true
+		},
+		{
+			"slug": "qbittorrent",
+			"name": "qBittorrent",
+			"monogram": "qB",
+			"color": "#3d5a80",
+			"category": "Téléchargements",
+			"hostId": "qnap-ts464",
+			"status": "online",
+			"latencyMs": 9,
+			"note": "↓ 24,6 Mo/s",
+			"favorite": true
+		},
+		{
+			"slug": "jellyseerr",
+			"name": "Jellyseerr",
+			"monogram": "J",
+			"color": "#6b4e9b",
+			"category": "Médias",
+			"hostId": "debian-mini",
+			"status": "degraded",
+			"latencyMs": 820,
+			"note": "lent (820 ms)",
+			"favorite": true
+		},
+		{
+			"slug": "pihole",
+			"name": "Pi-hole",
+			"monogram": "Pi",
+			"color": "#8c2f39",
+			"category": "Réseau",
+			"hostId": "rpi5",
+			"status": "unknown",
+			"latencyMs": null,
+			"note": "état inconnu",
+			"favorite": true
+		}
+	],
+	"upcoming": [
+		{
+			"title": "Severance",
+			"detail": "S02E07 · série",
+			"when": "Ce soir · 21:00",
+			"kind": "episode",
+			"tone": "#2b3a4a"
+		},
+		{
+			"title": "The Last of Us",
+			"detail": "S02E03 · série",
+			"when": "Demain",
+			"kind": "episode",
+			"tone": "#3b3326"
+		},
+		{
+			"title": "Andor",
+			"detail": "S02E04 · série",
+			"when": "Mer. 5",
+			"kind": "episode",
+			"tone": "#213a33"
+		},
+		{
+			"title": "Mickey 17",
+			"detail": "Film · surveillé",
+			"when": "Sortie numérique",
+			"kind": "movie",
+			"tone": "#40262a"
+		},
+		{
+			"title": "The Bear",
+			"detail": "S04E01 · série",
+			"when": "Jeu. 6",
+			"kind": "episode",
+			"tone": "#2c2c3a"
+		},
+		{
+			"title": "Sinners",
+			"detail": "Film · Radarr",
+			"when": "Téléchargement 48 %",
+			"kind": "movie",
+			"tone": "#3a3122"
+		}
+	],
+	"hosts": [
+		{
+			"id": "debian-mini",
+			"name": "debian-mini",
+			"os": "Debian 13",
+			"containers": 22,
+			"reachable": true,
+			"lastSeenLabel": "il y a 3 s",
+			"metrics": [
+				{
+					"label": "CPU",
+					"percent": 18
+				},
+				{
+					"label": "RAM",
+					"percent": 41
+				},
+				{
+					"label": "Disque",
+					"percent": 63
+				}
+			]
+		},
+		{
+			"id": "qnap-ts464",
+			"name": "qnap-ts464",
+			"os": "QTS",
+			"containers": 9,
+			"reachable": true,
+			"lastSeenLabel": "il y a 5 s",
+			"metrics": [
+				{
+					"label": "CPU",
+					"percent": 9
+				},
+				{
+					"label": "RAM",
+					"percent": 52
+				},
+				{
+					"label": "Volume",
+					"percent": 71
+				}
+			]
+		},
+		{
+			"id": "rpi5",
+			"name": "rpi5",
+			"os": "Raspberry Pi OS",
+			"containers": 3,
+			"reachable": false,
+			"lastSeenLabel": "il y a 6 min",
+			"metrics": null
+		}
+	]
+}

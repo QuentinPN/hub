@@ -1,12 +1,19 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
-	let { title, id, children }: { title: string; id: string; children: Snippet } = $props();
+	// focusable : rangée sans lien (affiches) ; le clavier doit pouvoir la faire défiler.
+	let {
+		title,
+		id,
+		focusable = false,
+		children
+	}: { title: string; id: string; focusable?: boolean; children: Snippet } = $props();
 </script>
 
 <section aria-labelledby={id}>
 	<h2 {id}>{title}</h2>
-	<div class="shelf">
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+	<div class="shelf" tabindex={focusable ? 0 : undefined}>
 		{@render children()}
 	</div>
 </section>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { afterNavigate, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { ApiError } from '#lib/api/client.ts';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
@@ -9,7 +9,6 @@
 	import Shelf from '#lib/components/Shelf.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
 	import StatusDot from '#lib/components/StatusDot.svelte';
-	import TopNav from '#lib/components/TopNav.svelte';
 	import { statusStyle } from '#lib/status.ts';
 	import type { PageProps } from './$types';
 
@@ -17,6 +16,12 @@
 
 	// Les sous-onglets autres qu'Aperçu arrivent avec la découverte réelle (phase 2).
 	const subtabs = ['Aperçu', 'Widgets', 'Conteneurs', 'Historique'];
+
+	// Le lien retour ramène d'où l'on vient : le catalogue ou, par défaut, l'accueil.
+	let fromCatalogue = $state(false);
+	afterNavigate(({ from }) => {
+		fromCatalogue = from?.url.pathname === resolve('/services');
+	});
 
 	let name = $state('Service');
 	$effect(() => {
@@ -28,7 +33,6 @@
 
 {#await data.service}
 	<section class="hero">
-		<TopNav />
 		<div class="hero-body" aria-busy="true">
 			<Skeleton width="96px" height="96px" radius="24px" />
 			<Skeleton width="min(420px, 80%)" height="56px" radius="14px" />
@@ -36,10 +40,13 @@
 	</section>
 {:then svc}
 	<section class="hero" style:--tint={svc.tint}>
-		<TopNav />
 		<div class="hero-body">
 			<div class="hero-text">
-				<a class="muted back" href={resolve('/')}>‹ Accueil</a>
+				{#if fromCatalogue}
+					<a class="muted back" href={resolve('/services')}>‹ Tous les services</a>
+				{:else}
+					<a class="muted back" href={resolve('/')}>‹ Accueil</a>
+				{/if}
 				<div class="title-row">
 					<Monogram text={svc.monogram} color={svc.color} size={96} />
 					<div>
@@ -63,7 +70,7 @@
 		</div>
 	</section>
 
-	<main class="content">
+	<div class="content">
 		<nav class="subtabs" aria-label="Sections du service">
 			{#each subtabs as t, i (t)}
 				<span
@@ -75,7 +82,7 @@
 			{/each}
 		</nav>
 		{#if svc.upcoming.length > 0}
-			<Shelf title="Cette semaine" id="week">
+			<Shelf title="Cette semaine" id="week" focusable>
 				{#each svc.upcoming as item (item.title + item.detail)}
 					<PosterCard {item} />
 				{/each}
@@ -86,10 +93,9 @@
 			<InfoCard title="Conteneurs et accès" id="access" rows={svc.access} />
 			<InfoCard title="Connexion du widget" id="conn" rows={svc.connection} />
 		</div>
-	</main>
+	</div>
 {:catch err}
 	<section class="hero">
-		<TopNav />
 		<div class="hero-body">
 			{#if err instanceof ApiError && err.status === 404}
 				<ErrorPanel
@@ -112,9 +118,9 @@
 		--tint: #24466f;
 		display: flex;
 		flex-direction: column;
-		gap: 48px;
+		justify-content: flex-end;
 		min-height: 460px;
-		padding: 28px var(--space-page) 44px;
+		padding: calc(var(--shell-h) + 48px) var(--space-page) 44px;
 		background:
 			radial-gradient(110% 90% at 80% 20%, var(--tint) 0%, rgba(7, 8, 10, 0) 62%),
 			linear-gradient(180deg, #0f1620 0%, var(--bg) 100%);
@@ -244,14 +250,8 @@
 		.stats b {
 			font-size: 20px;
 		}
-		.subtabs {
-			flex-wrap: nowrap;
-			max-width: 100%;
-			overflow-x: auto;
-			scrollbar-width: none;
-		}
 		.subtab {
-			flex: none;
+			padding: 8px 14px;
 		}
 	}
 </style>

@@ -2,7 +2,7 @@
 
 Dashboard auto-hébergé pour les services Docker du mini-PC Debian, du QNAP et du Raspberry Pi. Le cadrage est dans [PRODUCT.md](PRODUCT.md), [ARCHITECTURE.md](ARCHITECTURE.md), [DESIGN.md](DESIGN.md) et [DECISIONS.md](DECISIONS.md).
 
-**État : jalon 2, étape 3.** L'inventaire et les réglages sont enregistrés dans PostgreSQL ; l'accès demande un compte local (mot de passe, sessions, passkeys). L'état des services (en ligne, latence, données des widgets) est encore **fictif** (`server/internal/fixture`). Aucun hôte n'est contacté et rien n'accède à Docker.
+**État : jalon 3 en cours (shell UI, navigation, responsive, accessibilité).** L'inventaire et les réglages sont enregistrés dans PostgreSQL ; l'accès demande un compte local (mot de passe, sessions, passkeys). L'état des services (en ligne, latence, données des widgets) est encore **fictif** (`server/internal/fixture`). Aucun hôte n'est contacté et rien n'accède à Docker.
 
 Pages : accueil (`/`), catalogue « Tous les services » (`/services`, `Ctrl+K` depuis n'importe quelle page), fiche service (`/services/{slug}`), réglages en lecture seule (`/settings`).
 
@@ -54,6 +54,12 @@ bash scripts/build.sh
 
 ```bash
 cd web && npm run check && npm run lint && npm test
+```
+
+Tests Playwright de l'UI (navigation, `Ctrl+K`, focus, axe, débordement et mouvement réduit, en 1440 et 390 px). L'API y est simulée à partir de réponses enregistrées (`web/e2e/fixtures`) : ni serveur Go ni base. La première fois, installer Chromium (`npx playwright install chromium`), ou utiliser le Chrome du poste avec `PLAYWRIGHT_CHANNEL=chrome` :
+
+```bash
+cd web && npm run test:e2e
 ```
 
 Les tests de base de données utilisent `HUB_TEST_DATABASE_URL` (chaque test crée puis supprime son propre schéma) et sont ignorés sans elle :

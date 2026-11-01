@@ -6,7 +6,6 @@
 	import SessionsList from '#lib/components/SessionsList.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
 	import StatusDot from '#lib/components/StatusDot.svelte';
-	import TopNav from '#lib/components/TopNav.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -28,7 +27,6 @@
 <svelte:head><title>Réglages · Hub</title></svelte:head>
 
 <div class="page">
-	<TopNav />
 	<h1>Réglages</h1>
 
 	<div class="layout">
@@ -42,7 +40,7 @@
 			{/each}
 		</nav>
 
-		<main class="panels">
+		<div class="panels">
 			{#await data.settings}
 				<div class="card" aria-busy="true">
 					<Skeleton width="200px" height="22px" />
@@ -117,7 +115,7 @@
 				<h3 class="sub">Sessions ouvertes</h3>
 				<SessionsList />
 			</section>
-		</main>
+		</div>
 	</div>
 </div>
 
@@ -127,7 +125,7 @@
 		flex-direction: column;
 		gap: 36px;
 		min-height: 100vh;
-		padding: 28px var(--space-page) 64px;
+		padding: calc(var(--shell-h) + 36px) var(--space-page) 64px;
 		background: radial-gradient(80% 40% at 75% 0%, #1b2430 0%, rgba(7, 8, 10, 0) 70%), var(--bg);
 	}
 	h1 {
@@ -166,8 +164,8 @@
 		background: rgba(255, 255, 255, 0.92);
 		color: var(--text-inverse);
 		box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
-		transform: scale(1.03);
-		outline: none;
+		/* Moitié de l'agrandissement des cartes, nul en mouvement réduit. */
+		transform: scale(calc(1 + (var(--focus-scale) - 1) / 2));
 	}
 	.sec[aria-disabled='true'] {
 		color: var(--text-2);
@@ -252,6 +250,7 @@
 	@media (max-width: 720px) {
 		.page {
 			gap: 20px;
+			padding-top: calc(var(--shell-h) + 20px);
 		}
 		.sections {
 			display: none;

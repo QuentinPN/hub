@@ -1,0 +1,69 @@
+{
+	"slug": "emby",
+	"name": "Emby",
+	"monogram": "E",
+	"color": "#2e7d4f",
+	"category": "Médias",
+	"hostId": "debian-mini",
+	"status": "online",
+	"latencyMs": 42,
+	"note": "3 lectures",
+	"favorite": true,
+	"version": "v4.9",
+	"tint": "#1e4f35",
+	"stats": [
+		{
+			"value": "3",
+			"label": "lectures en cours"
+		},
+		{
+			"value": "1",
+			"label": "transcodage"
+		}
+	],
+	"upcoming": [],
+	"identification": [
+		{
+			"label": "Reconnu par",
+			"value": "image emby/embyserver"
+		},
+		{
+			"label": "Confiance",
+			"value": "97 %"
+		},
+		{
+			"label": "Projet",
+			"value": "Compose media"
+		}
+	],
+	"access": [
+		{
+			"label": "Conteneur",
+			"value": "emby · en cours · 12 j"
+		},
+		{
+			"label": "URL",
+			"value": "https://emby.lan",
+			"mono": true
+		},
+		{
+			"label": "Vérifiée",
+			"value": "il y a 2 min"
+		}
+	],
+	"connection": [
+		{
+			"label": "Clé API",
+			"value": "••••••••81c2",
+			"mono": true
+		},
+		{
+			"label": "Stockage",
+			"value": "chiffrée côté serveur, jamais envoyée au navigateur"
+		},
+		{
+			"label": "Rafraîchir",
+			"value": "toutes les 60 s"
+		}
+	]
+}
