@@ -107,6 +107,23 @@ type Discovery struct {
 	InferURLFromPorts bool `json:"inferUrlFromPorts"`
 }
 
+// Validate mirrors the database constraints and returns a message for the user, or "".
+func (d Discovery) Validate() string {
+	switch {
+	case d.InferURLFromPorts:
+		return "inferring a URL from a published port is not allowed"
+	case d.RescanMinutes < 1 || d.RescanMinutes > 1440:
+		return "rescanMinutes must be between 1 and 1440"
+	case d.OnRemoval != RemovalAbsentThenArchive && d.OnRemoval != RemovalAbsentOnly && d.OnRemoval != RemovalArchiveNow:
+		return "unknown onRemoval policy"
+	case d.ArchiveAfterDays < 1 || d.ArchiveAfterDays > 365:
+		return "archiveAfterDays must be between 1 and 365"
+	case d.ConfirmBelowPercent < 50 || d.ConfirmBelowPercent > 100:
+		return "confirmBelowPercent must be between 50 and 100"
+	}
+	return ""
+}
+
 type Settings struct {
 	// Editable is false until settings are persisted in PostgreSQL.
 	Editable  bool        `json:"editable"`

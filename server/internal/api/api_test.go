@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -123,5 +124,78 @@ func TestSettingsNeverInferURLFromPorts(t *testing.T) {
 	}
 	if s.Discovery.InferURLFromPorts || s.Editable || len(s.Hosts) != 3 {
 		t.Fatalf("unexpected settings: %+v", s)
+	}
+}
+
+// writableStore records the settings it is given, standing in for PostgreSQL.
+type writableStore struct {
+	*fixture.Store
+	saved *api.Discovery
+}
+
+func (s *writableStore) UpdateDiscovery(_ context.Context, d api.Discovery) error {
+	s.saved = &d
+	return nil
+}
+
+func putDiscovery(t *testing.T, srv *httptest.Server, body string, header map[string]string) int {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/settings/discovery", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	for k, v := range header {
+		req.Header.Set(k, v)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	return res.StatusCode
+}
+
+func TestUpdateDiscovery(t *testing.T) {
+	store := &writableStore{Store: fixture.New()}
+	ui := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
+	srv := httptest.NewServer(api.NewHandler(store, ui, nil))
+	t.Cleanup(srv.Close)
+	valid := `{"followEvents":true,"rescanMinutes":15,"onRemoval":"absent_only","archiveAfterDays":7,"confirmBelowPercent":90,"inferUrlFromPorts":false}`
+
+	cases := []struct {
+		name   string
+		body   string
+		header map[string]string
+		want   int
+	}{
+		{"cross-site", valid, map[string]string{"Sec-Fetch-Site": "cross-site"}, http.StatusForbidden},
+		{"foreign origin", valid, map[string]string{"Origin": "http://evil.example"}, http.StatusForbidden},
+		{"wrong content type", valid, map[string]string{"Content-Type": "text/plain"}, http.StatusUnsupportedMediaType},
+		{"unknown field", `{"rescanMinutes":5,"admin":true}`, nil, http.StatusBadRequest},
+		{"infer URL from ports", strings.Replace(valid, `"inferUrlFromPorts":false`, `"inferUrlFromPorts":true`, 1), nil, http.StatusBadRequest},
+		{"out of range", strings.Replace(valid, `"rescanMinutes":15`, `"rescanMinutes":0`, 1), nil, http.StatusBadRequest},
+	}
+	for _, c := range cases {
+		if got := putDiscovery(t, srv, c.body, c.header); got != c.want {
+			t.Errorf("%s: status %d, want %d", c.name, got, c.want)
+		}
+	}
+	if store.saved != nil {
+		t.Fatal("a rejected request reached the store")
+	}
+
+	if got := putDiscovery(t, srv, valid, map[string]string{"Sec-Fetch-Site": "same-origin"}); got != http.StatusOK {
+		t.Fatalf("valid request: status %d", got)
+	}
+	if store.saved == nil || store.saved.RescanMinutes != 15 {
+		t.Fatalf("saved = %+v", store.saved)
+	}
+}
+
+func TestReadOnlyStoreHasNoWriteRoute(t *testing.T) {
+	srv := newServer(t)
+	if got := putDiscovery(t, srv, `{}`, nil); got != http.StatusNotFound && got != http.StatusMethodNotAllowed {
+		t.Fatalf("status %d", got)
 	}
 }

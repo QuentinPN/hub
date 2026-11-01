@@ -1,9 +1,11 @@
 // Package fixture is the jalon 1 data source: fixed example data in the shape real
 // discovery will produce, so the UI can be built and tested without touching any host.
-// It is replaced by the PostgreSQL inventory in phase 2.
+// With a database, pgstore keeps the inventory and only borrows the live state from here
+// until agents report it.
 package fixture
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
@@ -191,15 +193,15 @@ func slugify(name string) string {
 	return strings.ReplaceAll(strings.ToLower(name), " ", "-")
 }
 
-func (s *Store) Services() []api.ServiceSummary {
+func (s *Store) Services(context.Context) ([]api.ServiceSummary, error) {
 	out := make([]api.ServiceSummary, 0, len(s.services))
 	for _, svc := range s.services {
 		out = append(out, svc.ServiceSummary)
 	}
-	return out
+	return out, nil
 }
 
-func (s *Store) Settings() api.Settings {
+func (s *Store) Settings(context.Context) (api.Settings, error) {
 	return api.Settings{
 		Editable: false,
 		Hosts:    s.agents,
@@ -211,10 +213,10 @@ func (s *Store) Settings() api.Settings {
 			ConfirmBelowPercent: 80,
 			InferURLFromPorts:   false,
 		},
-	}
+	}, nil
 }
 
-func (s *Store) Home() api.Home {
+func (s *Store) Home(context.Context) (api.Home, error) {
 	favorites := make([]api.ServiceSummary, 0, len(s.services))
 	online := 0
 	for _, svc := range s.services {
@@ -231,17 +233,24 @@ func (s *Store) Home() api.Home {
 		Favorites: favorites,
 		Upcoming:  s.upcoming,
 		Hosts:     s.hosts,
-	}
+	}, nil
 }
 
-func (s *Store) Service(slug string) (api.ServiceDetail, bool) {
+func (s *Store) Service(_ context.Context, slug string) (api.ServiceDetail, error) {
 	for _, svc := range s.services {
 		if svc.Slug == slug {
 			if svc.Upcoming == nil {
 				svc.Upcoming = []api.UpcomingItem{}
 			}
-			return svc, true
+			return svc, nil
 		}
 	}
-	return api.ServiceDetail{}, false
+	return api.ServiceDetail{}, api.ErrNotFound
+}
+
+// Seed is the example inventory written to an empty database: hosts, then services in
+// display order.
+func (s *Store) Seed() ([]api.AgentHost, []api.ServiceSummary) {
+	services, _ := s.Services(context.Background())
+	return s.agents, services
 }

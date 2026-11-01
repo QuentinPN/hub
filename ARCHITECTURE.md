@@ -2,7 +2,7 @@
 
 ## Stack
 Validé le 2026-11-01 (voir DECISIONS.md).
-- **Serveur API et agent : Go.** Bibliothèque standard `net/http`, SSE pour les événements unidirectionnels (WebSocket seulement si nécessaire), `pgx` + `sqlc` pour PostgreSQL, `goose` pour les migrations, SDK Docker officiel côté agent. Binaires statiques multi-arch (amd64 pour le mini-PC et le QNAP, arm64 pour le Pi). Lint : `golangci-lint`, format : `gofmt`.
+- **Serveur API et agent : Go.** Bibliothèque standard `net/http`, SSE pour les événements unidirectionnels (WebSocket seulement si nécessaire), `pgx` pour PostgreSQL (requêtes SQL écrites à la main ; `sqlc` si elles se multiplient), migrations SQL numérotées embarquées dans le binaire et appliquées au démarrage (`server/internal/db`), SDK Docker officiel côté agent. Binaires statiques multi-arch (amd64 pour le mini-PC et le QNAP, arm64 pour le Pi). Lint : `golangci-lint`, format : `gofmt`.
 - **UI : SvelteKit + TypeScript strict**, en `adapter-static` (SPA). Le build est embarqué dans le binaire Go (`embed`). Pas de SSR : le dashboard est privé et derrière authentification. Les tokens CSS viennent de la direction A. Biome si compatible avec Svelte, sinon ESLint + Prettier.
 - **PostgreSQL** pour la configuration et l'inventaire.
 - Le navigateur ne parle qu'à l'API Go, jamais aux agents ni aux applications intégrées.

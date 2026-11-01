@@ -2,11 +2,11 @@
 
 Dashboard auto-hébergé pour les services Docker du mini-PC Debian, du QNAP et du Raspberry Pi. Le cadrage est dans [PRODUCT.md](PRODUCT.md), [ARCHITECTURE.md](ARCHITECTURE.md), [DESIGN.md](DESIGN.md) et [DECISIONS.md](DECISIONS.md).
 
-**État : jalon 1.** Les données sont **fictives** (`server/internal/fixture`). Aucun hôte n'est contacté et rien n'accède à Docker.
+**État : jalon 2, étape 1.** L'inventaire et les réglages sont enregistrés dans PostgreSQL. L'état des services (en ligne, latence, données des widgets) est encore **fictif** (`server/internal/fixture`). Aucun hôte n'est contacté et rien n'accède à Docker.
 
 Pages : accueil (`/`), catalogue « Tous les services » (`/services`, `Ctrl+K` depuis n'importe quelle page), fiche service (`/services/{slug}`), réglages en lecture seule (`/settings`).
 
-API en lecture seule : `GET /api/v1/home`, `/api/v1/services`, `/api/v1/services/{slug}`, `/api/v1/settings`, et `GET /healthz`.
+API : `GET /api/v1/home`, `/api/v1/services`, `/api/v1/services/{slug}`, `/api/v1/settings`, `GET /healthz`, et `PUT /api/v1/settings/discovery` quand une base est configurée.
 
 ## Structure
 
@@ -18,10 +18,16 @@ API en lecture seule : `GET /api/v1/home`, `/api/v1/services`, `/api/v1/services
 
 Prérequis : Go 1.27 ou plus récent, Node 24 ou plus récent.
 
-API (port 8080, écoute sur la boucle locale par défaut) :
+PostgreSQL de développement (Docker Desktop, sur ce poste uniquement) :
 
 ```bash
-cd server && go run ./cmd/hub-server
+docker compose -f deploy/dev/compose.yml up -d --wait
+```
+
+API (port 8080, écoute sur la boucle locale par défaut). Les migrations s'appliquent au démarrage. Sans `HUB_DATABASE_URL`, le serveur tourne sur les données d'exemple, en lecture seule :
+
+```bash
+cd server && HUB_DATABASE_URL="postgres://hub:hub-dev-only@127.0.0.1:55432/hub?sslmode=disable" go run ./cmd/hub-server
 ```
 
 UI avec rechargement à chaud (port 5173 ; Vite redirige `/api` vers 8080) :
@@ -42,8 +48,10 @@ bash scripts/build.sh
 cd web && npm run check && npm run lint && npm test
 ```
 
+Les tests de base de données utilisent `HUB_TEST_DATABASE_URL` (chaque test crée puis supprime son propre schéma) et sont ignorés sans elle :
+
 ```bash
-cd server && gofmt -l . && go vet ./... && go test ./...
+cd server && gofmt -l . && go vet ./... && HUB_TEST_DATABASE_URL="postgres://hub:hub-dev-only@127.0.0.1:55432/hub?sslmode=disable" go test ./...
 ```
 
 La CI GitHub Actions (`.github/workflows/ci.yml`) lance ces mêmes étapes, plus golangci-lint et les builds Linux amd64 et arm64.
