@@ -24,11 +24,13 @@ PostgreSQL de développement (Docker Desktop, sur ce poste uniquement) :
 docker compose -f deploy/dev/compose.yml up -d --wait
 ```
 
-API (port 8080, écoute sur la boucle locale par défaut). `HUB_DATABASE_URL` est obligatoire : le compte et les sessions vivent en base. Les migrations s'appliquent au démarrage :
+API (port 8080, écoute sur la boucle locale par défaut). `HUB_DATABASE_URL` est obligatoire : le compte et les sessions vivent en base. `HUB_SECRET_KEY_FILE` aussi : c'est le fichier de la clé qui chiffre les secrets des connecteurs, créé au premier démarrage s'il n'existe pas (`dev-secrets.key` est ignoré par git). Les migrations s'appliquent au démarrage :
 
 ```bash
-cd server && HUB_DATABASE_URL="postgres://hub:hub-dev-only@127.0.0.1:55432/hub?sslmode=disable" go run ./cmd/hub-server
+cd server && HUB_DATABASE_URL="postgres://hub:hub-dev-only@127.0.0.1:55432/hub?sslmode=disable" HUB_SECRET_KEY_FILE=dev-secrets.key go run ./cmd/hub-server
 ```
+
+Clé des secrets : les clés d'API et jetons des connecteurs sont chiffrés en AES-256-GCM avant d'entrer en base, avec une clé qui reste dans ce fichier. En production, le placer hors du volume PostgreSQL (`chmod 600`) et **le sauvegarder à part** : sans lui, les secrets enregistrés sont perdus (il suffira de les ressaisir), mais une sauvegarde de la base seule ne les révèle pas. Rotation : `hub-server -new-secret-key` affiche une nouvelle ligne à ajouter à la fin du fichier ; au démarrage suivant, chaque secret est rechiffré avec cette dernière clé. Une fois les logs confirmés (`secrets re-sealed`), l'ancienne ligne peut être retirée.
 
 Premier démarrage : tant qu'aucun compte n'existe, le serveur écrit dans ses logs un code à usage unique (`setup_code=XXXX-XXXX-XXXX-XXXX`, renouvelé à chaque démarrage). Ouvrir le dashboard, saisir ce code, puis choisir l'identifiant et le mot de passe (12 caractères minimum).
 

@@ -20,13 +20,24 @@ import (
 	"hub/server/internal/db"
 	"hub/server/internal/fixture"
 	"hub/server/internal/pgstore"
+	"hub/server/internal/secrets"
 	"hub/server/internal/webui"
 )
 
 func main() {
 	// Loopback by default: exposure goes through Caddy (ARCHITECTURE.md), never directly.
 	addr := flag.String("addr", envOr("HUB_ADDR", "127.0.0.1:8080"), "listen address")
+	newKey := flag.Bool("new-secret-key", false, "print a new line to append to the secret key file, then exit")
 	flag.Parse()
+	if *newKey {
+		line, err := secrets.NewKeyLine(time.Now())
+		if err != nil {
+			slog.Error("new secret key", "err", err)
+			os.Exit(1)
+		}
+		fmt.Println(line)
+		return
+	}
 	// Read from the environment only, so the password never shows in the process list.
 	databaseURL := os.Getenv("HUB_DATABASE_URL")
 
@@ -39,6 +50,13 @@ func main() {
 		os.Exit(1)
 	}
 	defer closeStore()
+
+	// No connector reads secrets yet; opening them now checks the key file at each start
+	// and finishes any rotation.
+	if _, err := openSecrets(ctx, os.Getenv("HUB_SECRET_KEY_FILE"), store); err != nil {
+		slog.Error("startup", "err", err)
+		os.Exit(1)
+	}
 
 	authSvc, err := auth.New(store)
 	if err != nil {
@@ -104,6 +122,33 @@ func openStore(ctx context.Context, databaseURL string) (*pgstore.Store, func(),
 		return nil, nil, err
 	}
 	return store, pool.Close, nil
+}
+
+// openSecrets loads the key file, creating it on the first start, then re-seals with the
+// newest key every secret sealed with an older one.
+func openSecrets(ctx context.Context, path string, repo secrets.Repo) (*secrets.Store, error) {
+	if path == "" {
+		return nil, errors.New("HUB_SECRET_KEY_FILE is required (keep it outside the database volume)")
+	}
+	kr, err := secrets.LoadKeyFile(path)
+	if secrets.IsNotExist(err) {
+		if kr, err = secrets.CreateKeyFile(path); err == nil {
+			slog.Warn("created the secret key file: back it up apart from the database, without it the stored secrets are lost", "path", path)
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("secret key file: %w", err)
+	}
+	store := secrets.NewStore(kr, repo)
+	n, err := store.Rotate(ctx)
+	if n > 0 {
+		slog.Info("secrets re-sealed with the current key", "count", n, "key_id", kr.CurrentID())
+	}
+	if err != nil {
+		// Only these secrets stay unreadable; the dashboard itself keeps working.
+		slog.Error("some secrets cannot be opened with the key file", "err", err)
+	}
+	return store, nil
 }
 
 // enablePasskeys binds passkeys to the dashboard's public origin (HUB_ORIGIN, e.g.
