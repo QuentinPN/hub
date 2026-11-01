@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"math"
 	"net"
@@ -22,6 +23,9 @@ var publicAPI = map[string]bool{
 	"GET /api/v1/auth/state":  true,
 	"POST /api/v1/auth/setup": true,
 	"POST /api/v1/auth/login": true,
+
+	"POST /api/v1/auth/passkey/login/begin":  true,
+	"POST /api/v1/auth/passkey/login/finish": true,
 }
 
 type ctxKey struct{}
@@ -97,6 +101,18 @@ type AuthState struct {
 	SetupRequired bool   `json:"setupRequired"`
 	Authenticated bool   `json:"authenticated"`
 	Username      string `json:"username,omitempty"`
+	// Passkeys tells the login page whether to offer them (they need HUB_ORIGIN).
+	Passkeys bool `json:"passkeys"`
+}
+
+type PasskeyInfo struct {
+	ID         int64      `json:"id"`
+	Name       string     `json:"name"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	LastUsedAt *time.Time `json:"lastUsedAt"`
+	// BackedUp is a synced passkey (password manager, iCloud…) rather than one bound to
+	// a single device.
+	BackedUp bool `json:"backedUp"`
 }
 
 type SessionInfo struct {
@@ -109,13 +125,15 @@ type SessionInfo struct {
 }
 
 func registerAuth(mux *http.ServeMux, svc *auth.Service) {
+	registerPasskeys(mux, svc)
+
 	mux.HandleFunc("GET /api/v1/auth/state", func(w http.ResponseWriter, r *http.Request) {
 		required, err := svc.SetupRequired(r.Context())
 		if err != nil {
 			internalError(w, r, err)
 			return
 		}
-		state := AuthState{SetupRequired: required}
+		state := AuthState{SetupRequired: required, Passkeys: svc.PasskeysEnabled()}
 		if p, ok := current(r.Context()); ok {
 			state.Authenticated, state.Username = true, p.user.Username
 		}
@@ -180,6 +198,116 @@ func registerAuth(mux *http.ServeMux, svc *auth.Service) {
 			w.WriteHeader(http.StatusNoContent)
 		}
 	})
+}
+
+func registerPasskeys(mux *http.ServeMux, svc *auth.Service) {
+	// Login, public: the options are sent as is to navigator.credentials.get, and the
+	// browser's answer comes back unchanged.
+	mux.HandleFunc("POST /api/v1/auth/passkey/login/begin", func(w http.ResponseWriter, r *http.Request) {
+		assertion, err := svc.BeginPasskeyLogin(clientOf(r))
+		if err != nil {
+			passkeyError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, assertion)
+	})
+
+	mux.HandleFunc("POST /api/v1/auth/passkey/login/finish", func(w http.ResponseWriter, r *http.Request) {
+		var credential json.RawMessage
+		if !decodeJSON(w, r, &credential) {
+			return
+		}
+		token, err := svc.FinishPasskeyLogin(r.Context(), credential, clientOf(r))
+		if errors.Is(err, auth.ErrPasskeysDisabled) {
+			passkeyError(w, r, err)
+			return
+		}
+		startSession(w, r, token, err)
+	})
+
+	// Management, inside a session.
+	mux.HandleFunc("GET /api/v1/auth/passkeys", func(w http.ResponseWriter, r *http.Request) {
+		p, _ := current(r.Context())
+		list, err := svc.Passkeys(r.Context(), p.user.ID)
+		if err != nil {
+			passkeyError(w, r, err)
+			return
+		}
+		out := make([]PasskeyInfo, 0, len(list))
+		for _, k := range list {
+			out = append(out, PasskeyInfo{ID: k.ID, Name: k.Name, CreatedAt: k.CreatedAt, LastUsedAt: k.LastUsedAt, BackedUp: k.Credential.Flags.BackupState})
+		}
+		writeJSON(w, http.StatusOK, out)
+	})
+
+	mux.HandleFunc("POST /api/v1/auth/passkeys/begin", func(w http.ResponseWriter, r *http.Request) {
+		p, _ := current(r.Context())
+		var body struct{ Password string }
+		if !decodeJSON(w, r, &body) {
+			return
+		}
+		creation, err := svc.BeginPasskeyRegistration(r.Context(), p.user, body.Password, clientOf(r))
+		if err != nil {
+			passkeyError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, creation)
+	})
+
+	mux.HandleFunc("POST /api/v1/auth/passkeys/finish", func(w http.ResponseWriter, r *http.Request) {
+		p, _ := current(r.Context())
+		var body struct {
+			Name       string
+			Credential json.RawMessage
+		}
+		if !decodeJSON(w, r, &body) {
+			return
+		}
+		k, err := svc.FinishPasskeyRegistration(r.Context(), p.user, body.Name, body.Credential, clientOf(r))
+		if err != nil {
+			passkeyError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, PasskeyInfo{ID: k.ID, Name: k.Name, CreatedAt: k.CreatedAt, LastUsedAt: k.LastUsedAt, BackedUp: k.Credential.Flags.BackupState})
+	})
+
+	mux.HandleFunc("DELETE /api/v1/auth/passkeys/{id}", func(w http.ResponseWriter, r *http.Request) {
+		p, _ := current(r.Context())
+		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "not found")
+			return
+		}
+		if err := svc.DeletePasskey(r.Context(), p.user.ID, id, clientOf(r)); err != nil {
+			passkeyError(w, r, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+}
+
+// passkeyError maps passkey errors. A wrong password inside a session is 403, not 401:
+// the UI treats 401 as an expired session and goes back to the login page.
+func passkeyError(w http.ResponseWriter, r *http.Request, err error) {
+	var invalid *auth.InvalidInputError
+	var limited *auth.RateLimitedError
+	switch {
+	case errors.As(err, &invalid):
+		writeError(w, http.StatusBadRequest, invalid.Msg)
+	case errors.As(err, &limited):
+		w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(time.Until(limited.Until).Seconds()))))
+		writeError(w, http.StatusTooManyRequests, "too many attempts")
+	case errors.Is(err, auth.ErrWrongPassword):
+		writeError(w, http.StatusForbidden, "wrong password")
+	case errors.Is(err, auth.ErrPasskeyRejected):
+		writeError(w, http.StatusBadRequest, "passkey rejected")
+	case errors.Is(err, auth.ErrPasskeyExists):
+		writeError(w, http.StatusConflict, "passkey already registered")
+	case errors.Is(err, auth.ErrPasskeysDisabled), errors.Is(err, auth.ErrNotFound):
+		writeError(w, http.StatusNotFound, "not found")
+	default:
+		internalError(w, r, err)
+	}
 }
 
 // startSession sets the cookie after a successful setup or login, or maps the error.

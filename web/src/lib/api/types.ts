@@ -108,6 +108,17 @@ export interface AuthState {
 	setupRequired: boolean;
 	authenticated: boolean;
 	username?: string;
+	/** Les passkeys sont configurées côté serveur (HUB_ORIGIN) : la connexion les propose. */
+	passkeys: boolean;
+}
+
+export interface PasskeyInfo {
+	id: number;
+	name: string;
+	createdAt: string;
+	lastUsedAt: string | null;
+	/** Passkey synchronisée (gestionnaire de mots de passe, trousseau…) plutôt que liée à un appareil. */
+	backedUp: boolean;
 }
 
 export interface SessionInfo {

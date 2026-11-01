@@ -9,7 +9,7 @@
 
 ## Phase 1 — Foundation
 [x] Initialisation stack, lint, format, tests, CI, design system validé (jalon 1, 2026-11-01 : données fictives)
-[ ] Schéma PostgreSQL, migrations, authentification et secrets (fait : PostgreSQL et migrations, compte + mot de passe + sessions ; reste : passkeys, chiffrement des secrets)
+[ ] Schéma PostgreSQL, migrations, authentification et secrets (fait : PostgreSQL et migrations, compte + mot de passe + sessions, passkeys ; reste : chiffrement des secrets)
 [ ] Shell UI, navigation, responsive, accessibilité
 
 ## Phase 2 — Discovery multi-host

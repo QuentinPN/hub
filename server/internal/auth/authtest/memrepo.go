@@ -2,10 +2,13 @@
 package authtest
 
 import (
+	"bytes"
 	"context"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/go-webauthn/webauthn/webauthn"
 
 	"hub/server/internal/auth"
 )
@@ -15,9 +18,13 @@ type Repo struct {
 	user     *auth.User
 	hash     string
 	sessions map[string]auth.Session // key: token hash
+	passkeys []auth.Passkey
 	nextID   int64
 	Events   []auth.Event
 }
+
+// handle is the account's WebAuthn user handle.
+var handle = []byte("0123456789abcdef")
 
 func New() *Repo { return &Repo{sessions: map[string]auth.Session{}} }
 
@@ -108,6 +115,83 @@ func (r *Repo) Audit(_ context.Context, e auth.Event) error {
 	defer r.mu.Unlock()
 	r.Events = append(r.Events, e)
 	return nil
+}
+
+func (r *Repo) PasswordHash(_ context.Context, userID int64) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.user == nil || r.user.ID != userID {
+		return "", auth.ErrNotFound
+	}
+	return r.hash, nil
+}
+
+func (r *Repo) UserHandle(_ context.Context, userID int64) ([]byte, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.user == nil || r.user.ID != userID {
+		return nil, auth.ErrNotFound
+	}
+	return handle, nil
+}
+
+func (r *Repo) UserByHandle(_ context.Context, h []byte) (auth.User, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.user == nil || !bytes.Equal(h, handle) {
+		return auth.User{}, auth.ErrNotFound
+	}
+	return *r.user, nil
+}
+
+func (r *Repo) Passkeys(_ context.Context, userID int64) ([]auth.Passkey, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := []auth.Passkey{}
+	for _, p := range r.passkeys {
+		if p.UserID == userID {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
+func (r *Repo) CreatePasskey(_ context.Context, p auth.Passkey) (auth.Passkey, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, q := range r.passkeys {
+		if bytes.Equal(q.Credential.ID, p.Credential.ID) {
+			return auth.Passkey{}, auth.ErrPasskeyExists
+		}
+	}
+	r.nextID++
+	p.ID = r.nextID
+	r.passkeys = append(r.passkeys, p)
+	return p, nil
+}
+
+func (r *Repo) UsePasskey(_ context.Context, id int64, cred webauthn.Credential, usedAt time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for i := range r.passkeys {
+		if r.passkeys[i].ID == id {
+			r.passkeys[i].Credential = cred
+			r.passkeys[i].LastUsedAt = &usedAt
+		}
+	}
+	return nil
+}
+
+func (r *Repo) DeletePasskey(_ context.Context, userID, id int64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for i, p := range r.passkeys {
+		if p.ID == id && p.UserID == userID {
+			r.passkeys = append(r.passkeys[:i], r.passkeys[i+1:]...)
+			return nil
+		}
+	}
+	return auth.ErrNotFound
 }
 
 // Kinds lists the recorded event kinds, in order.

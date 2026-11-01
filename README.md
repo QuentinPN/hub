@@ -2,11 +2,11 @@
 
 Dashboard auto-hébergé pour les services Docker du mini-PC Debian, du QNAP et du Raspberry Pi. Le cadrage est dans [PRODUCT.md](PRODUCT.md), [ARCHITECTURE.md](ARCHITECTURE.md), [DESIGN.md](DESIGN.md) et [DECISIONS.md](DECISIONS.md).
 
-**État : jalon 2, étape 1.** L'inventaire et les réglages sont enregistrés dans PostgreSQL. L'état des services (en ligne, latence, données des widgets) est encore **fictif** (`server/internal/fixture`). Aucun hôte n'est contacté et rien n'accède à Docker.
+**État : jalon 2, étape 3.** L'inventaire et les réglages sont enregistrés dans PostgreSQL ; l'accès demande un compte local (mot de passe, sessions, passkeys). L'état des services (en ligne, latence, données des widgets) est encore **fictif** (`server/internal/fixture`). Aucun hôte n'est contacté et rien n'accède à Docker.
 
 Pages : accueil (`/`), catalogue « Tous les services » (`/services`, `Ctrl+K` depuis n'importe quelle page), fiche service (`/services/{slug}`), réglages en lecture seule (`/settings`).
 
-API : `GET /api/v1/home`, `/api/v1/services`, `/api/v1/services/{slug}`, `/api/v1/settings`, `GET /healthz`, et `PUT /api/v1/settings/discovery` quand une base est configurée.
+API : `GET /api/v1/home`, `/api/v1/services`, `/api/v1/services/{slug}`, `/api/v1/settings`, `GET /healthz`, `PUT /api/v1/settings/discovery`, et les routes de compte sous `/api/v1/auth/` (état, setup, connexion par mot de passe ou passkey, sessions, passkeys).
 
 ## Structure
 
@@ -33,6 +33,8 @@ cd server && HUB_DATABASE_URL="postgres://hub:hub-dev-only@127.0.0.1:55432/hub?s
 Premier démarrage : tant qu'aucun compte n'existe, le serveur écrit dans ses logs un code à usage unique (`setup_code=XXXX-XXXX-XXXX-XXXX`, renouvelé à chaque démarrage). Ouvrir le dashboard, saisir ce code, puis choisir l'identifiant et le mot de passe (12 caractères minimum).
 
 Le cookie de session est `__Host-` et `Secure` : le navigateur ne l'accepte qu'en HTTPS, ou sur `http://localhost` (contexte sûr). Un accès en HTTP par l'IP du poste (`http://192.0.2.x:8080`) ne permet donc pas de se connecter ; en production, l'accès passe par Caddy en HTTPS.
+
+Passkeys (Windows Hello, téléphone, clé de sécurité) : une passkey est liée à un nom de domaine servi en HTTPS, jamais à une IP. En production, définir `HUB_ORIGIN` sur l'adresse du dashboard (par exemple `HUB_ORIGIN=https://hub.maison.example`). Sans elle, les passkeys ne marchent que sur `http://localhost:5173` et `http://localhost:8080`. Changer de domaine rend les passkeys existantes inutilisables ; le mot de passe reste valable. On les ajoute dans Réglages → Sécurité et accès, en confirmant avec le mot de passe.
 
 UI avec rechargement à chaud (port 5173 ; Vite redirige `/api` vers 8080) :
 

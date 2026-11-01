@@ -5,8 +5,11 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -39,6 +42,10 @@ func main() {
 
 	authSvc, err := auth.New(store)
 	if err != nil {
+		slog.Error("startup", "err", err)
+		os.Exit(1)
+	}
+	if err := enablePasskeys(authSvc, os.Getenv("HUB_ORIGIN")); err != nil {
 		slog.Error("startup", "err", err)
 		os.Exit(1)
 	}
@@ -97,6 +104,21 @@ func openStore(ctx context.Context, databaseURL string) (*pgstore.Store, func(),
 		return nil, nil, err
 	}
 	return store, pool.Close, nil
+}
+
+// enablePasskeys binds passkeys to the dashboard's public origin (HUB_ORIGIN, e.g.
+// https://hub.example). Without it only localhost works, for development: a passkey
+// needs a host name, never an IP address, and cannot move to another name later.
+func enablePasskeys(svc *auth.Service, origin string) error {
+	if origin == "" {
+		slog.Warn("HUB_ORIGIN not set: passkeys only work on http://localhost")
+		return svc.EnablePasskeys("localhost", []string{"http://localhost:5173", "http://localhost:8080"})
+	}
+	u, err := url.Parse(origin)
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.Path != "" && u.Path != "/" || net.ParseIP(u.Hostname()) != nil {
+		return fmt.Errorf("HUB_ORIGIN must be an https:// URL with a host name, got %q", origin)
+	}
+	return svc.EnablePasskeys(u.Hostname(), []string{u.Scheme + "://" + u.Host})
 }
 
 func envOr(key, fallback string) string {

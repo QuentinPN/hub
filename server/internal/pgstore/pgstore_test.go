@@ -2,11 +2,13 @@ package pgstore_test
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"hub/server/internal/api"
 	"hub/server/internal/auth"
+	"hub/server/internal/auth/authtest"
 	"hub/server/internal/db/dbtest"
 	"hub/server/internal/domain"
 	"hub/server/internal/fixture"
@@ -164,5 +166,78 @@ func TestAuthRepo(t *testing.T) {
 	}
 	if strings.Join(kinds, ",") != "account_created,login_failed,session_revoked" {
 		t.Fatalf("audit = %v", kinds)
+	}
+}
+
+func TestPasskeyRepo(t *testing.T) {
+	pool := dbtest.Pool(t)
+	ctx := context.Background()
+	store, err := pgstore.New(ctx, pool, fixture.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc, err := auth.New(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const origin = "https://hub.test"
+	if err := svc.EnablePasskeys("hub.test", []string{origin}); err != nil {
+		t.Fatal(err)
+	}
+	code, _ := svc.PrepareSetup(ctx)
+	client := auth.Client{IP: "192.0.2.50", UserAgent: "test"}
+	token, err := svc.Setup(ctx, code, "quentin", "correct horse battery", client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, user, err := svc.Authenticate(ctx, token)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	key := authtest.NewSoftKey(t, origin)
+	register := func() (auth.Passkey, error) {
+		creation, err := svc.BeginPasskeyRegistration(ctx, user, "correct horse battery", client)
+		if err != nil {
+			t.Fatal(err)
+		}
+		options, _ := json.Marshal(creation)
+		return svc.FinishPasskeyRegistration(ctx, user, "Windows Hello", key.Create(t, options), client)
+	}
+	pk, err := register()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := register(); err != auth.ErrPasskeyExists {
+		t.Fatalf("duplicate: err = %v", err)
+	}
+
+	// The credential goes through jsonb and still verifies, with its counter stored.
+	key.Counter = 7
+	assertion, err := svc.BeginPasskeyLogin(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	options, _ := json.Marshal(assertion)
+	if _, err := svc.FinishPasskeyLogin(ctx, key.Get(t, options), client); err != nil {
+		t.Fatal(err)
+	}
+	list, err := svc.Passkeys(ctx, user.ID)
+	if err != nil || len(list) != 1 {
+		t.Fatalf("list %+v, err %v", list, err)
+	}
+	got := list[0]
+	if got.ID != pk.ID || got.LastUsedAt == nil || got.Credential.Authenticator.SignCount != 7 || !got.Credential.Flags.BackupState {
+		t.Fatalf("stored %+v", got)
+	}
+
+	if err := svc.DeletePasskey(ctx, user.ID+1, pk.ID, client); err != auth.ErrNotFound {
+		t.Fatalf("someone else's passkey: err = %v", err)
+	}
+	if err := svc.DeletePasskey(ctx, user.ID, pk.ID, client); err != nil {
+		t.Fatal(err)
+	}
+	if list, _ := svc.Passkeys(ctx, user.ID); len(list) != 0 {
+		t.Fatalf("after delete %+v", list)
 	}
 }

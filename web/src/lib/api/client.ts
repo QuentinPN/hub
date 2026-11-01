@@ -2,11 +2,13 @@ import type {
 	AuthState,
 	Discovery,
 	Home,
+	PasskeyInfo,
 	ServiceDetail,
 	ServiceSummary,
 	SessionInfo,
 	Settings
 } from './types';
+import { createPasskey, getPasskey, type PasskeyOptions } from './webauthn';
 
 export class ApiError extends Error {
 	constructor(
@@ -22,7 +24,13 @@ export class ApiError extends Error {
 type Fetch = typeof fetch;
 
 // Routes publiques : leur 401 (mauvais mot de passe…) est géré par le formulaire qui les appelle.
-const PUBLIC_AUTH = new Set(['/api/v1/auth/state', '/api/v1/auth/setup', '/api/v1/auth/login']);
+const PUBLIC_AUTH = new Set([
+	'/api/v1/auth/state',
+	'/api/v1/auth/setup',
+	'/api/v1/auth/login',
+	'/api/v1/auth/passkey/login/begin',
+	'/api/v1/auth/passkey/login/finish'
+]);
 
 // Appelé quand une route protégée répond 401 (session expirée ou révoquée). Le layout le
 // branche sur la page de connexion ; le client lui-même ne connaît pas la navigation.
@@ -75,6 +83,10 @@ async function putJson<T>(fetchFn: Fetch, path: string, body: unknown): Promise<
 	return (await (await send(fetchFn, 'PUT', path, body)).json()) as T;
 }
 
+async function postJson<T>(fetchFn: Fetch, path: string, body?: unknown): Promise<T> {
+	return (await (await send(fetchFn, 'POST', path, body)).json()) as T;
+}
+
 /** POST ou DELETE dont la réponse attendue est un 204 sans corps. */
 async function sendNoContent(
 	fetchFn: Fetch,
@@ -113,3 +125,29 @@ export const getSessions = (fetchFn: Fetch) =>
 
 export const revokeSession = (fetchFn: Fetch, id: number) =>
 	sendNoContent(fetchFn, 'DELETE', `/api/v1/auth/sessions/${id}`);
+
+type Options = PasskeyOptions<Record<string, unknown>>;
+
+/** Connexion par passkey : le navigateur propose les passkeys connues pour ce site. */
+export async function loginWithPasskey(fetchFn: Fetch): Promise<void> {
+	const options = await postJson<Options>(fetchFn, '/api/v1/auth/passkey/login/begin');
+	const credential = await getPasskey(options);
+	await sendNoContent(fetchFn, 'POST', '/api/v1/auth/passkey/login/finish', credential);
+}
+
+export const getPasskeys = (fetchFn: Fetch) =>
+	getJson<PasskeyInfo[]>(fetchFn, '/api/v1/auth/passkeys');
+
+/** Ajoute une passkey au compte. Le mot de passe est redemandé (403 s'il est faux). */
+export async function addPasskey(
+	fetchFn: Fetch,
+	name: string,
+	password: string
+): Promise<PasskeyInfo> {
+	const options = await postJson<Options>(fetchFn, '/api/v1/auth/passkeys/begin', { password });
+	const credential = await createPasskey(options);
+	return postJson<PasskeyInfo>(fetchFn, '/api/v1/auth/passkeys/finish', { name, credential });
+}
+
+export const deletePasskey = (fetchFn: Fetch, id: number) =>
+	sendNoContent(fetchFn, 'DELETE', `/api/v1/auth/passkeys/${id}`);

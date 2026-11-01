@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { ApiError, getAuthState, login, setup } from '#lib/api/client.ts';
+	import { ApiError, getAuthState, login, loginWithPasskey, setup } from '#lib/api/client.ts';
+	import { isCancelled, passkeysSupported } from '#lib/api/webauthn.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -13,6 +14,8 @@
 	// Un 409 (compte créé entre-temps, depuis un autre onglet) bascule en connexion.
 	let setupDone = $state(false);
 	const setupMode = $derived(data.auth.setupRequired && !setupDone);
+	// Le serveur doit les avoir configurées, et le navigateur les gérer (contexte sécurisé).
+	const passkeyAvailable = $derived(!setupMode && data.auth.passkeys && passkeysSupported());
 
 	let code = $state('');
 	let username = $state('');
@@ -73,6 +76,24 @@
 			} else {
 				error = describe(err);
 			}
+		} finally {
+			busy = false;
+		}
+	}
+
+	async function signInWithPasskey() {
+		error = notice = '';
+		busy = true;
+		try {
+			await loginWithPasskey(fetch);
+			await goto(resolve('/'), { invalidateAll: true });
+		} catch (err) {
+			// Fenêtre du système fermée : l'utilisateur le sait déjà.
+			if (isCancelled(err)) return;
+			if (err instanceof ApiError && err.status === 401)
+				error = 'Passkey refusée. Elle a peut-être été supprimée de ton compte.';
+			else if (err instanceof ApiError) error = describe(err);
+			else error = 'Cette passkey n’a pas pu être utilisée. Réessaie ou utilise ton mot de passe.';
 		} finally {
 			busy = false;
 		}
@@ -168,6 +189,24 @@
 				</button>
 			</form>
 		{/key}
+
+		{#if passkeyAvailable}
+			<div class="or" aria-hidden="true"><span>ou</span></div>
+			<button type="button" class="btn secondary" disabled={busy} onclick={signInWithPasskey}>
+				<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+					<circle cx="9" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8" />
+					<path
+						d="M2.5 20c.6-3.6 3.2-6 6.5-6 1.2 0 2.3.3 3.2.9M17 11.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Zm0 5V22m0-2.5h2"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.8"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					/>
+				</svg>
+				Se connecter avec une passkey
+			</button>
+		{/if}
 	</div>
 </main>
 
@@ -280,6 +319,29 @@
 	.primary {
 		background: var(--text);
 		color: var(--text-inverse);
+	}
+	.secondary {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 10px;
+		border: 1px solid var(--border-2);
+		background: transparent;
+		color: var(--text);
+	}
+	.or {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin: 20px 0 16px;
+		color: var(--text-2);
+		font-size: 13px;
+	}
+	.or::before,
+	.or::after {
+		content: '';
+		flex: 1;
+		border-top: 1px solid var(--border-1);
 	}
 	@media (max-width: 480px) {
 		.card {

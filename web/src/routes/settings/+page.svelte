@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import DiscoveryForm from '#lib/components/DiscoveryForm.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
+	import PasskeysList from '#lib/components/PasskeysList.svelte';
 	import SessionsList from '#lib/components/SessionsList.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
 	import StatusDot from '#lib/components/StatusDot.svelte';
@@ -111,6 +112,9 @@
 					Connecté en tant que <strong>{data.auth.username}</strong>. Chaque navigateur connecté
 					ouvre une session de 30 jours, prolongée à chaque visite.
 				</p>
+				<h3 class="sub">Passkeys</h3>
+				<PasskeysList enabled={data.auth.passkeys} />
+				<h3 class="sub">Sessions ouvertes</h3>
 				<SessionsList />
 			</section>
 		</main>
@@ -203,6 +207,11 @@
 	.intro {
 		margin: 0 0 6px;
 		font-size: 14px;
+	}
+	.sub {
+		margin: 18px 0 4px;
+		font-size: 16px;
+		font-weight: 600;
 	}
 	.small {
 		font-size: var(--fs-small);

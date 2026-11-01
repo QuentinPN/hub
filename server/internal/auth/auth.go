@@ -1,6 +1,6 @@
 // Package auth implements the single local account: first-start setup with a one-time
-// code, password login (Argon2id), server-side sessions, rate limiting and audit events.
-// Passkeys come in the next step on top of the same sessions.
+// code, password login (Argon2id), passkeys (WebAuthn), server-side sessions, rate limiting
+// and audit events.
 package auth
 
 import (
@@ -17,6 +17,8 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/go-webauthn/webauthn/webauthn"
 )
 
 const (
@@ -107,6 +109,10 @@ type Service struct {
 
 	mu        sync.Mutex
 	setupCode string
+
+	// Set by EnablePasskeys; nil keeps passkeys off.
+	webauthn   *webauthn.WebAuthn
+	ceremonies *ceremonies
 }
 
 func New(repo Repo) (*Service, error) {
