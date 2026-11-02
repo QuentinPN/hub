@@ -70,6 +70,17 @@ func (r *Repo) SetPassword(_ context.Context, userID int64, hash string, keep in
 		return 0, auth.ErrNotFound
 	}
 	r.hash = hash
+	return r.deleteSessions(userID, keep), nil
+}
+
+func (r *Repo) DeleteSessions(_ context.Context, userID, keep int64) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.deleteSessions(userID, keep), nil
+}
+
+// deleteSessions needs r.mu held.
+func (r *Repo) deleteSessions(userID, keep int64) int {
 	ended := 0
 	for k, s := range r.sessions {
 		if s.UserID == userID && s.ID != keep {
@@ -77,7 +88,7 @@ func (r *Repo) SetPassword(_ context.Context, userID int64, hash string, keep in
 			ended++
 		}
 	}
-	return ended, nil
+	return ended
 }
 
 func (r *Repo) CreateSession(_ context.Context, tokenHash []byte, s auth.Session) (auth.Session, error) {

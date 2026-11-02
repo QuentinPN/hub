@@ -277,3 +277,33 @@ func TestResetPassword(t *testing.T) {
 		t.Fatalf("audit = %v", repo.Kinds())
 	}
 }
+
+func TestRevokeAll(t *testing.T) {
+	svc, repo, _ := newService(t)
+	ctx := context.Background()
+	mine := setup(t, svc)
+	a, _ := svc.Login(ctx, "quentin", goodPassword, client)
+	b, _ := svc.Login(ctx, "quentin", goodPassword, client)
+	sess, _, _ := svc.Authenticate(ctx, mine)
+
+	if n, err := svc.RevokeAll(ctx, sess, false, client); err != nil || n != 2 {
+		t.Fatalf("others: %d ended, err %v", n, err)
+	}
+	for _, token := range []string{a, b} {
+		if _, _, err := svc.Authenticate(ctx, token); !errors.Is(err, auth.ErrUnauthenticated) {
+			t.Fatal("another session survived")
+		}
+	}
+	if _, _, err := svc.Authenticate(ctx, mine); err != nil {
+		t.Fatalf("this session ended: %v", err)
+	}
+	if n, err := svc.RevokeAll(ctx, sess, true, client); err != nil || n != 1 {
+		t.Fatalf("all: %d ended, err %v", n, err)
+	}
+	if _, _, err := svc.Authenticate(ctx, mine); !errors.Is(err, auth.ErrUnauthenticated) {
+		t.Fatal("this session survived")
+	}
+	if n := strings.Count(strings.Join(repo.Kinds(), ","), "sessions_revoked"); n != 2 {
+		t.Fatalf("%d sessions_revoked events, want 2", n)
+	}
+}

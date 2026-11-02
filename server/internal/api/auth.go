@@ -196,6 +196,28 @@ func registerAuth(mux *http.ServeMux, svc *auth.Service) {
 		writeJSON(w, http.StatusOK, out)
 	})
 
+	// scope=others keeps this session, scope=all ends it too (sign out everywhere). The
+	// scope is required: a bare DELETE must not sign anyone out by accident.
+	mux.HandleFunc("DELETE /api/v1/auth/sessions", func(w http.ResponseWriter, r *http.Request) {
+		p, _ := current(r.Context())
+		scope := r.URL.Query().Get("scope")
+		if scope != "others" && scope != "all" {
+			writeError(w, http.StatusBadRequest, `scope must be "others" or "all"`)
+			return
+		}
+		ended, err := svc.RevokeAll(r.Context(), p.session, scope == "all", clientOf(r))
+		if err != nil {
+			internalError(w, r, err)
+			return
+		}
+		if scope == "all" {
+			clearSessionCookie(w)
+		}
+		writeJSON(w, http.StatusOK, struct {
+			Ended int `json:"ended"`
+		}{ended})
+	})
+
 	mux.HandleFunc("DELETE /api/v1/auth/sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
 		p, _ := current(r.Context())
 		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)

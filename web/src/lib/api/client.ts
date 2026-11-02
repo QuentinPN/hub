@@ -126,6 +126,12 @@ export const getSessions = (fetchFn: Fetch) =>
 export const revokeSession = (fetchFn: Fetch, id: number) =>
 	sendNoContent(fetchFn, 'DELETE', `/api/v1/auth/sessions/${id}`);
 
+/** « others » garde cette session ; « all » la ferme aussi (déconnexion partout). */
+export async function revokeSessions(fetchFn: Fetch, scope: 'others' | 'all'): Promise<number> {
+	const res = await send(fetchFn, 'DELETE', `/api/v1/auth/sessions?scope=${scope}`);
+	return ((await res.json()) as { ended: number }).ended;
+}
+
 /** Le serveur ferme toutes les autres sessions ; celle-ci reste ouverte. */
 export const changePassword = (fetchFn: Fetch, current: string, next: string) =>
 	sendNoContent(fetchFn, 'PUT', '/api/v1/auth/password', { current, new: next });

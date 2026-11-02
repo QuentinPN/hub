@@ -113,6 +113,11 @@ func (s *Store) DeleteSession(ctx context.Context, userID, id int64) error {
 	return err
 }
 
+func (s *Store) DeleteSessions(ctx context.Context, userID, keep int64) (int, error) {
+	tag, err := s.pool.Exec(ctx, "DELETE FROM sessions WHERE user_id = $1 AND id <> $2", userID, keep)
+	return int(tag.RowsAffected()), err
+}
+
 func (s *Store) Sessions(ctx context.Context, userID int64, now time.Time) ([]auth.Session, error) {
 	rows, err := s.pool.Query(ctx, `SELECT `+sessionColumns+` FROM sessions s
 		WHERE s.user_id = $1 AND s.expires_at > $2 ORDER BY s.last_seen_at DESC`, userID, now)

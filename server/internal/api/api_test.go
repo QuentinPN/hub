@@ -423,3 +423,51 @@ func TestChangePassword(t *testing.T) {
 		t.Fatalf("login with the new password: status %d", status)
 	}
 }
+
+func TestRevokeOtherOrAllSessions(t *testing.T) {
+	e := newEnv(t, fixture.New())
+	login := `{"username":"quentin","password":"` + password + `"}`
+	others := []*http.Client{e.newClient(t), e.newClient(t)}
+	for _, c := range others {
+		if status, _ := e.do(t, c, http.MethodPost, "/api/v1/auth/login", login, nil); status != http.StatusNoContent {
+			t.Fatalf("login: status %d", status)
+		}
+	}
+
+	if status, _ := e.do(t, e.user, http.MethodDelete, "/api/v1/auth/sessions", "", nil); status != http.StatusBadRequest {
+		t.Fatalf("without a scope: status %d", status)
+	}
+	if status, _ := e.do(t, e.anon, http.MethodDelete, "/api/v1/auth/sessions?scope=all", "", nil); status != http.StatusUnauthorized {
+		t.Fatalf("without a session: status %d", status)
+	}
+	if status, _ := e.do(t, e.user, http.MethodDelete, "/api/v1/auth/sessions?scope=others", "", map[string]string{"Sec-Fetch-Site": "cross-site"}); status != http.StatusForbidden {
+		t.Fatalf("cross-site: status %d", status)
+	}
+
+	status, body := e.do(t, e.user, http.MethodDelete, "/api/v1/auth/sessions?scope=others", "", nil)
+	if status != http.StatusOK || !strings.Contains(string(body), `"ended":2`) {
+		t.Fatalf("others: status %d, body %s", status, body)
+	}
+	for _, c := range others {
+		if status, _ := e.do(t, c, http.MethodGet, "/api/v1/home", "", nil); status != http.StatusUnauthorized {
+			t.Fatalf("another session survived: status %d", status)
+		}
+	}
+	if status, _ := e.do(t, e.user, http.MethodGet, "/api/v1/home", "", nil); status != http.StatusOK {
+		t.Fatalf("this session ended with scope=others: status %d", status)
+	}
+
+	res := e.raw(t, e.user, http.MethodDelete, "/api/v1/auth/sessions?scope=all", "", nil)
+	_ = res.Body.Close()
+	// The middleware renews the cookie first; the browser applies the last one, which clears it.
+	cookies := res.Header.Values("Set-Cookie")
+	if res.StatusCode != http.StatusOK || len(cookies) == 0 || !strings.Contains(cookies[len(cookies)-1], "Max-Age=0") {
+		t.Fatalf("all: status %d, cookies %q", res.StatusCode, cookies)
+	}
+	if status, _ := e.do(t, e.user, http.MethodGet, "/api/v1/home", "", nil); status != http.StatusUnauthorized {
+		t.Fatalf("this session survived scope=all: status %d", status)
+	}
+	if !slices.Contains(e.repo.Kinds(), "sessions_revoked") {
+		t.Fatalf("audit = %v", e.repo.Kinds())
+	}
+}

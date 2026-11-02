@@ -100,6 +100,9 @@ type Repo interface {
 	SessionByToken(ctx context.Context, tokenHash []byte, now time.Time) (Session, User, error)
 	TouchSession(ctx context.Context, id int64, lastSeen, expires time.Time) error
 	DeleteSession(ctx context.Context, userID, id int64) error
+	// DeleteSessions ends every session of the user except keep (0 ends them all) and
+	// returns how many ended.
+	DeleteSessions(ctx context.Context, userID, keep int64) (int, error)
 	Sessions(ctx context.Context, userID int64, now time.Time) ([]Session, error)
 	Audit(ctx context.Context, e Event) error
 }
@@ -267,6 +270,21 @@ func (s *Service) Revoke(ctx context.Context, userID, sessionID int64, c Client)
 	}
 	s.audit(ctx, Event{Kind: "session_revoked", UserID: &userID, IP: c.IP, Detail: fmt.Sprintf("session=%d", sessionID)})
 	return nil
+}
+
+// RevokeAll ends the user's other sessions, and with includeCurrent this one too (sign out
+// everywhere). It returns how many ended.
+func (s *Service) RevokeAll(ctx context.Context, sess Session, includeCurrent bool, c Client) (int, error) {
+	keep, scope := sess.ID, "others"
+	if includeCurrent {
+		keep, scope = 0, "all"
+	}
+	ended, err := s.repo.DeleteSessions(ctx, sess.UserID, keep)
+	if err != nil {
+		return 0, err
+	}
+	s.audit(ctx, Event{Kind: "sessions_revoked", UserID: &sess.UserID, IP: c.IP, Detail: fmt.Sprintf("scope=%s sessions_ended=%d", scope, ended)})
+	return ended, nil
 }
 
 // ChangePassword replaces the password from inside a session. The current one is asked

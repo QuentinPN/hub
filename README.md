@@ -6,7 +6,7 @@ Dashboard auto-hébergé pour les services Docker du mini-PC Debian, du QNAP et 
 
 Pages : accueil (`/`), catalogue « Tous les services » (`/services`, `Ctrl+K` depuis n'importe quelle page), fiche service (`/services/{slug}`), réglages en lecture seule (`/settings`).
 
-API : `GET /api/v1/home`, `/api/v1/services`, `/api/v1/services/{slug}`, `/api/v1/settings`, `GET /healthz`, `PUT /api/v1/settings/discovery`, et les routes de compte sous `/api/v1/auth/` (état, setup, connexion par mot de passe ou passkey, changement de mot de passe, sessions, passkeys).
+API : `GET /api/v1/home`, `/api/v1/services`, `/api/v1/services/{slug}`, `/api/v1/settings`, `GET /healthz`, `PUT /api/v1/settings/discovery`, et les routes de compte sous `/api/v1/auth/` (état, setup, connexion par mot de passe ou passkey, changement de mot de passe, sessions (une, les autres ou toutes), passkeys).
 
 ## Structure
 

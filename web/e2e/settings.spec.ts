@@ -69,3 +69,46 @@ test('changer le mot de passe : erreur, puis succès et sessions rechargées', a
 	expect(bodies[1]).toEqual({ current: 'bon mot de passe', new: 'un tout nouveau mot de passe' });
 	await expect.poll(() => sessionLoads).toBeGreaterThan(before);
 });
+
+test('déconnecter les autres sessions garde celle-ci', async ({ page }) => {
+	const scopes: (string | null)[] = [];
+	await page.route('**/api/v1/auth/sessions?*', (route) => {
+		scopes.push(new URL(route.request().url()).searchParams.get('scope'));
+		return route.fulfill({ json: { ended: 1 } });
+	});
+	const list = page.getByRole('list').filter({ hasText: 'Cette session' });
+	await expect(
+		page.getByRole('button', { name: 'Déconnecter la session Safari · iPhone (192.0.2.30)' })
+	).toBeVisible();
+
+	await page.getByRole('button', { name: 'Déconnecter les autres' }).click();
+	await expect(page.getByRole('status').filter({ hasText: '1 session déconnectée' })).toBeVisible();
+	await expect(list.getByRole('listitem')).toHaveCount(1);
+	await expect(page.getByRole('button', { name: 'Déconnecter les autres' })).toBeHidden();
+	expect(scopes).toEqual(['others']);
+});
+
+test('se déconnecter partout demande confirmation puis renvoie à la connexion', async ({
+	page
+}) => {
+	const scopes: (string | null)[] = [];
+	await page.route('**/api/v1/auth/sessions?*', async (route) => {
+		scopes.push(new URL(route.request().url()).searchParams.get('scope'));
+		// Plus aucune session : l'état d'authentification devient « déconnecté ».
+		const state = { setupRequired: false, authenticated: false, passkeys: true };
+		await page.route('**/api/v1/auth/state', (r) => r.fulfill({ json: state }));
+		return route.fulfill({ json: { ended: 2 } });
+	});
+
+	await page.getByRole('button', { name: 'Se déconnecter partout' }).click();
+	await expect(page.getByText('Toutes les sessions, celle-ci comprise ?')).toBeVisible();
+	await page.getByRole('button', { name: 'Annuler la déconnexion de toutes les sessions' }).click();
+	expect(scopes).toEqual([]);
+
+	await page.getByRole('button', { name: 'Se déconnecter partout' }).click();
+	await page
+		.getByRole('button', { name: 'Confirmer la déconnexion de toutes les sessions' })
+		.click();
+	await expect(page).toHaveURL('/login');
+	expect(scopes).toEqual(['all']);
+});

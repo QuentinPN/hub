@@ -1,13 +1,17 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { getSessions, logout, revokeSession } from '#lib/api/client.ts';
+	import { getSessions, logout, revokeSession, revokeSessions } from '#lib/api/client.ts';
 	import type { SessionInfo } from '#lib/api/types.ts';
 	import Skeleton from './Skeleton.svelte';
 
 	let sessions = $state<SessionInfo[] | null>(null);
-	let busy = $state<number | 'logout' | null>(null);
+	let busy = $state<number | 'logout' | 'others' | 'all' | null>(null);
+	let confirmingAll = $state(false);
 	let message = $state('');
+
+	const others = $derived(sessions?.filter((s) => !s.current).length ?? 0);
+	const plural = (n: number) => (n > 1 ? `${n} sessions déconnectées` : '1 session déconnectée');
 
 	const dateFmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
 	const formatDate = (iso: string) => dateFmt.format(new Date(iso));
@@ -56,11 +60,38 @@
 		try {
 			await revokeSession(fetch, s.id);
 			sessions = sessions?.filter((x) => x.id !== s.id) ?? null;
-			message = `Session ${device(s.userAgent)} révoquée.`;
+			message = `Session ${device(s.userAgent)} déconnectée.`;
 		} catch (err) {
-			message = `Échec de la révocation : ${err instanceof Error ? err.message : String(err)}`;
+			message = `Échec de la déconnexion : ${err instanceof Error ? err.message : String(err)}`;
 		} finally {
 			busy = null;
+		}
+	}
+
+	async function revokeOthers() {
+		busy = 'others';
+		message = '';
+		try {
+			const ended = await revokeSessions(fetch, 'others');
+			sessions = sessions?.filter((x) => x.current) ?? null;
+			message = ended ? `${plural(ended)}. Cette session reste ouverte.` : 'Aucune autre session.';
+		} catch (err) {
+			message = `Échec de la déconnexion : ${err instanceof Error ? err.message : String(err)}`;
+		} finally {
+			busy = null;
+		}
+	}
+
+	async function signOutEverywhere() {
+		busy = 'all';
+		message = '';
+		try {
+			await revokeSessions(fetch, 'all');
+			await goto(resolve('/login'), { invalidateAll: true });
+		} catch (err) {
+			message = `Échec de la déconnexion : ${err instanceof Error ? err.message : String(err)}`;
+			busy = null;
+			confirmingAll = false;
 		}
 	}
 
@@ -100,8 +131,8 @@
 						type="button"
 						class="btn ghost"
 						disabled={busy !== null}
-						aria-label="Révoquer la session {device(s.userAgent)} ({s.ip})"
-						onclick={() => revoke(s)}>{busy === s.id ? 'Révocation…' : 'Révoquer'}</button
+						aria-label="Déconnecter la session {device(s.userAgent)} ({s.ip})"
+						onclick={() => revoke(s)}>{busy === s.id ? 'Déconnexion…' : 'Déconnecter'}</button
 					>
 				{/if}
 			</li>
@@ -111,9 +142,38 @@
 
 <div class="actions">
 	<p class="status" role="status">{message}</p>
-	<button type="button" class="btn primary" disabled={busy !== null} onclick={signOut}
-		>{busy === 'logout' ? 'Déconnexion…' : 'Se déconnecter'}</button
-	>
+	{#if confirmingAll}
+		<span class="confirm">Toutes les sessions, celle-ci comprise ?</span>
+		<button
+			type="button"
+			class="btn ghost"
+			disabled={busy !== null}
+			aria-label="Annuler la déconnexion de toutes les sessions"
+			onclick={() => (confirmingAll = false)}>Annuler</button
+		>
+		<button
+			type="button"
+			class="btn danger"
+			disabled={busy !== null}
+			aria-label="Confirmer la déconnexion de toutes les sessions"
+			onclick={signOutEverywhere}>{busy === 'all' ? 'Déconnexion…' : 'Tout déconnecter'}</button
+		>
+	{:else}
+		{#if others > 0}
+			<button type="button" class="btn ghost" disabled={busy !== null} onclick={revokeOthers}
+				>{busy === 'others' ? 'Déconnexion…' : 'Déconnecter les autres'}</button
+			>
+		{/if}
+		<button
+			type="button"
+			class="btn ghost"
+			disabled={busy !== null || sessions === null}
+			onclick={() => (confirmingAll = true)}>Se déconnecter partout</button
+		>
+		<button type="button" class="btn primary" disabled={busy !== null} onclick={signOut}
+			>{busy === 'logout' ? 'Déconnexion…' : 'Se déconnecter'}</button
+		>
+	{/if}
 </div>
 
 <style>
@@ -194,6 +254,14 @@
 		border: 1px solid var(--border-2);
 		background: transparent;
 		color: var(--text);
+	}
+	.danger {
+		background: #ff8a80;
+		color: #1a0b0a;
+	}
+	.confirm {
+		font-size: 14px;
+		font-weight: 500;
 	}
 	@media (max-width: 720px) {
 		.session {

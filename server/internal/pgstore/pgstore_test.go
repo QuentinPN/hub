@@ -359,3 +359,37 @@ func TestSetPassword(t *testing.T) {
 		t.Fatalf("login after reset: %v", err)
 	}
 }
+
+func TestDeleteSessions(t *testing.T) {
+	pool := dbtest.Pool(t)
+	ctx := context.Background()
+	store, err := pgstore.New(ctx, pool, fixture.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc, err := auth.New(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, _ := svc.PrepareSetup(ctx)
+	client := auth.Client{IP: "192.0.2.50", UserAgent: "test"}
+	mine, err := svc.Setup(ctx, code, "quentin", "correct horse battery", client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, _ := svc.Login(ctx, "quentin", "correct horse battery", client)
+	sess, _, _ := svc.Authenticate(ctx, mine)
+
+	if n, err := svc.RevokeAll(ctx, sess, false, client); err != nil || n != 1 {
+		t.Fatalf("others: %d ended, err %v", n, err)
+	}
+	if _, _, err := svc.Authenticate(ctx, other); err != auth.ErrUnauthenticated {
+		t.Fatalf("other session: err = %v", err)
+	}
+	if n, err := svc.RevokeAll(ctx, sess, true, client); err != nil || n != 1 {
+		t.Fatalf("all: %d ended, err %v", n, err)
+	}
+	if _, _, err := svc.Authenticate(ctx, mine); err != auth.ErrUnauthenticated {
+		t.Fatalf("this session: err = %v", err)
+	}
+}
