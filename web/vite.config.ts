@@ -6,7 +6,10 @@ export default defineConfig({
 	plugins: [
 		sveltekit({
 			// SPA : le binaire Go sert index.html pour toute route inconnue.
-			adapter: adapter({ fallback: 'index.html' })
+			adapter: adapter({ fallback: 'index.html' }),
+			// Un onglet resté ouvert pendant un déploiement le voit en une minute : la navigation
+			// suivante recharge la page au lieu de demander des fichiers qui n'existent plus.
+			version: { pollInterval: 60_000 }
 		})
 	],
 	server: {
