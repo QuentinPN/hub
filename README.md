@@ -2,7 +2,7 @@
 
 Dashboard auto-hébergé pour les services Docker du mini-PC Debian, du QNAP et du Raspberry Pi. Le cadrage est dans [PRODUCT.md](PRODUCT.md), [ARCHITECTURE.md](ARCHITECTURE.md), [DESIGN.md](DESIGN.md) et [DECISIONS.md](DECISIONS.md).
 
-**État : jalon 3 en cours (shell UI, navigation, responsive, accessibilité).** L'inventaire et les réglages sont enregistrés dans PostgreSQL ; l'accès demande un compte local (mot de passe, sessions, passkeys). L'état des services (en ligne, latence, données des widgets) est encore **fictif** (`server/internal/fixture`). Aucun hôte n'est contacté et rien n'accède à Docker.
+**État : phase 1 terminée (jalon 3 validé le 2026-11-02) ; prochaine étape, la phase 2 (découverte Docker multi-hôte).** L'inventaire et les réglages sont enregistrés dans PostgreSQL ; l'accès demande un compte local (mot de passe, sessions, passkeys). L'état des services (en ligne, latence, données des widgets) est encore **fictif** (`server/internal/fixture`). Aucun hôte n'est contacté et rien n'accède à Docker.
 
 Pages : accueil (`/`), catalogue « Tous les services » (`/services`, `Ctrl+K` depuis n'importe quelle page), fiche service (`/services/{slug}`), réglages en lecture seule (`/settings`).
 

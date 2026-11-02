@@ -10,7 +10,7 @@
 ## Phase 1 — Foundation
 [x] Initialisation stack, lint, format, tests, CI, design system validé (jalon 1, 2026-11-01 : données fictives)
 [x] Schéma PostgreSQL, migrations, authentification et secrets (jalon 2, 2026-11-01 : PostgreSQL et migrations, compte + mot de passe + sessions, passkeys, chiffrement des secrets ; la saisie des secrets dans l'UI arrivera avec les connecteurs)
-[ ] Shell UI, navigation, responsive, accessibilité (jalon 3 en cours : shell, corrections axe et clavier, tests Playwright faits ; reste la validation)
+[x] Shell UI, navigation, responsive, accessibilité (jalon 3, validé le 2026-11-02 après revue en 1440 et 390 px : shell, axe et clavier, tests Playwright, menu des Réglages en mobile, changement et réinitialisation du mot de passe, déconnexion d'une, des autres ou de toutes les sessions)
 
 ## Phase 2 — Discovery multi-host
 [ ] Agent minimal sûr, connexion d’hôtes, snapshot initial
