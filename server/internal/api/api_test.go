@@ -16,6 +16,7 @@ import (
 	"hub/server/internal/auth/authtest"
 	"hub/server/internal/domain"
 	"hub/server/internal/fixture"
+	"hub/server/internal/icons"
 )
 
 const password = "correct horse battery"
@@ -42,7 +43,7 @@ func newEnv(t *testing.T, store api.Store) *env {
 		t.Fatal(err)
 	}
 	ui := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ui")) })
-	srv := httptest.NewTLSServer(api.NewHandler(store, svc, ui, []string{"sha256-abc"}))
+	srv := httptest.NewTLSServer(api.NewHandler(store, svc, icons.NewService(noCache{}, nil), ui, []string{"sha256-abc"}))
 	t.Cleanup(srv.Close)
 
 	e := &env{srv: srv, repo: repo, svc: svc, secret: code}
@@ -349,5 +350,35 @@ func TestReadOnlyStoreHasNoWriteRoute(t *testing.T) {
 	e := newEnv(t, fixture.New())
 	if status, _ := e.do(t, e.user, http.MethodPut, "/api/v1/settings/discovery", `{}`, nil); status != http.StatusNotFound && status != http.StatusMethodNotAllowed {
 		t.Fatalf("status %d", status)
+	}
+}
+
+// noCache is an empty icon cache: the API tests only see the bundled icons.
+type noCache struct{}
+
+func (noCache) CachedIcon(context.Context, string) (icons.CachedIcon, error) {
+	return icons.CachedIcon{}, icons.ErrNotFound
+}
+func (noCache) PutCachedIcon(context.Context, icons.CachedIcon) error { return nil }
+
+func TestIcons(t *testing.T) {
+	e := newEnv(t, fixture.New())
+
+	if status, _ := e.do(t, e.anon, http.MethodGet, "/api/v1/icons/emby", "", nil); status != http.StatusUnauthorized {
+		t.Fatalf("anonymous: status %d", status)
+	}
+	res := e.raw(t, e.user, http.MethodGet, "/api/v1/icons/emby", "", nil)
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+	if res.StatusCode != http.StatusOK || res.Header.Get("Content-Type") != "image/svg+xml" || !strings.Contains(string(body), "<svg") {
+		t.Fatalf("emby: %d %q", res.StatusCode, res.Header.Get("Content-Type"))
+	}
+	if csp := res.Header.Get("Content-Security-Policy"); !strings.Contains(csp, "sandbox") || !strings.Contains(csp, "default-src 'none'") {
+		t.Fatalf("icon CSP: %q", csp)
+	}
+	for _, ref := range []string{"unknown-service", "..%2Fdb", "EMBY"} {
+		if status, _ := e.do(t, e.user, http.MethodGet, "/api/v1/icons/"+ref, "", nil); status != http.StatusNotFound {
+			t.Errorf("%s: status %d", ref, status)
+		}
 	}
 }

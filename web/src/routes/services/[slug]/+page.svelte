@@ -4,8 +4,8 @@
 	import { ApiError } from '#lib/api/client.ts';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import InfoCard from '#lib/components/InfoCard.svelte';
-	import Monogram from '#lib/components/Monogram.svelte';
 	import PosterCard from '#lib/components/PosterCard.svelte';
+	import ServiceIcon from '#lib/components/ServiceIcon.svelte';
 	import Shelf from '#lib/components/Shelf.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
 	import StatusDot from '#lib/components/StatusDot.svelte';
@@ -48,7 +48,7 @@
 					<a class="muted back" href={resolve('/')}>‹ Accueil</a>
 				{/if}
 				<div class="title-row">
-					<Monogram text={svc.monogram} color={svc.color} size={96} />
+					<ServiceIcon icon={svc.icon} monogram={svc.monogram} color={svc.color} size={96} />
 					<div>
 						<span class="category">{svc.category} · {svc.hostId}</span>
 						<h1>{svc.name}</h1>
@@ -232,7 +232,8 @@
 		.title-row {
 			gap: 14px;
 		}
-		.title-row :global(.mono-tile) {
+		.title-row :global(.mono-tile),
+		.title-row :global(.svc-icon) {
 			width: 64px !important;
 			height: 64px !important;
 		}

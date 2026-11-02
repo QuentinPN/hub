@@ -56,6 +56,8 @@ bash scripts/build.sh
 cd web && npm run check && npm run lint && npm test
 ```
 
+Icônes des services : [selfh.st/icons](https://selfh.st/icons) (CC BY 4.0), servies par `GET /api/v1/icons/{ref}`. Un lot de départ est embarqué dans le binaire ; une icône absente est téléchargée une fois par le serveur depuis `cdn.jsdelivr.net`, vérifiée, puis gardée dans PostgreSQL. `HUB_ICONS_REMOTE=off` coupe ces téléchargements (lot embarqué seul). Le serveur a donc besoin d'un accès sortant HTTPS vers `cdn.jsdelivr.net`, et vers rien d'autre.
+
 Tests Playwright de l'UI (navigation, `Ctrl+K`, focus, axe, débordement et mouvement réduit, en 1440 et 390 px). L'API y est simulée à partir de réponses enregistrées (`web/e2e/fixtures`) : ni serveur Go ni base. La première fois, installer Chromium (`npx playwright install chromium`), ou utiliser le Chrome du poste avec `PLAYWRIGHT_CHANNEL=chrome` :
 
 ```bash

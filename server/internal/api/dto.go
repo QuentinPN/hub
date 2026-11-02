@@ -6,9 +6,11 @@ import "hub/server/internal/domain"
 // secret: credentials only ever appear as an already-masked string.
 
 type ServiceSummary struct {
-	Slug      string        `json:"slug"`
-	Name      string        `json:"name"`
-	Monogram  string        `json:"monogram"`
+	Slug     string `json:"slug"`
+	Name     string `json:"name"`
+	Monogram string `json:"monogram"`
+	// Icon is a selfh.st icon reference; nil means the UI shows the monogram.
+	Icon      *string       `json:"icon"`
 	Color     string        `json:"color"`
 	Category  string        `json:"category"`
 	HostID    string        `json:"hostId"`

@@ -115,6 +115,11 @@
 				<h3 class="sub">Sessions ouvertes</h3>
 				<SessionsList />
 			</section>
+			<p class="muted small credits">
+				Icônes des services :
+				<a href="https://selfh.st/icons" rel="noreferrer" target="_blank">selfh.st/icons</a>, sous
+				licence CC BY 4.0. Les logos restent des marques de leurs éditeurs.
+			</p>
 		</div>
 	</div>
 </div>
@@ -242,6 +247,13 @@
 		margin-bottom: 3px;
 		font-size: 16px;
 		font-weight: 600;
+	}
+	.credits {
+		margin: 0;
+		line-height: 1.5;
+	}
+	.credits a {
+		text-decoration: underline;
 	}
 	.rights {
 		margin: 8px 0 0;

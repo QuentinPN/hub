@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import type { ServiceSummary } from '#lib/api/types.ts';
-	import Monogram from './Monogram.svelte';
+	import ServiceIcon from './ServiceIcon.svelte';
 	import StatusDot from './StatusDot.svelte';
 
 	let {
@@ -19,7 +19,7 @@
 	href={resolve('/services/[slug]', { slug: service.slug })}
 >
 	<div class="row">
-		<Monogram text={service.monogram} color={service.color} />
+		<ServiceIcon icon={service.icon} monogram={service.monogram} color={service.color} />
 		<span class="marks">
 			{#if showFavorite && service.favorite}
 				<svg width="15" height="15" viewBox="0 0 24 24" fill="var(--accent-play)" role="img"

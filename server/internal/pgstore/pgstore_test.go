@@ -3,8 +3,10 @@ package pgstore_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"hub/server/internal/api"
 	"hub/server/internal/auth"
@@ -12,6 +14,7 @@ import (
 	"hub/server/internal/db/dbtest"
 	"hub/server/internal/domain"
 	"hub/server/internal/fixture"
+	"hub/server/internal/icons"
 	"hub/server/internal/pgstore"
 )
 
@@ -21,7 +24,7 @@ func TestSeedOnceThenKeepCustomizations(t *testing.T) {
 	if _, err := pgstore.New(ctx, pool, fixture.New()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, "UPDATE services SET favorite = true, category = 'Perso' WHERE slug = 'bazarr'"); err != nil {
+	if _, err := pool.Exec(ctx, "UPDATE services SET favorite = true, category = 'Perso', icon = 'lidarr' WHERE slug = 'bazarr'"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -41,7 +44,7 @@ func TestSeedOnceThenKeepCustomizations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !svc.Favorite || svc.Category != "Perso" {
+	if !svc.Favorite || svc.Category != "Perso" || svc.Icon == nil || *svc.Icon != "lidarr" {
 		t.Fatalf("customization lost: %+v", svc.ServiceSummary)
 	}
 	home, err := store.Home(ctx)
@@ -50,6 +53,31 @@ func TestSeedOnceThenKeepCustomizations(t *testing.T) {
 	}
 	if len(home.Favorites) != 7 {
 		t.Fatalf("got %d favorites, want 7", len(home.Favorites))
+	}
+}
+
+func TestSeededServicesHaveIcons(t *testing.T) {
+	pool := dbtest.Pool(t)
+	ctx := context.Background()
+	store, err := pgstore.New(ctx, pool, fixture.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, err := store.Services(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, svc := range list {
+		want := map[string]string{"pihole": "pi-hole", "portainer": "portainer-light"}[svc.Slug]
+		if want == "" {
+			want = svc.Slug
+		}
+		if svc.Icon == nil || *svc.Icon != want {
+			t.Errorf("%s: icon = %v, want %q", svc.Slug, svc.Icon, want)
+		}
+	}
+	if _, err := pool.Exec(ctx, "UPDATE services SET icon = '../x' WHERE slug = 'emby'"); err == nil {
+		t.Fatal("an icon reference with a path was accepted")
 	}
 }
 
@@ -239,5 +267,38 @@ func TestPasskeyRepo(t *testing.T) {
 	}
 	if list, _ := svc.Passkeys(ctx, user.ID); len(list) != 0 {
 		t.Fatalf("after delete %+v", list)
+	}
+}
+
+func TestIconCache(t *testing.T) {
+	pool := dbtest.Pool(t)
+	ctx := context.Background()
+	store, err := pgstore.New(ctx, pool, fixture.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CachedIcon(ctx, "audiobookshelf"); !errors.Is(err, icons.ErrNotFound) {
+		t.Fatalf("empty cache: %v", err)
+	}
+	at := time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
+	missing := icons.CachedIcon{Ref: "audiobookshelf", FetchedAt: at}
+	if err := store.PutCachedIcon(ctx, missing); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.CachedIcon(ctx, "audiobookshelf")
+	if err != nil || got.Icon != nil || !got.FetchedAt.Equal(at) {
+		t.Fatalf("missing row: %+v, %v", got, err)
+	}
+	found := icons.CachedIcon{Ref: "audiobookshelf", Icon: &icons.Icon{ContentType: "image/svg+xml", Body: []byte("<svg/>")}, FetchedAt: at.Add(time.Hour)}
+	if err := store.PutCachedIcon(ctx, found); err != nil {
+		t.Fatal(err)
+	}
+	got, err = store.CachedIcon(ctx, "audiobookshelf")
+	if err != nil || got.Icon == nil || string(got.Icon.Body) != "<svg/>" || got.Icon.ContentType != "image/svg+xml" {
+		t.Fatalf("found row: %+v, %v", got, err)
+	}
+	bad := icons.CachedIcon{Ref: "x", Icon: &icons.Icon{ContentType: "text/html", Body: []byte("<p>")}, FetchedAt: at}
+	if err := store.PutCachedIcon(ctx, bad); err == nil {
+		t.Fatal("an HTML body was cached")
 	}
 }

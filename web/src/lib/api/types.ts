@@ -7,6 +7,8 @@ export interface ServiceSummary {
 	slug: string;
 	name: string;
 	monogram: string;
+	/** Référence d'une icône selfh.st embarquée ; null : monogramme. */
+	icon: string | null;
 	color: string;
 	category: string;
 	hostId: string;

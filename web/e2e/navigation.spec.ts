@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { mockApi } from './api.ts';
+import { fixture, mockApi } from './api.ts';
 
 test.beforeEach(async ({ page }) => {
 	await mockApi(page);
@@ -98,6 +98,36 @@ test('le titre de l’onglet suit la page', async ({ page }) => {
 	await expect(page).toHaveTitle('Emby · Hub');
 	await page.goto('/services');
 	await expect(page).toHaveTitle('Tous les services · Hub');
+});
+
+test('chaque service affiche son icône selfh.st embarquée', async ({ page }) => {
+	await page.goto('/services');
+	const icons = page.locator('a.app img');
+	await expect(icons).toHaveCount(34);
+	await expect(page.getByRole('link', { name: /Emby/ }).locator('img')).toHaveAttribute(
+		'src',
+		'/api/v1/icons/emby'
+	);
+	// Toutes chargées depuis notre origine : rien ne part vers un CDN.
+	const broken = await icons.evaluateAll((imgs) =>
+		(imgs as HTMLImageElement[])
+			.filter(
+				(img) => !img.complete || img.naturalWidth === 0 || !img.src.startsWith(location.origin)
+			)
+			.map((img) => img.src)
+	);
+	expect(broken).toEqual([]);
+});
+
+test('sans icône connue, le monogramme reste affiché', async ({ page }) => {
+	const list = fixture('services') as { slug: string; icon: string | null }[];
+	for (const s of list) if (s.slug === 'emby') s.icon = null;
+	for (const s of list) if (s.slug === 'sonarr') s.icon = 'inconnue-de-l-ui';
+	await page.route('**/api/v1/services', (route) => route.fulfill({ json: list }));
+	await page.goto('/services');
+	await expect(page.getByRole('link', { name: /Emby/ }).locator('img')).toHaveCount(0);
+	await expect(page.getByRole('link', { name: /Emby/ }).locator('.mono-tile')).toHaveText('E');
+	await expect(page.getByRole('link', { name: /Sonarr/ }).locator('.mono-tile')).toHaveText('S');
 });
 
 test.describe('sans session', () => {

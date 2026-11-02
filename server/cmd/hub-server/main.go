@@ -19,6 +19,7 @@ import (
 	"hub/server/internal/auth"
 	"hub/server/internal/db"
 	"hub/server/internal/fixture"
+	"hub/server/internal/icons"
 	"hub/server/internal/pgstore"
 	"hub/server/internal/secrets"
 	"hub/server/internal/webui"
@@ -76,10 +77,20 @@ func main() {
 		slog.Warn("no account yet: open the dashboard and create it with this one-time code", "setup_code", code)
 	}
 
+	// Icons missing from the binary are downloaded once from selfh.st, then served from the
+	// database. HUB_ICONS_REMOTE=off keeps the server off the network: bundled icons only.
+	var iconFetcher icons.Fetcher
+	if os.Getenv("HUB_ICONS_REMOTE") == "off" {
+		slog.Info("icon downloads disabled (HUB_ICONS_REMOTE=off): bundled icons only")
+	} else {
+		iconFetcher = icons.NewHTTPFetcher(icons.RemoteBase)
+	}
+	iconSvc := icons.NewService(store, iconFetcher)
+
 	ui := webui.New()
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           api.NewHandler(store, authSvc, ui.Handler, ui.ScriptHashes),
+		Handler:           api.NewHandler(store, authSvc, iconSvc, ui.Handler, ui.ScriptHashes),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

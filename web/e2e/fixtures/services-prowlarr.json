@@ -2,6 +2,7 @@
 	"slug": "prowlarr",
 	"name": "Prowlarr",
 	"monogram": "P",
+	"icon": "prowlarr",
 	"color": "#5c5c66",
 	"category": "Médias",
 	"hostId": "debian-mini",

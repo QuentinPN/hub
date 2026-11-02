@@ -50,9 +50,9 @@ func (s *Store) seed(ctx context.Context) error {
 			}
 		}
 		for i, svc := range services {
-			if _, err := tx.Exec(ctx, `INSERT INTO services (slug, name, monogram, color, category, host_id, favorite, position)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-				svc.Slug, svc.Name, svc.Monogram, svc.Color, svc.Category, svc.HostID, svc.Favorite, i); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO services (slug, name, monogram, icon, color, category, host_id, favorite, position)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+				svc.Slug, svc.Name, svc.Monogram, svc.Icon, svc.Color, svc.Category, svc.HostID, svc.Favorite, i); err != nil {
 				return fmt.Errorf("service %s: %w", svc.Slug, err)
 			}
 		}
@@ -72,14 +72,14 @@ func (s *Store) services(ctx context.Context) ([]api.ServiceSummary, error) {
 		bySlug[l.Slug] = l
 	}
 
-	rows, err := s.pool.Query(ctx, `SELECT slug, name, monogram, color, category, host_id, favorite
+	rows, err := s.pool.Query(ctx, `SELECT slug, name, monogram, icon, color, category, host_id, favorite
 		FROM services ORDER BY position, slug`)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (api.ServiceSummary, error) {
 		var r api.ServiceSummary
-		if err := row.Scan(&r.Slug, &r.Name, &r.Monogram, &r.Color, &r.Category, &r.HostID, &r.Favorite); err != nil {
+		if err := row.Scan(&r.Slug, &r.Name, &r.Monogram, &r.Icon, &r.Color, &r.Category, &r.HostID, &r.Favorite); err != nil {
 			return r, err
 		}
 		l, ok := bySlug[r.Slug]

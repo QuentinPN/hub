@@ -163,6 +163,17 @@ func New() *Store {
 		})
 	}
 
+	// Every sample service has a selfh.st icon of the same name, except Pi-hole (named
+	// differently there) and Portainer (light variant: the standard one is unreadable on black).
+	renamed := map[string]string{"pihole": "pi-hole", "portainer": "portainer-light"}
+	for i := range s.services {
+		icon := s.services[i].Slug
+		if r, ok := renamed[icon]; ok {
+			icon = r
+		}
+		s.services[i].Icon = &icon
+	}
+
 	reachable := map[string]bool{}
 	for _, h := range s.hosts {
 		reachable[h.ID] = h.Reachable

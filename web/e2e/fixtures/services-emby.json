@@ -2,6 +2,7 @@
 	"slug": "emby",
 	"name": "Emby",
 	"monogram": "E",
+	"icon": "emby",
 	"color": "#2e7d4f",
 	"category": "Médias",
 	"hostId": "debian-mini",

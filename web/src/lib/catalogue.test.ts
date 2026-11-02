@@ -11,6 +11,7 @@ const svc = (
 	slug: name.toLowerCase(),
 	name,
 	monogram: name[0] ?? '?',
+	icon: null,
 	color: '#333',
 	category,
 	hostId,

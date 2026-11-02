@@ -11,6 +11,7 @@ import (
 	"net/url"
 
 	"hub/server/internal/auth"
+	"hub/server/internal/icons"
 )
 
 // Store is where the API reads the inventory from.
@@ -28,13 +29,18 @@ type SettingsWriter interface {
 	UpdateDiscovery(ctx context.Context, d Discovery) error
 }
 
+// IconSource resolves a selfh.st icon reference; icons.ErrNotFound when there is none.
+type IconSource interface {
+	Get(ctx context.Context, ref string) (icons.Icon, error)
+}
+
 // ErrNotFound is returned by a Store for an unknown resource.
 var ErrNotFound = errors.New("not found")
 
 // NewHandler returns the full HTTP handler: API routes under /api/v1, all behind a session
 // except the auth routes in publicAPI, a health check, and ui for everything else.
 // scriptHashes are CSP sources ('sha256-…') for the UI's inline bootstrap scripts.
-func NewHandler(store Store, authSvc *auth.Service, ui http.Handler, scriptHashes []string) http.Handler {
+func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, ui http.Handler, scriptHashes []string) http.Handler {
 	mux := http.NewServeMux()
 	registerAuth(mux, authSvc)
 
@@ -53,6 +59,24 @@ func NewHandler(store Store, authSvc *auth.Service, ui http.Handler, scriptHashe
 	})
 	mux.HandleFunc("GET /api/v1/services/{slug}", func(w http.ResponseWriter, r *http.Request) {
 		respond(w, r)(store.Service(r.Context(), r.PathValue("slug")))
+	})
+	// Behind the session like the rest of /api/: the server never acts as an open proxy.
+	mux.HandleFunc("GET /api/v1/icons/{ref}", func(w http.ResponseWriter, r *http.Request) {
+		icon, err := iconSrc.Get(r.Context(), r.PathValue("ref"))
+		switch {
+		case errors.Is(err, icons.ErrNotFound):
+			writeError(w, http.StatusNotFound, "not found")
+			return
+		case err != nil:
+			internalError(w, r, err)
+			return
+		}
+		h := w.Header()
+		h.Set("Content-Type", icon.ContentType)
+		h.Set("Cache-Control", "private, max-age=86400")
+		// Opened on its own, an SVG renders as a document: no script, no request, sandboxed.
+		h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+		_, _ = w.Write(icon.Body)
 	})
 	if sw, ok := store.(SettingsWriter); ok {
 		mux.HandleFunc("PUT /api/v1/settings/discovery", func(w http.ResponseWriter, r *http.Request) {
