@@ -87,10 +87,10 @@ async function postJson<T>(fetchFn: Fetch, path: string, body?: unknown): Promis
 	return (await (await send(fetchFn, 'POST', path, body)).json()) as T;
 }
 
-/** POST ou DELETE dont la réponse attendue est un 204 sans corps. */
+/** Requête dont la réponse attendue est un 204 sans corps. */
 async function sendNoContent(
 	fetchFn: Fetch,
-	method: 'POST' | 'DELETE',
+	method: 'PUT' | 'POST' | 'DELETE',
 	path: string,
 	body?: unknown
 ): Promise<void> {
@@ -125,6 +125,10 @@ export const getSessions = (fetchFn: Fetch) =>
 
 export const revokeSession = (fetchFn: Fetch, id: number) =>
 	sendNoContent(fetchFn, 'DELETE', `/api/v1/auth/sessions/${id}`);
+
+/** Le serveur ferme toutes les autres sessions ; celle-ci reste ouverte. */
+export const changePassword = (fetchFn: Fetch, current: string, next: string) =>
+	sendNoContent(fetchFn, 'PUT', '/api/v1/auth/password', { current, new: next });
 
 type Options = PasskeyOptions<Record<string, unknown>>;
 

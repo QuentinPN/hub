@@ -54,6 +54,32 @@ func (r *Repo) UserByName(_ context.Context, username string) (auth.User, string
 	return *r.user, r.hash, nil
 }
 
+func (r *Repo) SoleUser(context.Context) (auth.User, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.user == nil {
+		return auth.User{}, auth.ErrNotFound
+	}
+	return *r.user, nil
+}
+
+func (r *Repo) SetPassword(_ context.Context, userID int64, hash string, keep int64) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.user == nil || r.user.ID != userID {
+		return 0, auth.ErrNotFound
+	}
+	r.hash = hash
+	ended := 0
+	for k, s := range r.sessions {
+		if s.UserID == userID && s.ID != keep {
+			delete(r.sessions, k)
+			ended++
+		}
+	}
+	return ended, nil
+}
+
 func (r *Repo) CreateSession(_ context.Context, tokenHash []byte, s auth.Session) (auth.Session, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

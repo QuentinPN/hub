@@ -168,6 +168,20 @@ func registerAuth(mux *http.ServeMux, svc *auth.Service) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
+	// The current password is asked again; every other session ends, this one stays.
+	mux.HandleFunc("PUT /api/v1/auth/password", func(w http.ResponseWriter, r *http.Request) {
+		p, _ := current(r.Context())
+		var body struct{ Current, New string }
+		if !decodeJSON(w, r, &body) {
+			return
+		}
+		if err := svc.ChangePassword(r.Context(), p.session, body.Current, body.New, clientOf(r)); err != nil {
+			passkeyError(w, r, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
 	mux.HandleFunc("GET /api/v1/auth/sessions", func(w http.ResponseWriter, r *http.Request) {
 		p, _ := current(r.Context())
 		list, err := svc.Sessions(r.Context(), p.user.ID)
@@ -286,7 +300,8 @@ func registerPasskeys(mux *http.ServeMux, svc *auth.Service) {
 	})
 }
 
-// passkeyError maps passkey errors. A wrong password inside a session is 403, not 401:
+// passkeyError maps passkey and password-change errors. A wrong password inside a session
+// is 403, not 401:
 // the UI treats 401 as an expired session and goes back to the login page.
 func passkeyError(w http.ResponseWriter, r *http.Request, err error) {
 	var invalid *auth.InvalidInputError

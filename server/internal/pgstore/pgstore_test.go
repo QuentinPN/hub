@@ -302,3 +302,60 @@ func TestIconCache(t *testing.T) {
 		t.Fatal("an HTML body was cached")
 	}
 }
+
+func TestSetPassword(t *testing.T) {
+	pool := dbtest.Pool(t)
+	ctx := context.Background()
+	store, err := pgstore.New(ctx, pool, fixture.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SoleUser(ctx); err != auth.ErrNotFound {
+		t.Fatalf("before setup: err = %v", err)
+	}
+	svc, err := auth.New(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, _ := svc.PrepareSetup(ctx)
+	client := auth.Client{IP: "192.0.2.50", UserAgent: "test"}
+	mine, err := svc.Setup(ctx, code, "quentin", "correct horse battery", client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, _ := svc.Login(ctx, "quentin", "correct horse battery", client)
+	sess, user, _ := svc.Authenticate(ctx, mine)
+	if got, err := store.SoleUser(ctx); err != nil || got != user {
+		t.Fatalf("sole user %+v, err %v", got, err)
+	}
+
+	if _, err := store.SetPassword(ctx, user.ID+1, "$argon2id$x", 0); err != auth.ErrNotFound {
+		t.Fatalf("unknown user: err = %v", err)
+	}
+	// The CHECK on the hash format makes the whole transaction fail: no session ends.
+	if _, err := store.SetPassword(ctx, user.ID, "plain text", 0); err == nil {
+		t.Fatal("a non-Argon2id hash was stored")
+	}
+	if _, _, err := svc.Authenticate(ctx, other); err != nil {
+		t.Fatalf("a failed change ended a session: %v", err)
+	}
+
+	if err := svc.ChangePassword(ctx, sess, "correct horse battery", "a brand new passphrase", client); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.Authenticate(ctx, mine); err != nil {
+		t.Fatalf("current session ended: %v", err)
+	}
+	if _, _, err := svc.Authenticate(ctx, other); err != auth.ErrUnauthenticated {
+		t.Fatalf("other session: err = %v", err)
+	}
+	if _, err := svc.ResetPassword(ctx, "yet another passphrase"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.Authenticate(ctx, mine); err != auth.ErrUnauthenticated {
+		t.Fatalf("session after reset: err = %v", err)
+	}
+	if _, err := svc.Login(ctx, "quentin", "yet another passphrase", client); err != nil {
+		t.Fatalf("login after reset: %v", err)
+	}
+}

@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -199,5 +200,80 @@ func TestRevokeOnlyOwnSessions(t *testing.T) {
 	}
 	if _, _, err := svc.Authenticate(ctx, first); err != nil {
 		t.Fatal("the other session was revoked too")
+	}
+}
+
+func TestChangePasswordEndsOtherSessions(t *testing.T) {
+	svc, repo, _ := newService(t)
+	ctx := context.Background()
+	mine := setup(t, svc)
+	other, _ := svc.Login(ctx, "quentin", goodPassword, client)
+	sess, _, _ := svc.Authenticate(ctx, mine)
+
+	const next = "a brand new passphrase"
+	if err := svc.ChangePassword(ctx, sess, "wrong password!", next, client); !errors.Is(err, auth.ErrWrongPassword) {
+		t.Fatalf("wrong current password: err = %v", err)
+	}
+	var invalid *auth.InvalidInputError
+	if err := svc.ChangePassword(ctx, sess, goodPassword, "short", client); !errors.As(err, &invalid) {
+		t.Fatalf("short new password: err = %v", err)
+	}
+	if err := svc.ChangePassword(ctx, sess, goodPassword, next, client); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := svc.Authenticate(ctx, mine); err != nil {
+		t.Fatalf("the current session ended: %v", err)
+	}
+	if _, _, err := svc.Authenticate(ctx, other); !errors.Is(err, auth.ErrUnauthenticated) {
+		t.Fatal("another session survived the change")
+	}
+	if _, err := svc.Login(ctx, "quentin", goodPassword, client); !errors.Is(err, auth.ErrInvalidCredentials) {
+		t.Fatal("the old password still works")
+	}
+	if _, err := svc.Login(ctx, "quentin", next, client); err != nil {
+		t.Fatalf("new password refused: %v", err)
+	}
+	if !strings.Contains(strings.Join(repo.Kinds(), ","), "password_confirm_failed,password_changed") {
+		t.Fatalf("audit = %v", repo.Kinds())
+	}
+}
+
+func TestChangePasswordSharesTheLoginLimit(t *testing.T) {
+	svc, _, _ := newService(t)
+	ctx := context.Background()
+	sess, _, _ := svc.Authenticate(ctx, setup(t, svc))
+	for i := 0; i < 5; i++ {
+		_ = svc.ChangePassword(ctx, sess, "wrong password!", "a brand new passphrase", client)
+	}
+	var limited *auth.RateLimitedError
+	if _, err := svc.Login(ctx, "quentin", goodPassword, client); !errors.As(err, &limited) {
+		t.Fatalf("login after 5 wrong confirmations: err = %v", err)
+	}
+}
+
+func TestResetPassword(t *testing.T) {
+	svc, repo, _ := newService(t)
+	ctx := context.Background()
+	if _, err := svc.ResetPassword(ctx, "a brand new passphrase"); !errors.Is(err, auth.ErrNotFound) {
+		t.Fatalf("before setup: err = %v", err)
+	}
+	token := setup(t, svc)
+	var invalid *auth.InvalidInputError
+	if _, err := svc.ResetPassword(ctx, "short"); !errors.As(err, &invalid) {
+		t.Fatalf("short password: err = %v", err)
+	}
+	user, err := svc.ResetPassword(ctx, "a brand new passphrase")
+	if err != nil || user.Username != "quentin" {
+		t.Fatalf("user %+v, err %v", user, err)
+	}
+	if _, _, err := svc.Authenticate(ctx, token); !errors.Is(err, auth.ErrUnauthenticated) {
+		t.Fatal("a session survived the reset")
+	}
+	if _, err := svc.Login(ctx, "quentin", "a brand new passphrase", client); err != nil {
+		t.Fatalf("new password refused: %v", err)
+	}
+	if !slices.Contains(repo.Kinds(), "password_reset") {
+		t.Fatalf("audit = %v", repo.Kinds())
 	}
 }

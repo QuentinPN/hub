@@ -43,7 +43,6 @@ type Passkey struct {
 
 // PasskeyRepo is the storage passkeys need on top of Repo.
 type PasskeyRepo interface {
-	PasswordHash(ctx context.Context, userID int64) (string, error)
 	// UserHandle is the account's random WebAuthn user handle.
 	UserHandle(ctx context.Context, userID int64) ([]byte, error)
 	// UserByHandle returns ErrNotFound for an unknown handle.
@@ -90,7 +89,7 @@ func (s *Service) BeginPasskeyRegistration(ctx context.Context, user User, passw
 	if err != nil {
 		return nil, err
 	}
-	if err := s.confirmPassword(ctx, repo, user, password, c); err != nil {
+	if err := s.confirmPassword(ctx, user, password, c); err != nil {
 		return nil, err
 	}
 	wu, _, err := s.webauthnUser(ctx, repo, user)
@@ -260,31 +259,6 @@ func (s *Service) passkeyRepo() (PasskeyRepo, error) {
 		return nil, ErrPasskeysDisabled
 	}
 	return repo, nil
-}
-
-// confirmPassword shares the login limit: it is the same password to guess.
-func (s *Service) confirmPassword(ctx context.Context, repo PasskeyRepo, user User, password string, c Client) error {
-	key := "login:" + c.IP
-	if err := s.checkLimit(key); err != nil {
-		return err
-	}
-	hash, err := repo.PasswordHash(ctx, user.ID)
-	if err != nil {
-		return err
-	}
-	if len(password) > maxPasswordLen {
-		password = ""
-	}
-	ok, err := s.verify(password, hash)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		s.limiter.fail(key, s.now())
-		s.audit(ctx, Event{Kind: "password_confirm_failed", UserID: &user.ID, IP: c.IP})
-		return ErrWrongPassword
-	}
-	return nil
 }
 
 func (s *Service) webauthnUser(ctx context.Context, repo PasskeyRepo, user User) (*webauthnUser, []Passkey, error) {

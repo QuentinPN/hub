@@ -382,3 +382,44 @@ func TestIcons(t *testing.T) {
 		}
 	}
 }
+
+func TestChangePassword(t *testing.T) {
+	e := newEnv(t, fixture.New())
+	other := e.newClient(t)
+	login := `{"username":"quentin","password":"` + password + `"}`
+	if status, _ := e.do(t, other, http.MethodPost, "/api/v1/auth/login", login, nil); status != http.StatusNoContent {
+		t.Fatalf("login: status %d", status)
+	}
+	const next = "a brand new passphrase"
+	change := func(c *http.Client, current, newPassword string, header map[string]string) int {
+		status, _ := e.do(t, c, http.MethodPut, "/api/v1/auth/password", `{"current":"`+current+`","new":"`+newPassword+`"}`, header)
+		return status
+	}
+
+	if got := change(e.anon, password, next, nil); got != http.StatusUnauthorized {
+		t.Fatalf("without a session: status %d", got)
+	}
+	if got := change(e.user, password, next, map[string]string{"Sec-Fetch-Site": "cross-site"}); got != http.StatusForbidden {
+		t.Fatalf("cross-site: status %d", got)
+	}
+	// 403, not 401: the UI must not take a wrong password for an expired session.
+	if got := change(e.user, "wrong password!", next, nil); got != http.StatusForbidden {
+		t.Fatalf("wrong current password: status %d", got)
+	}
+	if got := change(e.user, password, "short", nil); got != http.StatusBadRequest {
+		t.Fatalf("short new password: status %d", got)
+	}
+	if got := change(e.user, password, next, nil); got != http.StatusNoContent {
+		t.Fatalf("change: status %d", got)
+	}
+
+	if status, _ := e.do(t, e.user, http.MethodGet, "/api/v1/home", "", nil); status != http.StatusOK {
+		t.Fatalf("current session after the change: status %d", status)
+	}
+	if status, _ := e.do(t, other, http.MethodGet, "/api/v1/home", "", nil); status != http.StatusUnauthorized {
+		t.Fatalf("other session after the change: status %d", status)
+	}
+	if status, _ := e.do(t, e.newClient(t), http.MethodPost, "/api/v1/auth/login", `{"username":"quentin","password":"`+next+`"}`, nil); status != http.StatusNoContent {
+		t.Fatalf("login with the new password: status %d", status)
+	}
+}

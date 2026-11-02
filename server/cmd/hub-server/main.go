@@ -29,6 +29,7 @@ func main() {
 	// Loopback by default: exposure goes through Caddy (ARCHITECTURE.md), never directly.
 	addr := flag.String("addr", envOr("HUB_ADDR", "127.0.0.1:8080"), "listen address")
 	newKey := flag.Bool("new-secret-key", false, "print a new line to append to the secret key file, then exit")
+	reset := flag.Bool("reset-password", false, "set a new account password, end every session, then exit")
 	flag.Parse()
 	if *newKey {
 		line, err := secrets.NewKeyLine(time.Now())
@@ -51,6 +52,20 @@ func main() {
 		os.Exit(1)
 	}
 	defer closeStore()
+
+	// Before the secrets: a password reset must not create or rotate the key file.
+	if *reset {
+		svc, err := auth.New(store)
+		if err == nil {
+			err = resetPassword(ctx, svc)
+		}
+		if err != nil {
+			slog.Error("reset password", "err", err)
+			closeStore()
+			os.Exit(1)
+		}
+		return
+	}
 
 	// No connector reads secrets yet; opening them now checks the key file at each start
 	// and finishes any rotation.

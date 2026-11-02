@@ -3,12 +3,15 @@
 	import DiscoveryForm from '#lib/components/DiscoveryForm.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import PasskeysList from '#lib/components/PasskeysList.svelte';
+	import PasswordForm from '#lib/components/PasswordForm.svelte';
 	import SessionsList from '#lib/components/SessionsList.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
 	import StatusDot from '#lib/components/StatusDot.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	let sessionsVersion = $state(0);
 
 	// Seules « Hôtes et agents », « Découverte » et « Sécurité et accès » ont du contenu ; le
 	// reste arrive par jalons.
@@ -110,10 +113,15 @@
 					Connecté en tant que <strong>{data.auth.username}</strong>. Chaque navigateur connecté
 					ouvre une session de 30 jours, prolongée à chaque visite.
 				</p>
+				<h3 class="sub">Mot de passe</h3>
+				<PasswordForm username={data.auth.username ?? ''} onchanged={() => sessionsVersion++} />
 				<h3 class="sub">Passkeys</h3>
 				<PasskeysList enabled={data.auth.passkeys} />
 				<h3 class="sub">Sessions ouvertes</h3>
-				<SessionsList />
+				<!-- Rechargée après un changement de mot de passe, qui ferme les autres sessions. -->
+				{#key sessionsVersion}
+					<SessionsList />
+				{/key}
 			</section>
 			<p class="muted small credits">
 				Icônes des services :
@@ -264,8 +272,32 @@
 			gap: 20px;
 			padding-top: calc(var(--shell-h) + 20px);
 		}
+		/* Rangée de pilules qui défile, comme les filtres du catalogue. Les sections sans contenu
+		   n'y figurent pas : une pilule inerte prendrait la place d'une vraie. */
 		.sections {
+			flex: 1 1 100%;
+			flex-direction: row;
+			gap: 8px;
+			max-width: 100%;
+			margin: 0 calc(-1 * var(--space-page));
+			padding: 2px var(--space-page);
+			overflow-x: auto;
+			scrollbar-width: none;
+		}
+		.sec {
+			flex: none;
+			min-height: 44px;
+			padding: 0 14px;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: var(--r-pill);
+			background: var(--surface-1);
+			font-size: 14px;
+		}
+		.sec[aria-disabled='true'] {
 			display: none;
+		}
+		.layout {
+			gap: 20px;
 		}
 		.card {
 			padding: 18px;

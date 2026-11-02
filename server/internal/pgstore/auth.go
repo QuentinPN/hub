@@ -43,6 +43,32 @@ func (s *Store) UserByName(ctx context.Context, username string) (auth.User, str
 	return u, hash, err
 }
 
+func (s *Store) SoleUser(ctx context.Context) (auth.User, error) {
+	var u auth.User
+	err := s.pool.QueryRow(ctx, "SELECT id, username FROM users").Scan(&u.ID, &u.Username)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return auth.User{}, auth.ErrNotFound
+	}
+	return u, err
+}
+
+func (s *Store) SetPassword(ctx context.Context, userID int64, hash string, keep int64) (int, error) {
+	var ended int
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, "UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1", userID, hash)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return auth.ErrNotFound
+		}
+		tag, err = tx.Exec(ctx, "DELETE FROM sessions WHERE user_id = $1 AND id <> $2", userID, keep)
+		ended = int(tag.RowsAffected())
+		return err
+	})
+	return ended, err
+}
+
 func (s *Store) CreateSession(ctx context.Context, tokenHash []byte, sess auth.Session) (auth.Session, error) {
 	// Expired sessions are cleared here rather than by a background job.
 	if _, err := s.pool.Exec(ctx, "DELETE FROM sessions WHERE expires_at <= $1", sess.CreatedAt); err != nil {

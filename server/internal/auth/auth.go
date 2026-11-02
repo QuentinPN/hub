@@ -89,6 +89,12 @@ type Repo interface {
 	CreateUser(ctx context.Context, username, passwordHash string) (User, error)
 	// UserByName returns ErrNotFound for an unknown username.
 	UserByName(ctx context.Context, username string) (User, string, error)
+	// SoleUser returns the account, or ErrNotFound before setup.
+	SoleUser(ctx context.Context) (User, error)
+	PasswordHash(ctx context.Context, userID int64) (string, error)
+	// SetPassword stores a new hash and, in the same transaction, ends every session of the
+	// user except keep (0 ends them all). It returns how many sessions ended.
+	SetPassword(ctx context.Context, userID int64, hash string, keep int64) (int, error)
 	CreateSession(ctx context.Context, tokenHash []byte, s Session) (Session, error)
 	// SessionByToken returns ErrNotFound for an unknown or expired session.
 	SessionByToken(ctx context.Context, tokenHash []byte, now time.Time) (Session, User, error)
@@ -263,6 +269,77 @@ func (s *Service) Revoke(ctx context.Context, userID, sessionID int64, c Client)
 	return nil
 }
 
+// ChangePassword replaces the password from inside a session. The current one is asked
+// again, as for a new passkey, and every other session ends: whoever knew the old password
+// loses the access it gave.
+func (s *Service) ChangePassword(ctx context.Context, sess Session, current, next string, c Client) error {
+	if err := s.confirmPassword(ctx, User{ID: sess.UserID}, current, c); err != nil {
+		return err
+	}
+	if err := validatePassword(next); err != nil {
+		return err
+	}
+	hash, err := s.hash(next)
+	if err != nil {
+		return err
+	}
+	ended, err := s.repo.SetPassword(ctx, sess.UserID, hash, sess.ID)
+	if err != nil {
+		return err
+	}
+	s.audit(ctx, Event{Kind: "password_changed", UserID: &sess.UserID, IP: c.IP, Detail: fmt.Sprintf("sessions_ended=%d", ended)})
+	return nil
+}
+
+// ResetPassword sets a new password from the server's command line, when it is lost.
+// Running it already requires access to the server, so nothing else is asked and no HTTP
+// route exists for it. Every session ends; passkeys stay.
+func (s *Service) ResetPassword(ctx context.Context, next string) (User, error) {
+	user, err := s.repo.SoleUser(ctx)
+	if err != nil {
+		return User{}, err
+	}
+	if err := validatePassword(next); err != nil {
+		return User{}, err
+	}
+	hash, err := s.hash(next)
+	if err != nil {
+		return User{}, err
+	}
+	ended, err := s.repo.SetPassword(ctx, user.ID, hash, 0)
+	if err != nil {
+		return User{}, err
+	}
+	s.audit(ctx, Event{Kind: "password_reset", UserID: &user.ID, IP: "command line", Detail: fmt.Sprintf("sessions_ended=%d", ended)})
+	return user, nil
+}
+
+// confirmPassword checks the password again inside a session. It shares the login limit:
+// it is the same password to guess.
+func (s *Service) confirmPassword(ctx context.Context, user User, password string, c Client) error {
+	key := "login:" + c.IP
+	if err := s.checkLimit(key); err != nil {
+		return err
+	}
+	hash, err := s.repo.PasswordHash(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+	if len(password) > maxPasswordLen {
+		password = ""
+	}
+	ok, err := s.verify(password, hash)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		s.limiter.fail(key, s.now())
+		s.audit(ctx, Event{Kind: "password_confirm_failed", UserID: &user.ID, IP: c.IP})
+		return ErrWrongPassword
+	}
+	return nil
+}
+
 // Audit records an event that happens outside this package, such as a settings change.
 func (s *Service) Audit(ctx context.Context, e Event) { s.audit(ctx, e) }
 
@@ -321,9 +398,14 @@ func hashToken(token string) ([]byte, bool) {
 }
 
 func validateCredentials(username, password string) error {
-	switch {
-	case username == "" || utf8.RuneCountInString(username) > maxUsernameLen:
+	if username == "" || utf8.RuneCountInString(username) > maxUsernameLen {
 		return &InvalidInputError{Msg: fmt.Sprintf("username must be 1 to %d characters", maxUsernameLen)}
+	}
+	return validatePassword(password)
+}
+
+func validatePassword(password string) error {
+	switch {
 	case utf8.RuneCountInString(password) < MinPasswordLen:
 		return &InvalidInputError{Msg: fmt.Sprintf("password must be at least %d characters", MinPasswordLen)}
 	case len(password) > maxPasswordLen:

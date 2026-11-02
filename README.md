@@ -6,7 +6,7 @@ Dashboard auto-hébergé pour les services Docker du mini-PC Debian, du QNAP et 
 
 Pages : accueil (`/`), catalogue « Tous les services » (`/services`, `Ctrl+K` depuis n'importe quelle page), fiche service (`/services/{slug}`), réglages en lecture seule (`/settings`).
 
-API : `GET /api/v1/home`, `/api/v1/services`, `/api/v1/services/{slug}`, `/api/v1/settings`, `GET /healthz`, `PUT /api/v1/settings/discovery`, et les routes de compte sous `/api/v1/auth/` (état, setup, connexion par mot de passe ou passkey, sessions, passkeys).
+API : `GET /api/v1/home`, `/api/v1/services`, `/api/v1/services/{slug}`, `/api/v1/settings`, `GET /healthz`, `PUT /api/v1/settings/discovery`, et les routes de compte sous `/api/v1/auth/` (état, setup, connexion par mot de passe ou passkey, changement de mot de passe, sessions, passkeys).
 
 ## Structure
 
@@ -33,6 +33,12 @@ cd server && HUB_DATABASE_URL="postgres://hub:hub-dev-only@127.0.0.1:55432/hub?s
 Clé des secrets : les clés d'API et jetons des connecteurs sont chiffrés en AES-256-GCM avant d'entrer en base, avec une clé qui reste dans ce fichier. En production, le placer hors du volume PostgreSQL (`chmod 600`) et **le sauvegarder à part** : sans lui, les secrets enregistrés sont perdus (il suffira de les ressaisir), mais une sauvegarde de la base seule ne les révèle pas. Rotation : `hub-server -new-secret-key` affiche une nouvelle ligne à ajouter à la fin du fichier ; au démarrage suivant, chaque secret est rechiffré avec cette dernière clé. Une fois les logs confirmés (`secrets re-sealed`), l'ancienne ligne peut être retirée.
 
 Premier démarrage : tant qu'aucun compte n'existe, le serveur écrit dans ses logs un code à usage unique (`setup_code=XXXX-XXXX-XXXX-XXXX`, renouvelé à chaque démarrage). Ouvrir le dashboard, saisir ce code, puis choisir l'identifiant et le mot de passe (12 caractères minimum).
+
+Mot de passe : il se change dans Réglages → Sécurité et accès, en confirmant avec l'actuel ; les autres navigateurs sont alors déconnectés. S'il est perdu, le changer sur la machine qui fait tourner Hub, avec les mêmes variables d'environnement (dans le conteneur, par exemple) : `hub-server -reset-password` demande le nouveau deux fois sans l'afficher, puis ferme toutes les sessions. Les passkeys restent valables. Aucune route HTTP ne permet cette réinitialisation : il faut déjà avoir la main sur le serveur.
+
+```bash
+docker exec -it hub hub-server -reset-password
+```
 
 Le cookie de session est `__Host-` et `Secure` : le navigateur ne l'accepte qu'en HTTPS, ou sur `http://localhost` (contexte sûr). Un accès en HTTP par l'IP du poste (`http://192.0.2.x:8080`) ne permet donc pas de se connecter ; en production, l'accès passe par Caddy en HTTPS.
 
