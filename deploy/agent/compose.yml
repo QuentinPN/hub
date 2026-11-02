@@ -1,0 +1,63 @@
+# Agent Hub et son proxy Docker filtrant, un exemplaire par hôte (AGENT-STUDY.md, option 1.b).
+#
+# Variables (fichier .env à côté, ou environnement) :
+#   HUB_SERVER_URL  adresse du port agents du serveur, ex. https://192.0.2.14:8443
+#   HUB_CA_PIN      affiché par `hub-server -enroll-host <hôte>`
+#   DOCKER_GID       groupe propriétaire du socket Docker (`stat -c %g /var/run/docker.sock`)
+# Le code d'enrôlement va dans ./enroll-code (inutile une fois l'agent enrôlé).
+#
+#   docker compose -f deploy/agent/compose.yml up -d
+name: hub-agent
+
+services:
+  # Seul composant qui touche le socket Docker. Aucun réseau ; il ne laisse passer que quatre
+  # lectures (GET) et sort sur un socket Unix que seul l'agent voit.
+  docker-proxy:
+    image: wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
+    restart: unless-stopped
+    network_mode: none
+    user: '65534:${DOCKER_GID:?DOCKER_GID}'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 64m
+    command:
+      - -socketpath=/var/run/docker.sock
+      - -proxysocketendpoint=/run/hub-proxy/docker.sock
+      - -proxysocketendpointfilemode=0600
+      # ^ et $ sont ajoutés par le proxy ; le chemin seul est comparé, sans la query string.
+      - -allowGET=(/v1\.[0-9]+)?/(_ping|version|containers/json|events)
+      - -allowHEAD=(/v1\.[0-9]+)?/_ping
+      - -logjson
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - proxy-socket:/run/hub-proxy
+
+  agent:
+    image: hub-agent:local
+    restart: unless-stopped
+    depends_on: [docker-proxy]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 64m
+    environment:
+      HUB_SERVER_URL: ${HUB_SERVER_URL:?HUB_SERVER_URL}
+      HUB_CA_PIN: ${HUB_CA_PIN:-}
+      HUB_ENROLL_CODE_FILE: /run/secrets/enroll-code
+    secrets: [enroll-code]
+    volumes:
+      - proxy-socket:/run/hub-proxy
+      - agent-state:/var/lib/hub-agent
+    # Pour joindre un serveur sur ce même poste (Docker Desktop).
+    extra_hosts: ['host.docker.internal:host-gateway']
+
+secrets:
+  enroll-code:
+    file: ./enroll-code
+
+volumes:
+  # En mémoire, au nom de l'utilisateur 65534 qui fait tourner le proxy et l'agent.
+  proxy-socket:
+    driver_opts: { type: tmpfs, device: tmpfs, o: 'uid=65534,gid=65534,mode=0700' }
+  agent-state:

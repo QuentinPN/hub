@@ -11,3 +11,9 @@ __pycache__/
 *.key
 test-results/
 playwright-report/
+
+# Agent : binaire compilé et code d'enrôlement
+deploy/agent/hub-agent
+deploy/agent/enroll-code
+# AC des agents (HUB_AGENT_CA_FILE)
+*agent-ca.pem

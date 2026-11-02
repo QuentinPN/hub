@@ -2,7 +2,7 @@
 
 Dashboard auto-hébergé pour les services Docker du mini-PC Debian, du QNAP et du Raspberry Pi. Le cadrage est dans [PRODUCT.md](PRODUCT.md), [ARCHITECTURE.md](ARCHITECTURE.md), [DESIGN.md](DESIGN.md) et [DECISIONS.md](DECISIONS.md).
 
-**État : phase 1 terminée (jalon 3 validé le 2026-11-02) ; prochaine étape, la phase 2 (découverte Docker multi-hôte).** L'inventaire et les réglages sont enregistrés dans PostgreSQL ; l'accès demande un compte local (mot de passe, sessions, passkeys). L'état des services (en ligne, latence, données des widgets) est encore **fictif** (`server/internal/fixture`). Aucun hôte n'est contacté et rien n'accède à Docker.
+**État : phase 1 terminée (jalon 3 validé le 2026-11-02) ; prochaine étape, la phase 2 (découverte Docker multi-hôte).** L'inventaire et les réglages sont enregistrés dans PostgreSQL ; l'accès demande un compte local (mot de passe, sessions, passkeys). L'état des services (en ligne, latence, données des widgets) est encore **fictif** (`server/internal/fixture`). Aucun hôte du homelab n'est contacté. L'agent Docker existe (voir plus bas) mais n'a été essayé que sur le poste de développement.
 
 Pages : accueil (`/`), catalogue « Tous les services » (`/services`, `Ctrl+K` depuis n'importe quelle page), fiche service (`/services/{slug}`), réglages en lecture seule (`/settings`).
 
@@ -55,6 +55,22 @@ Binaire complet avec l'UI embarquée (Git Bash sous Windows). Pour le Pi, préfi
 ```bash
 bash scripts/build.sh
 ```
+
+## Agent Docker
+
+L'agent lit les conteneurs d'un hôte à travers un proxy qui n'autorise que quatre lectures, et les envoie au serveur en TLS mutuel. Il n'ouvre aucun port et ne lance aucune commande Docker ([AGENT-STUDY.md](AGENT-STUDY.md)).
+
+Côté serveur, `HUB_AGENT_CA_FILE` active le port agents (`HUB_AGENT_ADDR`, `127.0.0.1:8443` par défaut ; `HUB_AGENT_NAMES` liste les IP et noms que les agents appellent). Le fichier de l'AC est créé au premier démarrage : **le sauvegarder à part**, sans lui chaque agent doit être réenrôlé. Enrôler un hôte (code valable 15 minutes, une seule fois) ou révoquer son agent :
+
+```bash
+hub-server -enroll-host rpi5 > enroll-code
+```
+
+```bash
+hub-server -revoke-host rpi5
+```
+
+Sur l'hôte : `scripts/build-agent.sh` (préfixer `GOARCH=arm64` pour le Pi), placer le code dans `deploy/agent/enroll-code`, puis lancer `deploy/agent/compose.yml` avec `HUB_SERVER_URL`, `HUB_CA_PIN` (affiché par `-enroll-host`) et `DOCKER_GID` (`stat -c %g /var/run/docker.sock`). `scripts/check-agent-proxy.sh` vérifie ensuite que le proxy refuse tout le reste.
 
 ## Vérifier
 

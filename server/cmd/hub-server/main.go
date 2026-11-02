@@ -12,15 +12,18 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"hub/server/internal/agentsrv"
 	"hub/server/internal/api"
 	"hub/server/internal/auth"
 	"hub/server/internal/db"
 	"hub/server/internal/fixture"
 	"hub/server/internal/icons"
 	"hub/server/internal/pgstore"
+	"hub/server/internal/pki"
 	"hub/server/internal/secrets"
 	"hub/server/internal/webui"
 )
@@ -30,6 +33,8 @@ func main() {
 	addr := flag.String("addr", envOr("HUB_ADDR", "127.0.0.1:8080"), "listen address")
 	newKey := flag.Bool("new-secret-key", false, "print a new line to append to the secret key file, then exit")
 	reset := flag.Bool("reset-password", false, "set a new account password, end every session, then exit")
+	enrollHost := flag.String("enroll-host", "", "print a one-time code to enroll the agent of this host (created if new), then exit")
+	revokeHost := flag.String("revoke-host", "", "revoke every certificate of this host's agent, then exit")
 	flag.Parse()
 	if *newKey {
 		line, err := secrets.NewKeyLine(time.Now())
@@ -61,6 +66,33 @@ func main() {
 		}
 		if err != nil {
 			slog.Error("reset password", "err", err)
+			closeStore()
+			os.Exit(1)
+		}
+		return
+	}
+
+	// The agents' CA is optional until a host is enrolled: without HUB_AGENT_CA_FILE the
+	// agent listener stays off. Before the secrets, like the password reset: enrolling or
+	// revoking an agent does not need the secret key file.
+	agents, err := openAgents(os.Getenv("HUB_AGENT_CA_FILE"), store)
+	if err != nil {
+		slog.Error("startup", "err", err)
+		os.Exit(1)
+	}
+	if *enrollHost != "" || *revokeHost != "" {
+		if agents == nil {
+			slog.Error("HUB_AGENT_CA_FILE is required to enroll or revoke an agent")
+			closeStore()
+			os.Exit(1)
+		}
+		if *enrollHost != "" {
+			err = printEnrollment(ctx, agents, *enrollHost)
+		} else {
+			err = revokeAgent(ctx, agents, *revokeHost)
+		}
+		if err != nil {
+			slog.Error("agent", "err", err)
 			closeStore()
 			os.Exit(1)
 		}
@@ -120,11 +152,43 @@ func main() {
 		}
 	}()
 
+	var agentSrv *http.Server
+	if agents != nil {
+		agentAddr := envOr("HUB_AGENT_ADDR", "127.0.0.1:8443")
+		names := strings.Split(envOr("HUB_AGENT_NAMES", "localhost,127.0.0.1"), ",")
+		tlsCfg, err := agents.TLSConfig(names)
+		if err != nil {
+			slog.Error("startup", "err", err)
+			os.Exit(1)
+		}
+		agentSrv = &http.Server{
+			Addr:              agentAddr,
+			Handler:           agents.Handler(),
+			TLSConfig:         tlsCfg,
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       30 * time.Second,
+			WriteTimeout:      30 * time.Second,
+			IdleTimeout:       120 * time.Second,
+		}
+		go func() {
+			slog.Info("agent listener", "addr", agentAddr, "names", names)
+			if err := agentSrv.ListenAndServeTLS("", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				slog.Error("agent listener stopped", "err", err)
+				os.Exit(1)
+			}
+		}()
+	}
+
 	<-ctx.Done()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.Error("shutdown", "err", err)
+	}
+	if agentSrv != nil {
+		if err := agentSrv.Shutdown(shutdownCtx); err != nil {
+			slog.Error("shutdown", "err", err)
+		}
 	}
 }
 
@@ -175,6 +239,24 @@ func openSecrets(ctx context.Context, path string, repo secrets.Repo) (*secrets.
 		slog.Error("some secrets cannot be opened with the key file", "err", err)
 	}
 	return store, nil
+}
+
+// openAgents loads the agents' CA, creating it on the first start. nil without a path.
+func openAgents(path string, store *pgstore.Store) (*agentsrv.Service, error) {
+	if path == "" {
+		slog.Info("HUB_AGENT_CA_FILE not set: agent listener off")
+		return nil, nil
+	}
+	ca, err := pki.LoadFile(path)
+	if pki.IsNotExist(err) {
+		if ca, err = pki.CreateFile(path, time.Now()); err == nil {
+			slog.Warn("created the agents' CA: back it up apart from the database, without it every agent must be enrolled again", "path", path)
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("agent CA file: %w", err)
+	}
+	return agentsrv.New(ca, store), nil
 }
 
 // enablePasskeys binds passkeys to the dashboard's public origin (HUB_ORIGIN, e.g.
