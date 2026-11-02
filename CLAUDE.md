@@ -29,7 +29,7 @@ Ne pas supposer qu’un dépôt est un skill unique : inspecter README, licence 
 9. Ne jamais prétendre qu’un endpoint ou une API existe sans le vérifier.
 
 ## Compaction du contexte
-Compaction automatique à environ 200K tokens (`autoCompactWindow` dans `.claude/settings.json`). Le résumé de compaction doit permettre de continuer sans rien réexpliquer. Il doit garder :
+Compaction automatique selon la fenêtre par défaut de Claude Code (aucun `autoCompactWindow` personnalisé). Le résumé de compaction doit permettre de continuer sans rien réexpliquer. Il doit garder :
 - **Où on en est :** phase et jalon en cours, branche git, fichiers modifiés non commités.
 - **Chaque décision et sa raison :** reprendre aussi DECISIONS.md.
 - **Ce que l'utilisateur a demandé ou refusé, avec ses propres mots** : citations, pas de reformulation.
