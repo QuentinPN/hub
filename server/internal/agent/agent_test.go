@@ -124,10 +124,11 @@ func TestAgentEndToEnd(t *testing.T) {
 	srv.StartTLS()
 	defer srv.Close()
 
-	code, err := svc.CreateEnrollment(ctx, "rpi5")
+	enr, err := svc.CreateEnrollment(ctx, "rpi5", "", agentsrv.CommandLine)
 	if err != nil {
 		t.Fatal(err)
 	}
+	code := enr.Code
 	dir := t.TempDir()
 	if err := agent.Enroll(ctx, srv.URL, ca.Pin(), code, "rpi5", dir); err != nil {
 		t.Fatal(err)

@@ -10,14 +10,20 @@ import (
 
 	"hub/server/internal/agentproto"
 	"hub/server/internal/agentsrv"
+	"hub/server/internal/api"
 )
 
 var _ agentsrv.Repo = (*Store)(nil)
 
-// EnsureHost names a new host after its id; the name can be changed later.
-func (s *Store) EnsureHost(ctx context.Context, id string) error {
-	_, err := s.pool.Exec(ctx, "INSERT INTO hosts (id, name) VALUES ($1, $1) ON CONFLICT (id) DO NOTHING", id)
+func (s *Store) EnsureHost(ctx context.Context, id, name string) error {
+	_, err := s.pool.Exec(ctx, `INSERT INTO hosts (id, name) VALUES ($1, COALESCE(NULLIF($2, ''), $1))
+		ON CONFLICT (id) DO UPDATE SET name = COALESCE(NULLIF($2, ''), hosts.name)`, id, name)
 	return err
+}
+
+func (s *Store) CancelEnrollments(ctx context.Context, hostID string) (int, error) {
+	tag, err := s.pool.Exec(ctx, "DELETE FROM agent_enrollments WHERE host_id = $1 AND used_at IS NULL", hostID)
+	return int(tag.RowsAffected()), err
 }
 
 func (s *Store) CreateEnrollment(ctx context.Context, hostID string, codeHash []byte, expires time.Time) error {
@@ -141,4 +147,56 @@ func (s *Store) RescanMinutes(ctx context.Context) (int, error) {
 	var m int
 	err := s.pool.QueryRow(ctx, "SELECT rescan_minutes FROM discovery_settings").Scan(&m)
 	return m, err
+}
+
+var _ api.HostReader = (*Store)(nil)
+
+// AgentHosts lists every host with what its agent last reported, summed up as of now.
+func (s *Store) AgentHosts(ctx context.Context, now time.Time) ([]api.AgentHost, error) {
+	rows, err := s.pool.Query(ctx, `SELECT h.id, h.name, h.os, h.arch, h.agent_version, h.docker_version,
+			h.docker_ok, h.last_seen_at,
+			(SELECT max(not_after) FROM agent_certs c WHERE c.host_id = h.id AND c.revoked_at IS NULL AND c.not_after > $1),
+			(SELECT max(expires_at) FROM agent_enrollments e WHERE e.host_id = h.id AND e.used_at IS NULL AND e.expires_at > $1),
+			EXISTS (SELECT 1 FROM agent_certs c WHERE c.host_id = h.id),
+			EXISTS (SELECT 1 FROM agent_certs c WHERE c.host_id = h.id AND c.revoked_at IS NOT NULL),
+			(SELECT count(*) FROM containers ct WHERE ct.host_id = h.id AND ct.removed_at IS NULL)
+		FROM hosts h ORDER BY h.name, h.id`, now)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (api.AgentHost, error) {
+		var h api.AgentHost
+		var f api.AgentFacts
+		err := row.Scan(&h.ID, &h.Name, &h.OS, &h.Arch, &h.AgentVersion, &h.DockerVersion, &f.DockerOK, &f.LastSeenAt,
+			&f.CertExpiresAt, &f.EnrollmentExpiresAt, &f.EverIssued, &f.EverRevoked, &h.Containers)
+		h.State = f.State(now)
+		h.LastSeenAt, h.CertExpiresAt, h.EnrollmentExpiresAt = f.LastSeenAt, f.CertExpiresAt, f.EnrollmentExpiresAt
+		return h, err
+	})
+}
+
+// HostContainers lists the containers present on hostID, grouped by Compose project. Label
+// values stay in the database: only their count leaves.
+func (s *Store) HostContainers(ctx context.Context, hostID string) ([]api.Container, error) {
+	var exists bool
+	if err := s.pool.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM hosts WHERE id = $1)", hostID).Scan(&exists); err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, api.ErrNotFound
+	}
+	rows, err := s.pool.Query(ctx, `SELECT left(id, 12), name, image, state, status, compose_project, compose_service,
+			coalesce(labels ->> 'com.docker.compose.project.working_dir', ''),
+			(SELECT count(*) FROM jsonb_object_keys(labels)) + cardinality(redacted_labels), cardinality(redacted_labels)
+		FROM containers WHERE host_id = $1 AND removed_at IS NULL
+		ORDER BY compose_project = '', compose_project, name`, hostID)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (api.Container, error) {
+		var c api.Container
+		err := row.Scan(&c.ID, &c.Name, &c.Image, &c.State, &c.Status, &c.ComposeProject, &c.ComposeService,
+			&c.ComposeDir, &c.Labels, &c.MaskedLabels)
+		return c, err
+	})
 }

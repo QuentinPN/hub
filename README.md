@@ -60,7 +60,9 @@ bash scripts/build.sh
 
 L'agent lit les conteneurs d'un hôte à travers un proxy qui n'autorise que quatre lectures, et les envoie au serveur en TLS mutuel. Il n'ouvre aucun port et ne lance aucune commande Docker ([AGENT-STUDY.md](AGENT-STUDY.md)).
 
-Côté serveur, `HUB_AGENT_CA_FILE` active le port agents (`HUB_AGENT_ADDR`, `127.0.0.1:8443` par défaut ; `HUB_AGENT_NAMES` liste les IP et noms que les agents appellent). Le fichier de l'AC est créé au premier démarrage : **le sauvegarder à part**, sans lui chaque agent doit être réenrôlé. Enrôler un hôte (code valable 15 minutes, une seule fois) ou révoquer son agent :
+Côté serveur, `HUB_AGENT_CA_FILE` active le port agents (`HUB_AGENT_ADDR`, `127.0.0.1:8443` par défaut ; `HUB_AGENT_NAMES` liste les IP et noms que les agents appellent). Le fichier de l'AC est créé au premier démarrage : **le sauvegarder à part**, sans lui chaque agent doit être réenrôlé. Les agents appellent `https://<premier nom de HUB_AGENT_NAMES>:<port de HUB_AGENT_ADDR>`.
+
+Enrôler un hôte, annuler son code ou révoquer son agent se fait dans Réglages → Hôtes et agents : le code (valable 15 minutes, une seule fois) n'y est montré qu'une fois, avec le `.env` à copier sur l'hôte. Les mêmes actions existent en ligne de commande sur le serveur :
 
 ```bash
 hub-server -enroll-host rpi5 > enroll-code
@@ -70,7 +72,7 @@ hub-server -enroll-host rpi5 > enroll-code
 hub-server -revoke-host rpi5
 ```
 
-Sur l'hôte : `scripts/build-agent.sh` (préfixer `GOARCH=arm64` pour le Pi), placer le code dans `deploy/agent/enroll-code`, puis lancer `deploy/agent/compose.yml` avec `HUB_SERVER_URL`, `HUB_CA_PIN` (affiché par `-enroll-host`) et `DOCKER_GID` (`stat -c %g /var/run/docker.sock`). `scripts/check-agent-proxy.sh` vérifie ensuite que le proxy refuse tout le reste.
+Sur l'hôte : `scripts/build-agent.sh` (préfixer `GOARCH=arm64` pour le Pi), placer le code dans `deploy/agent/enroll-code`, puis lancer `deploy/agent/compose.yml` avec `HUB_SERVER_URL`, `HUB_CA_PIN` (affiché par `-enroll-host`) et `DOCKER_GID` (`stat -c %g /var/run/docker.sock`), tous trois donnés par l'écran d'enrôlement. `scripts/check-agent-proxy.sh` vérifie ensuite que le proxy refuse tout le reste.
 
 ## Vérifier
 

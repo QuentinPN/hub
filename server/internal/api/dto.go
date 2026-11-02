@@ -1,6 +1,10 @@
 package api
 
-import "hub/server/internal/domain"
+import (
+	"time"
+
+	"hub/server/internal/domain"
+)
 
 // DTOs sent to the browser. They mirror web/src/lib/api/types.ts and must never carry a
 // secret: credentials only ever appear as an already-masked string.
@@ -76,16 +80,58 @@ type Stat struct {
 	Label string `json:"label"`
 }
 
+// AgentHost is a host and its agent as the settings show them. Times are absolute: the UI
+// writes « il y a 8 s » itself and keeps it current.
 type AgentHost struct {
-	ID               string `json:"id"`
-	Name             string `json:"name"`
-	OS               string `json:"os"`
-	Arch             string `json:"arch"`
-	Containers       int    `json:"containers"`
-	Reachable        bool   `json:"reachable"`
-	LastSeenLabel    string `json:"lastSeenLabel"`
-	AgentVersion     string `json:"agentVersion"`
-	CertExpiresLabel string `json:"certExpiresLabel"`
+	ID                  string     `json:"id"`
+	Name                string     `json:"name"`
+	OS                  string     `json:"os"`
+	Arch                string     `json:"arch"`
+	State               AgentState `json:"state"`
+	AgentVersion        string     `json:"agentVersion"`
+	DockerVersion       string     `json:"dockerVersion"`
+	LastSeenAt          *time.Time `json:"lastSeenAt"`
+	CertExpiresAt       *time.Time `json:"certExpiresAt"`
+	EnrollmentExpiresAt *time.Time `json:"enrollmentExpiresAt"`
+	// Containers counts those present now; absent ones stay in the database.
+	Containers int `json:"containers"`
+}
+
+type HostsResponse struct {
+	// AgentsEnabled is false while the agent listener is off (no HUB_AGENT_CA_FILE).
+	AgentsEnabled bool        `json:"agentsEnabled"`
+	ServerURL     string      `json:"serverUrl"`
+	Pin           string      `json:"pin"`
+	Hosts         []AgentHost `json:"hosts"`
+}
+
+// Container is what an agent reported, without label values: a count of labels and of
+// those masked on the host.
+type Container struct {
+	ID             string `json:"id"` // the 12 characters Docker shows
+	Name           string `json:"name"`
+	Image          string `json:"image"`
+	State          string `json:"state"`
+	Status         string `json:"status"`
+	ComposeProject string `json:"composeProject"`
+	ComposeService string `json:"composeService"`
+	ComposeDir     string `json:"composeDir"`
+	Labels         int    `json:"labels"`
+	MaskedLabels   int    `json:"maskedLabels"`
+}
+
+type EnrollmentRequest struct {
+	HostID string `json:"hostId"`
+	Name   string `json:"name"`
+}
+
+// EnrollmentResponse carries the code once: the server keeps only its hash.
+type EnrollmentResponse struct {
+	HostID    string    `json:"hostId"`
+	Code      string    `json:"code"`
+	ExpiresAt time.Time `json:"expiresAt"`
+	Pin       string    `json:"pin"`
+	ServerURL string    `json:"serverUrl"`
 }
 
 // RemovalPolicy is what happens to a service whose containers disappear. Its settings are
@@ -128,9 +174,8 @@ func (d Discovery) Validate() string {
 
 type Settings struct {
 	// Editable is false until settings are persisted in PostgreSQL.
-	Editable  bool        `json:"editable"`
-	Hosts     []AgentHost `json:"hosts"`
-	Discovery Discovery   `json:"discovery"`
+	Editable  bool      `json:"editable"`
+	Discovery Discovery `json:"discovery"`
 }
 
 type ServiceDetail struct {

@@ -13,8 +13,23 @@ const routes: Record<string, string> = {
 	'services/prowlarr': 'services-prowlarr',
 	settings: 'settings',
 	'auth/sessions': 'auth-sessions',
-	'auth/passkeys': 'auth-passkeys'
+	'auth/passkeys': 'auth-passkeys',
+	hosts: 'hosts',
+	'hosts/qnap/containers': 'hosts-qnap-containers'
 };
+
+// Les dates des hôtes sont écrites pour ce moment-là ; elles sont décalées à maintenant pour
+// que « vu il y a 8 s » et le compte à rebours du code gardent leur sens.
+const HOSTS_RECORDED_AT = Date.parse('2026-11-02T18:00:00Z');
+
+export function hostsNow(): unknown {
+	const shift = Date.now() - HOSTS_RECORDED_AT;
+	return JSON.parse(JSON.stringify(fixture('hosts')), (_key, value: unknown) =>
+		typeof value === 'string' && /^\d{4}-\d\d-\d\dT/.test(value)
+			? new Date(Date.parse(value) + shift).toISOString()
+			: value
+	);
+}
 
 /** Simule l'API ; `authenticated: false` reproduit un visiteur sans session. */
 export async function mockApi(page: Page, { authenticated = true } = {}) {
@@ -39,6 +54,7 @@ export async function mockApi(page: Page, { authenticated = true } = {}) {
 		}
 		if (!authenticated)
 			return route.fulfill({ status: 401, json: { error: 'authentication required' } });
+		if (path === 'hosts') return route.fulfill({ json: hostsNow() });
 		const name = routes[path];
 		if (!name) return route.fulfill({ status: 404, json: { error: 'not found' } });
 		return route.fulfill({ json: fixture(name) });

@@ -29,7 +29,31 @@ import (
 // EnrollmentTTL is how long a code stays usable.
 const EnrollmentTTL = 15 * time.Minute
 
-var ErrNotFound = errors.New("not found")
+// MaxHostName is the longest display name a host may have.
+const MaxHostName = 80
+
+var (
+	ErrNotFound = errors.New("not found")
+	// ErrInvalid wraps a host id or name refused before anything is written.
+	ErrInvalid = errors.New("invalid")
+)
+
+// Actor is who asked for an enrollment, a cancellation or a revocation: the signed-in user
+// from the UI, or the command line on the server.
+type Actor struct {
+	UserID *int64
+	IP     string
+}
+
+// CommandLine is the actor of the -enroll-host and -revoke-host flags.
+var CommandLine = Actor{IP: "command line"}
+
+// Enrollment is a code just issued. The code is shown once: only its hash is stored.
+type Enrollment struct {
+	HostID    string
+	Code      string
+	ExpiresAt time.Time
+}
 
 // CertRecord is an issued agent certificate as the database keeps it.
 type CertRecord struct {
@@ -43,9 +67,12 @@ type CertRecord struct {
 
 // Repo is the storage the agent listener needs; pgstore implements it.
 type Repo interface {
-	// EnsureHost creates the host if it does not exist yet; an existing one is kept as is.
-	EnsureHost(ctx context.Context, id string) error
+	// EnsureHost creates the host if it does not exist yet, named name (its id when empty).
+	// An existing host is renamed only when name is not empty.
+	EnsureHost(ctx context.Context, id, name string) error
 	CreateEnrollment(ctx context.Context, hostID string, codeHash []byte, expires time.Time) error
+	// CancelEnrollments deletes the unused codes of hostID and returns how many there were.
+	CancelEnrollments(ctx context.Context, hostID string) (int, error)
 	// ConsumeEnrollment marks the code used and returns its host. ErrNotFound when the code
 	// is unknown, already used or expired.
 	ConsumeEnrollment(ctx context.Context, codeHash []byte, now time.Time) (string, error)
@@ -71,32 +98,52 @@ func New(ca *pki.CA, repo Repo) *Service {
 	return &Service{ca: ca, repo: repo, now: time.Now, limiter: &limiter{failures: map[string][]time.Time{}}}
 }
 
-// CreateEnrollment issues a one-time code for hostID, creating the host if needed. Only
-// its SHA-256 is stored.
-func (s *Service) CreateEnrollment(ctx context.Context, hostID string) (string, error) {
+// CreateEnrollment issues a one-time code for hostID, creating the host if needed and
+// naming it name when not empty. A host has at most one pending code: an older unused one
+// stops working. Only the code's SHA-256 is stored.
+func (s *Service) CreateEnrollment(ctx context.Context, hostID, name string, by Actor) (Enrollment, error) {
 	if !pki.ValidHostID(hostID) {
-		return "", fmt.Errorf("invalid host id %q: lowercase letters, digits and dashes", hostID)
+		return Enrollment{}, fmt.Errorf("%w host id %q: lowercase letters, digits and dashes, 63 at most", ErrInvalid, hostID)
+	}
+	if len([]rune(name)) > MaxHostName {
+		return Enrollment{}, fmt.Errorf("%w host name: %d characters at most", ErrInvalid, MaxHostName)
 	}
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
-		return "", err
+		return Enrollment{}, err
 	}
-	code := base64.RawURLEncoding.EncodeToString(raw)
-	if err := s.repo.EnsureHost(ctx, hostID); err != nil {
-		return "", err
+	e := Enrollment{HostID: hostID, Code: base64.RawURLEncoding.EncodeToString(raw), ExpiresAt: s.now().Add(EnrollmentTTL)}
+	if err := s.repo.EnsureHost(ctx, hostID, name); err != nil {
+		return Enrollment{}, err
 	}
-	if err := s.repo.CreateEnrollment(ctx, hostID, hashCode(code), s.now().Add(EnrollmentTTL)); err != nil {
-		return "", err
+	if _, err := s.repo.CancelEnrollments(ctx, hostID); err != nil {
+		return Enrollment{}, err
 	}
-	s.audit(ctx, "agent_enrollment_created", "command line", "host="+hostID)
-	return code, nil
+	if err := s.repo.CreateEnrollment(ctx, hostID, hashCode(e.Code), e.ExpiresAt); err != nil {
+		return Enrollment{}, err
+	}
+	s.auditBy(ctx, "agent_enrollment_created", by, "host="+hostID)
+	return e, nil
 }
 
-// Revoke ends every certificate of hostID at once: the next request of its agent fails.
-func (s *Service) Revoke(ctx context.Context, hostID string) (int, error) {
+// CancelEnrollment makes the pending code of hostID unusable.
+func (s *Service) CancelEnrollment(ctx context.Context, hostID string, by Actor) (int, error) {
+	n, err := s.repo.CancelEnrollments(ctx, hostID)
+	if err == nil && n > 0 {
+		s.auditBy(ctx, "agent_enrollment_cancelled", by, "host="+hostID)
+	}
+	return n, err
+}
+
+// Revoke ends every certificate of hostID at once, and its pending code: the next request
+// of its agent fails. Its containers stay in the inventory.
+func (s *Service) Revoke(ctx context.Context, hostID string, by Actor) (int, error) {
+	if _, err := s.repo.CancelEnrollments(ctx, hostID); err != nil {
+		return 0, err
+	}
 	n, err := s.repo.RevokeHostCerts(ctx, hostID, s.now())
 	if err == nil {
-		s.audit(ctx, "agent_revoked", "command line", fmt.Sprintf("host=%s certs=%d", hostID, n))
+		s.auditBy(ctx, "agent_revoked", by, fmt.Sprintf("host=%s certs=%d", hostID, n))
 	}
 	return n, err
 }
@@ -319,7 +366,11 @@ func (s *Service) agentOnly(next func(http.ResponseWriter, *http.Request, agent)
 }
 
 func (s *Service) audit(ctx context.Context, kind, ip, detail string) {
-	if err := s.repo.Audit(ctx, auth.Event{Kind: kind, IP: ip, Detail: detail}); err != nil {
+	s.auditBy(ctx, kind, Actor{IP: ip}, detail)
+}
+
+func (s *Service) auditBy(ctx context.Context, kind string, by Actor, detail string) {
+	if err := s.repo.Audit(ctx, auth.Event{Kind: kind, UserID: by.UserID, IP: by.IP, Detail: detail}); err != nil {
 		slog.Error("audit", "kind", kind, "err", err)
 	}
 }

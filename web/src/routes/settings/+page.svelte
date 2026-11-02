@@ -4,9 +4,9 @@
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import PasskeysList from '#lib/components/PasskeysList.svelte';
 	import PasswordForm from '#lib/components/PasswordForm.svelte';
+	import HostsPanel from '#lib/components/HostsPanel.svelte';
 	import SessionsList from '#lib/components/SessionsList.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
-	import StatusDot from '#lib/components/StatusDot.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -44,6 +44,11 @@
 		</nav>
 
 		<div class="panels">
+			<!-- Chargée à part et relue en continu : l'état des agents change sans recharger la page. -->
+			<section class="card" id="hosts" aria-labelledby="hosts-title">
+				<HostsPanel />
+			</section>
+
 			{#await data.settings}
 				<div class="card" aria-busy="true">
 					<Skeleton width="200px" height="22px" />
@@ -57,43 +62,6 @@
 						PostgreSQL. Les valeurs ci-dessous sont celles du serveur.
 					</p>
 				{/if}
-
-				<section class="card" id="hosts" aria-labelledby="hosts-title">
-					<h2 id="hosts-title">Hôtes et agents</h2>
-					<p class="muted intro">
-						Chaque hôte fait tourner un agent léger, en lecture seule, qui parle au serveur Hub en
-						TLS mutuel.
-					</p>
-					<ul class="hosts">
-						{#each settings.hosts as host (host.id)}
-							<li class="host" class:unreachable={!host.reachable}>
-								<div>
-									<div class="host-name">
-										<StatusDot status={host.reachable ? 'online' : 'unknown'} />{host.name}
-									</div>
-									<div class="muted small">
-										{host.os} · {host.containers} conteneurs · agent
-										<span class="mono">{host.agentVersion}</span>
-										{host.arch}
-									</div>
-								</div>
-								<div class="small">
-									{#if host.reachable}
-										<div>Connecté · vu {host.lastSeenLabel}</div>
-										<div class="muted">Certificat valide jusqu'au {host.certExpiresLabel}</div>
-									{:else}
-										<div>Injoignable · vu {host.lastSeenLabel}</div>
-										<div class="muted">Ses services sont affichés « inconnu »</div>
-									{/if}
-								</div>
-							</li>
-						{/each}
-					</ul>
-					<p class="muted small rights">
-						Droits de l'agent : liste des conteneurs, labels Compose et événements. Il ne peut ni
-						démarrer, ni arrêter, ni lire les variables d'environnement.
-					</p>
-				</section>
 
 				<section class="card" id="discovery" aria-labelledby="discovery-title">
 					<h2 id="discovery-title">Découverte</h2>
@@ -227,45 +195,12 @@
 	.small {
 		font-size: var(--fs-small);
 	}
-	.hosts {
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-	.host {
-		display: grid;
-		grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-		gap: 16px;
-		align-items: center;
-		padding: 18px 0;
-		border-top: 1px solid var(--border-1);
-	}
-	.host:first-child {
-		border-top: 0;
-	}
-	.host.unreachable {
-		margin: 0 -22px;
-		padding: 18px 22px;
-		background: var(--hatch);
-	}
-	.host-name {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		margin-bottom: 3px;
-		font-size: 16px;
-		font-weight: 600;
-	}
 	.credits {
 		margin: 0;
 		line-height: 1.5;
 	}
 	.credits a {
 		text-decoration: underline;
-	}
-	.rights {
-		margin: 8px 0 0;
-		line-height: 1.5;
 	}
 	@media (max-width: 720px) {
 		.page {
@@ -300,14 +235,6 @@
 			gap: 20px;
 		}
 		.card {
-			padding: 18px;
-		}
-		.host {
-			grid-template-columns: 1fr;
-			gap: 6px;
-		}
-		.host.unreachable {
-			margin: 0 -18px;
 			padding: 18px;
 		}
 	}

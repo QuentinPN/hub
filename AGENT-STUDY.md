@@ -21,10 +21,11 @@ Vérifié dans les sources (2026-11-02) :
 
 | Hôte | Question | Commande |
 |---|---|---|
-| Pi | OS 64 bits ? version de Docker | `uname -m` · `docker version --format '{{.Server.Version}} {{.Server.APIVersion}}'` |
-| QNAP | Chemin du socket, version de Docker et de Container Station | `ls -l /var/run/*.sock` · même `docker version` |
-| QNAP | Où vit le compose de Hawser (pour savoir où un compose persiste après une mise à jour du firmware) | à regarder dans Container Station |
-| Pi, QNAP | Le mini-PC est-il joignable sur un port dédié (pare-feu) ? | `nc -zv 192.0.2.14 <port>` une fois le port choisi |
+| Pi | ~~OS 64 bits ? version de Docker~~ | Relevé le 2026-11-02 : `aarch64`, Docker 29.9.2 (API 1.56), socket `root:docker` 660, gid 985 → `DOCKER_GID=985` |
+| QNAP | ~~Chemin du socket, version de Docker~~ | Relevé le 2026-11-02 : `/var/run/docker.sock`, `0:0` 660 → `DOCKER_GID=0` ; Docker 27.1.2-qnap4 (API 1.46). L'agent appelle l'API sans préfixe de version : il suit celle du démon |
+| QNAP | ~~Où vit le compose de Hawser~~ | Relevé le 2026-11-02 : `/share/docker/hawser` (les piles de Dockhand sont sous `/data/compose/<n>`). Survie à une mise à jour du firmware non vérifiée |
+| mini-PC | Pare-feu | Relevé le 2026-11-02 : ufw actif (iptables-nft), port 8443 libre. Règles : 22/tcp depuis 192.0.2.0/24 et sur tailscale0, 445/tcp, 3702 et 5355 (tcp/udp) depuis le LAN ; rien d'autre. Serveur hors Docker : ajouter `ufw allow from 192.0.2.22 to any port 8443 proto tcp` et de même pour 192.0.2.10. Si le serveur tourne dans Docker avec un port publié, Docker contourne ufw : lier le port à l'IP LAN et filtrer dans `DOCKER-USER` |
+| Pi, QNAP | Le mini-PC est-il joignable sur 8443 ? | `nc -zv 192.0.2.14 8443`, une fois le serveur déployé |
 | — | ~~Architectures publiées de `wollomatic/socket-proxy`~~ | Vérifié le 2026-11-02 : 1.13.2 existe en amd64, arm64 et arm/v7 (digest épinglé dans `deploy/agent/compose.yml`) |
 
 La documentation QNAP n'a pas donné le chemin du socket ni la persistance d'une config du démon ; je ne le suppose pas.
@@ -107,7 +108,7 @@ L'agent doit donc filtrer **avant l'envoi** : `Command` jamais transmis ; labels
 
 ### Enrôlement d'un nouvel hôte
 
-1. Pour l'instant `hub-server -enroll-host <hôte>` sur le serveur, plus tard Réglages → Hôtes → « Ajouter un hôte » : le serveur crée l'hôte et un **code d'enrôlement** à usage unique (32 octets aléatoires, 15 minutes, seul son SHA-256 est gardé), et affiche le compose à copier avec l'empreinte de l'AC.
+1. Réglages → Hôtes et agents → « Ajouter un hôte » (ou `hub-server -enroll-host <hôte>` sur le serveur) : le serveur crée l'hôte et un **code d'enrôlement** à usage unique (32 octets aléatoires, 15 minutes, seul son SHA-256 est gardé), et affiche le compose à copier avec l'empreinte de l'AC.
 2. Au premier démarrage, l'agent **génère sa clé privée sur l'hôte** (elle n'en sort jamais), se connecte en vérifiant l'empreinte de l'AC (pas de confiance au premier contact), envoie une demande de certificat avec le code.
 3. Le serveur signe, consomme le code et l'UI affiche l'hôte « connecté » avec le nom et la version de Docker remontés par l'agent, pour que tu confirmes que c'est bien la machine attendue.
 4. Le code passe par un fichier (secret Compose) plutôt qu'une variable d'environnement visible dans `docker inspect` ; une fois utilisé, il ne sert plus à rien.
@@ -120,7 +121,7 @@ Journal d'audit : `agent_enrollment_created`, `agent_enrolled`, `agent_enrollmen
 - Agent éteint plus de 30 jours : certificat expiré, l'hôte passe « à réenrôler » avec un nouveau code. Rien d'autre ne permet de revenir.
 - Certificat serveur : 1 an, réémis à chaque démarrage ; les agents font confiance à l'AC, pas au certificat.
 - AC : 10 ans. Rotation manuelle documentée (les agents acceptent l'ancienne et la nouvelle AC pendant la transition), à prévoir mais pas à coder en premier.
-- Révocation depuis l'UI : effet immédiat, la connexion ouverte est coupée.
+- Révocation depuis l'UI ou en ligne de commande : l'agent est refusé (`403`) dès sa requête suivante, au plus 15 s plus tard (requêtes courtes, pas de connexion longue à couper). Le code en attente de l'hôte est annulé avec.
 
 ### Comportement en cas de panne
 

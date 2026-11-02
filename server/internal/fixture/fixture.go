@@ -193,9 +193,9 @@ func New() *Store {
 	}
 
 	s.agents = []api.AgentHost{
-		{ID: "debian-mini", Name: "debian-mini", OS: "Debian 13", Arch: "amd64", Containers: 22, Reachable: true, LastSeenLabel: "il y a 3 s", AgentVersion: "v0.3.0", CertExpiresLabel: "12 févr."},
-		{ID: "qnap-ts464", Name: "qnap-ts464", OS: "QTS", Arch: "amd64", Containers: 9, Reachable: true, LastSeenLabel: "il y a 5 s", AgentVersion: "v0.3.0", CertExpiresLabel: "12 févr."},
-		{ID: "rpi5", Name: "rpi5", OS: "Raspberry Pi OS", Arch: "arm64", Containers: 3, Reachable: false, LastSeenLabel: "il y a 6 min", AgentVersion: "v0.3.0", CertExpiresLabel: "12 févr."},
+		{ID: "debian-mini", Name: "debian-mini", OS: "Debian 13", Arch: "amd64"},
+		{ID: "qnap-ts464", Name: "qnap-ts464", OS: "QTS", Arch: "amd64"},
+		{ID: "rpi5", Name: "rpi5", OS: "Raspberry Pi OS", Arch: "arm64"},
 	}
 	return s
 }
@@ -215,7 +215,6 @@ func (s *Store) Services(context.Context) ([]api.ServiceSummary, error) {
 func (s *Store) Settings(context.Context) (api.Settings, error) {
 	return api.Settings{
 		Editable: false,
-		Hosts:    s.agents,
 		Discovery: api.Discovery{
 			FollowEvents:        true,
 			RescanMinutes:       5,

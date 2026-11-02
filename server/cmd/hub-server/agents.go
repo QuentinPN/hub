@@ -12,19 +12,19 @@ import (
 // printEnrollment prints what a new agent needs: the one-time code (stdout, so it can be
 // piped into a file) and the CA pin. Like the setup code, it requires a hand on the server.
 func printEnrollment(ctx context.Context, agents *agentsrv.Service, hostID string) error {
-	code, err := agents.CreateEnrollment(ctx, hostID)
+	e, err := agents.CreateEnrollment(ctx, hostID, "", agentsrv.CommandLine)
 	if err != nil {
 		return err
 	}
-	fmt.Println(code)
+	fmt.Println(e.Code)
 	fmt.Fprintf(os.Stderr, "\nEnrollment code for %q above: once only, until %s.\n",
-		hostID, time.Now().Add(agentsrv.EnrollmentTTL).Format(time.RFC3339))
+		hostID, e.ExpiresAt.Format(time.RFC3339))
 	fmt.Fprintf(os.Stderr, "On the host, put it in the file HUB_ENROLL_CODE_FILE points to, and set\n  HUB_CA_PIN=%s\n", agents.Pin())
 	return nil
 }
 
 func revokeAgent(ctx context.Context, agents *agentsrv.Service, hostID string) error {
-	n, err := agents.Revoke(ctx, hostID)
+	n, err := agents.Revoke(ctx, hostID, agentsrv.CommandLine)
 	if err != nil {
 		return err
 	}

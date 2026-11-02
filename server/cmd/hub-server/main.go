@@ -134,10 +134,23 @@ func main() {
 	}
 	iconSvc := icons.NewService(store, iconFetcher)
 
+	// The agents dial the first name their server certificate carries, on the agent port.
+	agentAddr := envOr("HUB_AGENT_ADDR", "127.0.0.1:8443")
+	agentNames := strings.Split(envOr("HUB_AGENT_NAMES", "localhost,127.0.0.1"), ",")
+	var agentsUI *api.Agents
+	if agents != nil {
+		_, port, err := net.SplitHostPort(agentAddr)
+		if err != nil {
+			slog.Error("startup", "err", fmt.Errorf("HUB_AGENT_ADDR: %w", err))
+			os.Exit(1)
+		}
+		agentsUI = &api.Agents{Admin: agents, ServerURL: "https://" + net.JoinHostPort(agentNames[0], port)}
+	}
+
 	ui := webui.New()
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           api.NewHandler(store, authSvc, iconSvc, ui.Handler, ui.ScriptHashes),
+		Handler:           api.NewHandler(store, authSvc, iconSvc, agentsUI, ui.Handler, ui.ScriptHashes),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -154,9 +167,7 @@ func main() {
 
 	var agentSrv *http.Server
 	if agents != nil {
-		agentAddr := envOr("HUB_AGENT_ADDR", "127.0.0.1:8443")
-		names := strings.Split(envOr("HUB_AGENT_NAMES", "localhost,127.0.0.1"), ",")
-		tlsCfg, err := agents.TLSConfig(names)
+		tlsCfg, err := agents.TLSConfig(agentNames)
 		if err != nil {
 			slog.Error("startup", "err", err)
 			os.Exit(1)
@@ -171,7 +182,7 @@ func main() {
 			IdleTimeout:       120 * time.Second,
 		}
 		go func() {
-			slog.Info("agent listener", "addr", agentAddr, "names", names)
+			slog.Info("agent listener", "addr", agentAddr, "names", agentNames)
 			if err := agentSrv.ListenAndServeTLS("", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				slog.Error("agent listener stopped", "err", err)
 				os.Exit(1)

@@ -1,0 +1,38 @@
+[
+	{
+		"id": "a1b2c3d4e5f6",
+		"name": "gluetun",
+		"image": "qmcgaw/gluetun",
+		"state": "running",
+		"status": "Up 3 days",
+		"composeProject": "85",
+		"composeService": "gluetun",
+		"composeDir": "/data/compose/85",
+		"labels": 6,
+		"maskedLabels": 2
+	},
+	{
+		"id": "b2c3d4e5f6a1",
+		"name": "qbittorrent",
+		"image": "lscr.io/linuxserver/qbittorrent",
+		"state": "running",
+		"status": "Up 3 days",
+		"composeProject": "85",
+		"composeService": "qbittorrent",
+		"composeDir": "/data/compose/85",
+		"labels": 6,
+		"maskedLabels": 0
+	},
+	{
+		"id": "c3d4e5f6a1b2",
+		"name": "watchtower",
+		"image": "containrrr/watchtower",
+		"state": "exited",
+		"status": "Exited (0) 2 hours ago",
+		"composeProject": "86",
+		"composeService": "watchtower",
+		"composeDir": "/data/compose/86",
+		"labels": 4,
+		"maskedLabels": 0
+	}
+]

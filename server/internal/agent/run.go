@@ -51,6 +51,12 @@ func (a *Agent) Run(ctx context.Context) error {
 			delay = backoffMax
 		}
 		wait := delay/2 + rand.N(delay) // ±50 %
+		var down *dockerDownError
+		if errors.As(err, &down) {
+			// The server heard that Docker is down: retry at the heartbeat pace, so the host
+			// stays « Docker injoignable » and does not drift to « injoignable ».
+			delay, wait = backoffMin, HeartbeatEvery
+		}
 		slog.Warn("session ended", "err", err, "retry_in", wait.Round(time.Millisecond))
 		select {
 		case <-ctx.Done():
@@ -81,8 +87,7 @@ func (a *Agent) session(ctx context.Context) error {
 
 	version, api, err := a.Docker.Version(ctx)
 	if err != nil {
-		s.heartbeat(ctx, err)
-		return err
+		return s.dockerDown(ctx, err)
 	}
 	// Events first, then the list: a change made in between shows up in both, never in neither.
 	events, evErr := a.Docker.Events(ctx)
@@ -105,9 +110,7 @@ func (a *Agent) session(ctx context.Context) error {
 			return ctx.Err()
 		case ev, ok := <-events:
 			if !ok {
-				err := <-evErr
-				s.heartbeat(ctx, err)
-				return err
+				return s.dockerDown(ctx, <-evErr)
 			}
 			if err := s.event(ctx, ev); err != nil {
 				return err
@@ -163,6 +166,25 @@ func (s *session) event(ctx context.Context, ev Event) error {
 		ch.Upserted = list
 	}
 	return s.send(ctx, http.MethodPost, agentproto.PathContainers, ch, nil)
+}
+
+// dockerDownError is a session ended by Docker (or its proxy) while the server still
+// answers: the server already knows, from the heartbeat sent on the way out.
+type dockerDownError struct{ err error }
+
+func (e *dockerDownError) Error() string { return "docker: " + e.err.Error() }
+func (e *dockerDownError) Unwrap() error { return e.err }
+
+// dockerDown tells the server that Docker does not answer. If the server cannot be told
+// either, the session failed for that reason instead.
+func (s *session) dockerDown(ctx context.Context, err error) error {
+	if err == nil {
+		err = errors.New("event stream closed")
+	}
+	if _, hbErr := s.heartbeat(ctx, err); hbErr != nil {
+		return hbErr
+	}
+	return &dockerDownError{err: err}
 }
 
 // heartbeat reports whether Docker answers and returns the rescan interval.

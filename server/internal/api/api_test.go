@@ -33,6 +33,12 @@ type env struct {
 // newEnv serves store over TLS (the session cookie is Secure) and creates the account.
 func newEnv(t *testing.T, store api.Store) *env {
 	t.Helper()
+	return newEnvWithAgents(t, store, nil)
+}
+
+// newEnvWithAgents is newEnv with the agent listener on (agents not nil).
+func newEnvWithAgents(t *testing.T, store api.Store, agents *api.Agents) *env {
+	t.Helper()
 	repo := authtest.New()
 	svc, err := auth.New(repo)
 	if err != nil {
@@ -43,7 +49,7 @@ func newEnv(t *testing.T, store api.Store) *env {
 		t.Fatal(err)
 	}
 	ui := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ui")) })
-	srv := httptest.NewTLSServer(api.NewHandler(store, svc, icons.NewService(noCache{}, nil), ui, []string{"sha256-abc"}))
+	srv := httptest.NewTLSServer(api.NewHandler(store, svc, icons.NewService(noCache{}, nil), agents, ui, []string{"sha256-abc"}))
 	t.Cleanup(srv.Close)
 
 	e := &env{srv: srv, repo: repo, svc: svc, secret: code}
@@ -167,7 +173,7 @@ func TestSettingsNeverInferURLFromPorts(t *testing.T) {
 	e := newEnv(t, fixture.New())
 	var s api.Settings
 	e.getJSON(t, "/api/v1/settings", &s)
-	if s.Discovery.InferURLFromPorts || s.Editable || len(s.Hosts) != 3 {
+	if s.Discovery.InferURLFromPorts || s.Editable {
 		t.Fatalf("unexpected settings: %+v", s)
 	}
 }

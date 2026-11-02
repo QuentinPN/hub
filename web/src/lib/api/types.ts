@@ -74,16 +74,55 @@ export interface ServiceDetail extends ServiceSummary {
 	connection: KeyValue[];
 }
 
+/** Décidé par le serveur, pour que tous les écrans s'accordent sur « agent parti ». */
+export type AgentState =
+	'none' | 'pending' | 'connected' | 'docker_down' | 'offline' | 'expired' | 'revoked';
+
+/** Dates ISO : l'UI écrit elle-même « il y a 8 s » et le tient à jour. */
 export interface AgentHost {
 	id: string;
 	name: string;
 	os: string;
 	arch: string;
-	containers: number;
-	reachable: boolean;
-	lastSeenLabel: string;
+	state: AgentState;
 	agentVersion: string;
-	certExpiresLabel: string;
+	dockerVersion: string;
+	lastSeenAt: string | null;
+	certExpiresAt: string | null;
+	enrollmentExpiresAt: string | null;
+	/** Conteneurs présents ; les absents restent en base. */
+	containers: number;
+}
+
+export interface HostsResponse {
+	/** Faux tant que le port agents est éteint (pas de HUB_AGENT_CA_FILE). */
+	agentsEnabled: boolean;
+	serverUrl: string;
+	pin: string;
+	hosts: AgentHost[];
+}
+
+/** Sans valeurs de labels : seulement combien, et combien masqués sur l'hôte. */
+export interface Container {
+	id: string;
+	name: string;
+	image: string;
+	state: string;
+	status: string;
+	composeProject: string;
+	composeService: string;
+	composeDir: string;
+	labels: number;
+	maskedLabels: number;
+}
+
+/** Le code n'est montré qu'une fois : le serveur n'en garde que l'empreinte. */
+export interface Enrollment {
+	hostId: string;
+	code: string;
+	expiresAt: string;
+	pin: string;
+	serverUrl: string;
 }
 
 export type RemovalPolicy = 'absent_then_archive' | 'absent_only' | 'archive_now';
@@ -101,7 +140,6 @@ export interface Discovery {
 export interface Settings {
 	/** Faux tant que les réglages ne sont pas enregistrés dans PostgreSQL. */
 	editable: boolean;
-	hosts: AgentHost[];
 	discovery: Discovery;
 }
 

@@ -1,7 +1,10 @@
 import type {
 	AuthState,
+	Container,
 	Discovery,
+	Enrollment,
 	Home,
+	HostsResponse,
 	PasskeyInfo,
 	ServiceDetail,
 	ServiceSummary,
@@ -109,6 +112,24 @@ export const getService = (fetchFn: Fetch, slug: string) =>
 
 export const updateDiscovery = (fetchFn: Fetch, discovery: Discovery) =>
 	putJson<Settings>(fetchFn, '/api/v1/settings/discovery', discovery);
+
+export const getHosts = (fetchFn: Fetch) => getJson<HostsResponse>(fetchFn, '/api/v1/hosts');
+
+export const getHostContainers = (fetchFn: Fetch, hostId: string) =>
+	getJson<Container[]>(fetchFn, `/api/v1/hosts/${encodeURIComponent(hostId)}/containers`);
+
+/** Un nouveau code remplace celui qui attendait encore pour cet hôte. */
+export const createEnrollment = (fetchFn: Fetch, hostId: string, name: string) =>
+	postJson<Enrollment>(fetchFn, '/api/v1/hosts/enrollments', { hostId, name });
+
+export const cancelEnrollment = (fetchFn: Fetch, hostId: string) =>
+	sendNoContent(fetchFn, 'DELETE', `/api/v1/hosts/${encodeURIComponent(hostId)}/enrollment`);
+
+/** Coupe l'agent à sa requête suivante ; ses conteneurs restent dans l'inventaire. */
+export async function revokeAgent(fetchFn: Fetch, hostId: string): Promise<number> {
+	const res = await send(fetchFn, 'POST', `/api/v1/hosts/${encodeURIComponent(hostId)}/revoke`);
+	return ((await res.json()) as { revoked: number }).revoked;
+}
 
 export const getAuthState = (fetchFn: Fetch) => getJson<AuthState>(fetchFn, '/api/v1/auth/state');
 

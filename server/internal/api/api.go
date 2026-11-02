@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"hub/server/internal/agentsrv"
 	"hub/server/internal/auth"
 	"hub/server/internal/icons"
 )
@@ -40,9 +41,16 @@ var ErrNotFound = errors.New("not found")
 // NewHandler returns the full HTTP handler: API routes under /api/v1, all behind a session
 // except the auth routes in publicAPI, a health check, and ui for everything else.
 // scriptHashes are CSP sources ('sha256-…') for the UI's inline bootstrap scripts.
-func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, ui http.Handler, scriptHashes []string) http.Handler {
+// agents is nil while the agent listener is off.
+func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *Agents, ui http.Handler, scriptHashes []string) http.Handler {
 	mux := http.NewServeMux()
 	registerAuth(mux, authSvc)
+	if hr, ok := store.(HostReader); ok {
+		registerHosts(mux, hr, agents, func(r *http.Request) agentsrv.Actor {
+			p, _ := current(r.Context())
+			return agentsrv.Actor{UserID: &p.user.ID, IP: clientOf(r).IP}
+		})
+	}
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
