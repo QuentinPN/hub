@@ -93,6 +93,15 @@ test('une fiche ouverte depuis l’accueil ramène à l’accueil', async ({ pag
 	await expect(page).toHaveURL('/');
 });
 
+test('une fiche chargée directement ramène à l’accueil, sans erreur', async ({ page }) => {
+	const errors: string[] = [];
+	page.on('pageerror', (err) => errors.push(err.message));
+	await page.goto('/services/emby');
+	await expect(page.getByRole('heading', { level: 1, name: 'Emby' })).toBeVisible();
+	await expect(page.getByRole('link', { name: '‹ Accueil' })).toBeVisible();
+	expect(errors).toEqual([]);
+});
+
 test('le titre de l’onglet suit la page', async ({ page }) => {
 	await page.goto('/services/emby');
 	await expect(page).toHaveTitle('Emby · Hub');

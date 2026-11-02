@@ -20,7 +20,9 @@
 	// Le lien retour ramène d'où l'on vient : le catalogue ou, par défaut, l'accueil.
 	let fromCatalogue = $state(false);
 	afterNavigate(({ from }) => {
-		fromCatalogue = from?.url.pathname === resolve('/services');
+		// Au chargement direct d'une fiche, `from.url` vaut null malgré son type.
+		const url = from?.url as URL | null | undefined;
+		fromCatalogue = url?.pathname === resolve('/services');
 	});
 
 	let name = $state('Service');
