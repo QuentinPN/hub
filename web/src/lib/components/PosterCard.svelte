@@ -6,7 +6,7 @@
 
 <!-- Pas encore d'affiches réelles : un aplat tonal tient lieu d'image (tone vient de l'API). -->
 <article class="poster" style:background="linear-gradient(160deg, {item.tone}, #0d0f12)">
-	<span class="chip">{item.when}</span>
+	<span class="chip" title={item.when}>{item.when}</span>
 	<div>
 		<div class="title">{item.title}</div>
 		<div class="detail muted">{item.detail}</div>
@@ -32,9 +32,14 @@
 		border-color: var(--border-focus);
 		box-shadow: var(--shadow-lift);
 	}
+	/* Toujours sur une ligne : un texte trop long est coupé, jamais renvoyé à la ligne. */
 	.chip {
 		align-self: flex-start;
+		max-width: 100%;
+		overflow: hidden;
 		padding: 4px 9px;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 		border-radius: var(--r-pill);
 		background: rgba(0, 0, 0, 0.45);
 		font-size: 12px;
@@ -52,6 +57,10 @@
 			flex-basis: 118px;
 			height: 176px;
 			padding: 10px;
+		}
+		.chip {
+			padding: 3px 7px;
+			font-size: 11px;
 		}
 	}
 </style>

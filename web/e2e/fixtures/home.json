@@ -148,7 +148,7 @@
 		{
 			"title": "Sinners",
 			"detail": "Film · Radarr",
-			"when": "Téléchargement 48 %",
+			"when": "48 % téléchargé",
 			"kind": "movie",
 			"tone": "#3a3122"
 		}

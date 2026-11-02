@@ -43,7 +43,7 @@ func New() *Store {
 			{Title: "Andor", Detail: "S02E04 · série", When: "Mer. 5", Kind: "episode", Tone: "#213a33"},
 			{Title: "Mickey 17", Detail: "Film · surveillé", When: "Sortie numérique", Kind: "movie", Tone: "#40262a"},
 			{Title: "The Bear", Detail: "S04E01 · série", When: "Jeu. 6", Kind: "episode", Tone: "#2c2c3a"},
-			{Title: "Sinners", Detail: "Film · Radarr", When: "Téléchargement 48 %", Kind: "movie", Tone: "#3a3122"},
+			{Title: "Sinners", Detail: "Film · Radarr", When: "48 % téléchargé", Kind: "movie", Tone: "#3a3122"},
 		},
 	}
 
