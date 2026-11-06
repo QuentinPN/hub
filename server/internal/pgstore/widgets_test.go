@@ -146,6 +146,7 @@ func TestRowsListWhatHubKnowsFirstTheActionable(t *testing.T) {
 	e.snapshot(t, "mini",
 		e.container("dockhand", "dockhand", "fnsys/dockhand", "running", 3000),
 		e.container("prowlarr", "prowlarr", "linuxserver/prowlarr", "running", 9696),
+		e.container("beszel", "beszel", "henrygd/beszel", "running", 8090),
 		e.container("sonarr", "sonarr", "linuxserver/sonarr", "running", 8989),
 		e.container("emby", "emby", "linuxserver/emby", "running", 8096),
 		e.container("autre", "autre", "exemple/autre", "running", 80))
@@ -157,7 +158,7 @@ func TestRowsListWhatHubKnowsFirstTheActionable(t *testing.T) {
 	for _, r := range rows {
 		got = append(got, r.Slug+":"+string(r.Support))
 	}
-	if want := []string{"emby:ready", "sonarr:ready", "prowlarr:planned", "dockhand:link"}; !slices.Equal(got, want) {
+	if want := []string{"emby:ready", "prowlarr:ready", "sonarr:ready", "beszel:planned", "dockhand:link"}; !slices.Equal(got, want) {
 		t.Errorf("%v, want %v", got, want)
 	}
 }

@@ -184,23 +184,17 @@ func (s *Store) realWidgets(ctx context.Context, home *api.Home, all []entry) er
 			}
 			upcoming = append(upcoming, list...)
 		}
-		if raw, ok := c.data[widgets.WidgetQueue]; ok && slices.Contains(c.enabled, widgets.WidgetQueue) {
-			var q widgets.Queue
-			if err := json.Unmarshal(raw, &q); err != nil {
-				return err
-			}
-			headline, note := widgets.QueueText(c.kind, q)
-			home.Downloads = append(home.Downloads, api.DownloadCard{Slug: e.Slug, Label: e.Name + " · file d’attente",
-				Headline: headline, Note: note, State: state, DataAt: c.dataAt})
+		cards, err := widgets.CardsOf(c.kind, c.data, c.enabled)
+		if err != nil {
+			return err
 		}
-		if raw, ok := c.data[widgets.WidgetTransfer]; ok && slices.Contains(c.enabled, widgets.WidgetTransfer) {
-			var t widgets.Transfer
-			if err := json.Unmarshal(raw, &t); err != nil {
-				return err
+		for _, card := range cards {
+			label := e.Name + " · " + e.HostID
+			if card.Suffix != "" {
+				label = e.Name + " · " + card.Suffix
 			}
-			headline, note := widgets.TransferText(t)
-			home.Downloads = append(home.Downloads, api.DownloadCard{Slug: e.Slug, Label: e.Name + " · " + e.HostID,
-				Headline: headline, Note: note, State: state, DataAt: c.dataAt})
+			home.Downloads = append(home.Downloads, api.DownloadCard{Slug: e.Slug, Label: label,
+				Headline: card.Headline, Note: card.Note, State: state, DataAt: c.dataAt})
 		}
 	}
 	if upcoming != nil {

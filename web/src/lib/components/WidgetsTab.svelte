@@ -173,6 +173,32 @@
 			{/if}
 		</div>
 		<div class="column side">
+			{#if conn.data.requests}
+				<section class="card" aria-labelledby="w-requests">
+					<h2 id="w-requests">Demandes</h2>
+					<dl>
+						<dt class="muted">En attente</dt>
+						<dd class="tabular">{conn.data.requests.pending}</dd>
+						<dt class="muted">Approuvées</dt>
+						<dd class="tabular">{conn.data.requests.approved}</dd>
+						<dt class="muted">En cours</dt>
+						<dd class="tabular">{conn.data.requests.processing}</dd>
+						<dt class="muted">Disponibles</dt>
+						<dd class="tabular">{conn.data.requests.available}</dd>
+					</dl>
+				</section>
+			{/if}
+			{#if conn.data.indexers}
+				<section class="card" aria-labelledby="w-indexers">
+					<h2 id="w-indexers">Indexeurs</h2>
+					<dl>
+						<dt class="muted">Activés</dt>
+						<dd class="tabular">{conn.data.indexers.enabled}</dd>
+						<dt class="muted">En panne</dt>
+						<dd class="tabular">{conn.data.indexers.failing}</dd>
+					</dl>
+				</section>
+			{/if}
 			{#if conn.data.transfer}
 				<section class="card" aria-labelledby="w-transfer">
 					<h2 id="w-transfer">Transferts</h2>

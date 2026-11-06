@@ -416,3 +416,27 @@ test('la fiche de qBittorrent montre ses transferts, sans aucun nom', async ({ p
 	await expect(page.getByText('850 Ko/s')).toBeVisible();
 	await expect(page.getByText('derrière un pare-feu')).toBeVisible();
 });
+
+test('les fiches de Seerr et Prowlarr montrent leurs nombres', async ({ page }) => {
+	const service = {
+		...base,
+		slug: 'seerr',
+		name: 'Seerr',
+		widget: {
+			...offered.widget,
+			connection: connection({
+				enabled: ['requests', 'indexers'],
+				data: {
+					requests: { total: 9, pending: 4, approved: 2, processing: 1, available: 2 },
+					indexers: { enabled: 12, failing: 1 }
+				}
+			})
+		}
+	};
+	await mockApi(page);
+	await page.route('**/api/v1/services/seerr', (route) => route.fulfill({ json: service }));
+	await page.goto('/services/seerr#widgets');
+	await expect(page.getByRole('heading', { name: 'Demandes' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Indexeurs' })).toBeVisible();
+	await expect(page.getByText('En panne')).toBeVisible();
+});
