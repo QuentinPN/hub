@@ -71,6 +71,9 @@
 		{/each}
 	</nav>
 	<div class="end">
+		{#if path === '/'}
+			<a class="custom" href={resolve('/personnaliser')}>Personnaliser</a>
+		{/if}
 		{#if total}
 			<span class="pill tabular"
 				><span class="ok" aria-hidden="true"></span>{online} sur {total} en ligne</span
@@ -168,6 +171,17 @@
 		display: flex;
 		align-items: center;
 		gap: 10px;
+	}
+	.custom {
+		display: inline-flex;
+		align-items: center;
+		min-height: 44px;
+		padding: 0 14px;
+		border: 1px solid var(--border-2);
+		border-radius: 12px;
+		background: var(--surface-2);
+		font-size: 14px;
+		font-weight: 600;
 	}
 	.gear {
 		display: flex;

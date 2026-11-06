@@ -17,6 +17,8 @@
 
 	let { data }: PageProps = $props();
 
+	const DEFAULT_ROWS = ['playing', 'favorites', 'upcoming', 'downloads', 'hosts'];
+
 	// Relu sans repasser par le squelette : la lecture en cours change sous les yeux, dès que
 	// le serveur le signale. La relecture régulière rattrape un signal perdu.
 	let fresh = $state<Home | null>(null);
@@ -66,127 +68,140 @@
 {:then loaded}
 	{@const home = fresh ?? loaded}
 	{@const main = home.sessions[0]}
-	<section class="hero">
-		{#if main}
-			<div class="hero-body">
-				<div class="hero-text">
-					<span class="eyebrow">
-						<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
-							><path d="M7 4v16l13-8z"></path></svg
+	{@const rows = home.rows ?? DEFAULT_ROWS}
+	{@const welcome = home.summary.total === 0 && home.hosts.length === 0}
+	{@const showHero = rows.includes('playing') || welcome}
+	{#if showHero}
+		<section class="hero">
+			{#if main}
+				<div class="hero-body">
+					<div class="hero-text">
+						<span class="eyebrow">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
+								><path d="M7 4v16l13-8z"></path></svg
+							>
+							En lecture sur Emby
+						</span>
+						<h1>{main.title}</h1>
+						<p class="muted lead">
+							{main.device} · {main.transcoding ? 'transcodage' : 'lecture directe'} · {main.durationLabel}
+						</p>
+						<div
+							class="progress"
+							role="progressbar"
+							aria-label="Progression"
+							aria-valuenow={Math.round(main.progress * 100)}
+							aria-valuemin={0}
+							aria-valuemax={100}
 						>
-						En lecture sur Emby
-					</span>
-					<h1>{main.title}</h1>
-					<p class="muted lead">
-						{main.device} · {main.transcoding ? 'transcodage' : 'lecture directe'} · {main.durationLabel}
-					</p>
-					<div
-						class="progress"
-						role="progressbar"
-						aria-label="Progression"
-						aria-valuenow={Math.round(main.progress * 100)}
-						aria-valuemin={0}
-						aria-valuemax={100}
-					>
-						<span style:width="{main.progress * 100}%"></span>
+							<span style:width="{main.progress * 100}%"></span>
+						</div>
+						<div class="actions">
+							<a
+								class="btn primary"
+								href={resolve('/services/[slug]', { slug: home.sessionsSlug ?? 'emby' })}
+								>Ouvrir la fiche Emby</a
+							>
+							<span class="muted sessions"
+								>{home.sessions.length}
+								{home.sessions.length > 1 ? 'sessions' : 'session'} en cours</span
+							>
+						</div>
 					</div>
-					<div class="actions">
-						<a
-							class="btn primary"
-							href={resolve('/services/[slug]', { slug: home.sessionsSlug ?? 'emby' })}
-							>Ouvrir la fiche Emby</a
-						>
-						<span class="muted sessions"
-							>{home.sessions.length}
-							{home.sessions.length > 1 ? 'sessions' : 'session'} en cours</span
-						>
+					<ul class="others">
+						{#each home.sessions.slice(1) as s (s.title)}
+							<li>
+								<span class="muted small">{s.device}</span>
+								<strong>{s.title}</strong>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{:else if home.summary.total === 0 && home.hosts.length === 0}
+				<div class="hero-body">
+					<div class="hero-text">
+						<h1>Bienvenue sur Hub</h1>
+						<p class="muted lead">
+							Aucun service pour l’instant. Ils apparaîtront ici une fois un hôte connecté.
+						</p>
+						<div class="actions">
+							<a class="btn primary" href={resolve('/settings#hosts')}>Connecter un hôte</a>
+						</div>
 					</div>
 				</div>
-				<ul class="others">
-					{#each home.sessions.slice(1) as s (s.title)}
-						<li>
-							<span class="muted small">{s.device}</span>
-							<strong>{s.title}</strong>
-						</li>
-					{/each}
-				</ul>
-			</div>
-		{:else if home.summary.total === 0 && home.hosts.length === 0}
-			<div class="hero-body">
-				<div class="hero-text">
-					<h1>Bienvenue sur Hub</h1>
-					<p class="muted lead">
-						Aucun service pour l’instant. Ils apparaîtront ici une fois un hôte connecté.
-					</p>
-					<div class="actions">
-						<a class="btn primary" href={resolve('/settings#hosts')}>Connecter un hôte</a>
-					</div>
+			{:else}
+				<div class="hero-body">
+					<h1>Rien en lecture</h1>
 				</div>
-			</div>
-		{:else}
-			<div class="hero-body">
-				<h1>Rien en lecture</h1>
-			</div>
-		{/if}
-	</section>
-
-	<div class="content">
-		{#if home.favorites.length > 0}
-			<Shelf title="Favoris" id="fav">
-				{#each home.favorites as service (service.slug)}
-					<AppCard {service} />
-				{/each}
-			</Shelf>
-		{:else if home.services.length > 0}
-			<Shelf title="Services" id="services">
-				{#each home.services as service (service.slug)}
-					<AppCard {service} />
-				{/each}
-			</Shelf>
-		{/if}
-		{#if home.upcoming.length > 0}
-			<Shelf title="À venir · Sonarr et Radarr" id="soon" focusable>
-				{#each home.upcoming as item, i (item.title + item.detail + i)}
-					<PosterCard item={upcomingPoster(item, new Date())} />
-				{/each}
-			</Shelf>
-		{/if}
-		{#if home.downloads?.length}
-			<section aria-labelledby="downloads">
-				<h2 id="downloads">Téléchargements</h2>
-				<div class="downloads">
-					{#each home.downloads as card (card.slug)}
-						<a
-							class="download"
-							class:stale={card.state !== 'ok'}
-							href="{resolve('/services/[slug]', { slug: card.slug })}#widgets"
-						>
-							<span class="muted small">{card.label}</span>
-							<strong>{card.headline}</strong>
-							{#if card.state === 'ok'}
-								<span class="muted">{card.note}</span>
-							{:else}
-								<span class="late"
-									><span class="dot"></span>{widgetStateView(card.state).label}{card.dataAt
-										? `, données ${ago(card.dataAt, Date.now())}`
-										: ''}</span
+			{/if}
+		</section>
+	{:else}
+		<h1 class="visually-hidden">Accueil</h1>
+	{/if}
+	<div class="content" class:bare={!showHero}>
+		{#each rows as row (row)}
+			{#if row === 'favorites'}
+				{#if home.favorites.length > 0}
+					<Shelf title="Favoris" id="fav">
+						{#each home.favorites as service (service.slug)}
+							<AppCard {service} />
+						{/each}
+					</Shelf>
+				{:else if home.services.length > 0}
+					<Shelf title="Services" id="services">
+						{#each home.services as service (service.slug)}
+							<AppCard {service} />
+						{/each}
+					</Shelf>
+				{/if}
+			{:else if row === 'upcoming'}
+				{#if home.upcoming.length > 0}
+					<Shelf title="À venir · Sonarr et Radarr" id="soon" focusable>
+						{#each home.upcoming as item, i (item.title + item.detail + i)}
+							<PosterCard item={upcomingPoster(item, new Date())} />
+						{/each}
+					</Shelf>
+				{/if}
+			{:else if row === 'downloads'}
+				{#if home.downloads?.length}
+					<section aria-labelledby="downloads">
+						<h2 id="downloads">Téléchargements</h2>
+						<div class="downloads">
+							{#each home.downloads as card (card.slug)}
+								<a
+									class="download"
+									class:stale={card.state !== 'ok'}
+									href="{resolve('/services/[slug]', { slug: card.slug })}#widgets"
 								>
-							{/if}
-						</a>
-					{/each}
-				</div>
-			</section>
-		{/if}
-		{#if home.hosts.length > 0}
-			<section aria-labelledby="infra">
-				<h2 id="infra">Infrastructure</h2>
-				<div class="hosts">
-					{#each home.hosts as host (host.id)}
-						<HostCard {host} />
-					{/each}
-				</div>
-			</section>
-		{/if}
+									<span class="muted small">{card.label}</span>
+									<strong>{card.headline}</strong>
+									{#if card.state === 'ok'}
+										<span class="muted">{card.note}</span>
+									{:else}
+										<span class="late"
+											><span class="dot"></span>{widgetStateView(card.state).label}{card.dataAt
+												? `, données ${ago(card.dataAt, Date.now())}`
+												: ''}</span
+										>
+									{/if}
+								</a>
+							{/each}
+						</div>
+					</section>
+				{/if}
+			{:else if row === 'hosts'}
+				{#if home.hosts.length > 0}
+					<section aria-labelledby="infra">
+						<h2 id="infra">Infrastructure</h2>
+						<div class="hosts">
+							{#each home.hosts as host (host.id)}
+								<HostCard {host} />
+							{/each}
+						</div>
+					</section>
+				{/if}
+			{/if}
+		{/each}
 	</div>
 {:catch err}
 	<section class="hero">
@@ -304,6 +319,9 @@
 	}
 	.small {
 		font-size: var(--fs-small);
+	}
+	.content.bare {
+		padding-top: calc(var(--shell-h) + 36px);
 	}
 	.content {
 		display: flex;

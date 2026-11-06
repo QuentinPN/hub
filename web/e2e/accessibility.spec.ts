@@ -10,6 +10,7 @@ const pages = [
 	{ path: '/services', heading: 'Tous les services' },
 	{ path: '/services/emby', heading: 'Emby' },
 	{ path: '/services/prowlarr', heading: 'Prowlarr' },
+	{ path: '/personnaliser', heading: 'Personnaliser l’accueil' },
 	{ path: '/medias', heading: 'Médias' },
 	{ path: '/telechargements', heading: 'Téléchargements' },
 	{ path: '/infra', heading: 'Infra' },

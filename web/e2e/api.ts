@@ -13,6 +13,7 @@ const routes: Record<string, string> = {
 	'services/prowlarr': 'services-prowlarr',
 	settings: 'settings',
 	widgets: 'widgets',
+	'home-layout': 'home-layout',
 	'sections/media': 'sections-media',
 	'sections/downloads': 'sections-downloads',
 	'sections/infra': 'sections-infra',

@@ -156,7 +156,8 @@ func stateLabel(state string) string {
 }
 
 // realWidgets lays over the live source what the connections last read.
-func (s *Store) realWidgets(ctx context.Context, home *api.Home, all []entry) error {
+// What the user left out of a row stays out of it.
+func (s *Store) realWidgets(ctx context.Context, home *api.Home, all []entry, excluded map[string][]string) error {
 	conns, err := s.connections(ctx)
 	if err != nil {
 		return err
@@ -170,7 +171,8 @@ func (s *Store) realWidgets(ctx context.Context, home *api.Home, all []entry) er
 		}
 		state := c.stateFor(e)
 		// Stale playbacks would say something false: only a connection that answers counts.
-		if !sessionsFound && state == string(widgets.StateOK) && slices.Contains(c.enabled, widgets.EmbySessions) {
+		if !sessionsFound && state == string(widgets.StateOK) && slices.Contains(c.enabled, widgets.EmbySessions) &&
+			!slices.Contains(excluded[api.RowPlaying], e.Slug) {
 			sessions := []api.Session{}
 			if raw, ok := c.data[widgets.EmbySessions]; ok {
 				if err := json.Unmarshal(raw, &sessions); err != nil {
@@ -182,12 +184,16 @@ func (s *Store) realWidgets(ctx context.Context, home *api.Home, all []entry) er
 		if !keepsData(state) {
 			continue
 		}
-		if raw, ok := c.data[widgets.WidgetCalendar]; ok && slices.Contains(c.enabled, widgets.WidgetCalendar) {
+		if raw, ok := c.data[widgets.WidgetCalendar]; ok && slices.Contains(c.enabled, widgets.WidgetCalendar) &&
+			!slices.Contains(excluded[api.RowUpcoming], e.Slug) {
 			var list []api.UpcomingItem
 			if err := json.Unmarshal(raw, &list); err != nil {
 				return err
 			}
 			upcoming = append(upcoming, list...)
+		}
+		if slices.Contains(excluded[api.RowDownloads], e.Slug) {
+			continue
 		}
 		cards, err := widgets.CardsOf(c.kind, c.data, c.enabled)
 		if err != nil {

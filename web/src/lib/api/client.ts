@@ -6,8 +6,10 @@ import type {
 	Enrollment,
 	HiddenGroup,
 	Home,
+	HomeLayout,
 	HostsResponse,
 	InfraPage,
+	LayoutRow,
 	MediaPage,
 	PasskeyInfo,
 	ServiceDetail,
@@ -149,6 +151,15 @@ export const saveServiceUrl = (
 
 export const clearServiceUrl = (fetchFn: Fetch, slug: string) =>
 	sendService(fetchFn, 'DELETE', `${servicePath(slug)}/url`);
+
+export const getHomeLayout = (fetchFn: Fetch) =>
+	getJson<HomeLayout>(fetchFn, '/api/v1/home-layout');
+
+export const saveHomeLayout = (fetchFn: Fetch, rows: LayoutRow[]) =>
+	putJson<HomeLayout>(fetchFn, '/api/v1/home-layout', { rows });
+
+export const resetHomeLayout = async (fetchFn: Fetch) =>
+	(await (await send(fetchFn, 'DELETE', '/api/v1/home-layout')).json()) as HomeLayout;
 
 export const getMediaPage = (fetchFn: Fetch) =>
 	getJson<MediaPage>(fetchFn, '/api/v1/sections/media');

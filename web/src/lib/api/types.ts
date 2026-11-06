@@ -63,7 +63,21 @@ export interface Host {
 	metrics: HostMetric[];
 }
 
+export interface LayoutRow {
+	id: string;
+	visible: boolean;
+	/** Les sources écartées, par service ou hôte : elles restent valables après un scan. */
+	excluded: string[];
+}
+
+export interface HomeLayout {
+	rows: LayoutRow[];
+	choices: Record<string, { id: string; label: string }[]>;
+}
+
 export interface Home {
+	/** Les rangées visibles, dans l'ordre choisi. */
+	rows?: string[];
 	summary: { online: number; total: number };
 	sessions: Session[];
 	/** Le service qui les fournit, dès qu'une vraie connexion les lit. */

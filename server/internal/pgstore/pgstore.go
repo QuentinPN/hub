@@ -241,10 +241,27 @@ func (s *Store) Home(ctx context.Context) (api.Home, error) {
 			home.Services = append(home.Services, e.ServiceSummary)
 		}
 	}
-	if err := s.realWidgets(ctx, &home, all); err != nil {
+	layout, err := s.layoutRows(ctx)
+	if err != nil {
 		return home, err
 	}
-	return home, s.realHosts(ctx, &home)
+	home.Rows = []string{}
+	for _, r := range layout {
+		if r.Visible {
+			home.Rows = append(home.Rows, r.ID)
+		}
+	}
+	excluded := excludedBy(layout)
+	if err := s.realWidgets(ctx, &home, all, excluded); err != nil {
+		return home, err
+	}
+	if err := s.realHosts(ctx, &home); err != nil {
+		return home, err
+	}
+	home.Hosts = slices.DeleteFunc(home.Hosts, func(h api.Host) bool {
+		return slices.Contains(excluded[api.RowHosts], h.ID)
+	})
+	return home, nil
 }
 
 // realHosts replaces the live source's hosts as soon as an agent has reported.

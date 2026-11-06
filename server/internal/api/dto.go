@@ -79,6 +79,8 @@ type Summary struct {
 }
 
 type Home struct {
+	// Rows lists the visible rows, in the user's order.
+	Rows     []string  `json:"rows"`
 	Summary  Summary   `json:"summary"`
 	Sessions []Session `json:"sessions"`
 	// SessionsSlug is the service they come from, once a real connection reads them.

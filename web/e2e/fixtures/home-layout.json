@@ -1,0 +1,22 @@
+{
+	"rows": [
+		{ "id": "playing", "visible": true, "excluded": [] },
+		{ "id": "favorites", "visible": true, "excluded": [] },
+		{ "id": "upcoming", "visible": true, "excluded": [] },
+		{ "id": "downloads", "visible": true, "excluded": [] },
+		{ "id": "hosts", "visible": true, "excluded": [] }
+	],
+	"choices": {
+		"playing": [{ "id": "emby", "label": "Emby" }],
+		"favorites": [],
+		"upcoming": [
+			{ "id": "sonarr", "label": "Sonarr" },
+			{ "id": "radarr", "label": "Radarr" }
+		],
+		"downloads": [
+			{ "id": "qbittorrent", "label": "qBittorrent" },
+			{ "id": "prowlarr", "label": "Prowlarr" }
+		],
+		"hosts": [{ "id": "mini-pc", "label": "mini-PC" }]
+	}
+}

@@ -94,6 +94,9 @@ func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *
 	if editor, ok := store.(WidgetEditor); ok && live != nil {
 		registerWidgets(mux, store, editor, live, authSvc)
 	}
+	if editor, ok := store.(LayoutEditor); ok {
+		registerLayout(mux, editor)
+	}
 	if sections, ok := store.(SectionReader); ok {
 		registerSections(mux, sections)
 	}
