@@ -154,3 +154,34 @@ test.describe('sans session', () => {
 		await expect(page).toHaveURL('/login');
 	});
 });
+
+test.describe('sans aucun service', () => {
+	test.beforeEach(async ({ page }) => {
+		await mockApi(page);
+		const home = {
+			summary: { online: 0, total: 0 },
+			sessions: [],
+			favorites: [],
+			upcoming: [],
+			hosts: []
+		};
+		await page.route('**/api/v1/home', (route) => route.fulfill({ json: home }));
+		await page.route('**/api/v1/services', (route) => route.fulfill({ json: [] }));
+	});
+
+	test('l’accueil invite à connecter un hôte, sans rangée vide', async ({ page }) => {
+		await page.goto('/');
+		await expect(page.getByRole('heading', { level: 1, name: 'Bienvenue sur Hub' })).toBeVisible();
+		await expect(page.getByRole('heading', { level: 2 })).toHaveCount(0);
+		await expect(page.getByText('sur 0 en ligne')).toHaveCount(0);
+		await page.getByRole('link', { name: 'Connecter un hôte' }).click();
+		await expect(page).toHaveURL(/\/settings#hosts$/);
+	});
+
+	test('le catalogue explique qu’il est vide', async ({ page }) => {
+		await page.goto('/services');
+		await expect(page.getByText('Aucun service pour l’instant.')).toBeVisible();
+		await expect(page.getByText('Aucun service ne correspond')).toHaveCount(0);
+		await expect(page.getByRole('link', { name: 'Connecter un hôte' })).toBeVisible();
+	});
+});

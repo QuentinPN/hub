@@ -82,6 +82,18 @@
 					{/each}
 				</ul>
 			</div>
+		{:else if home.summary.total === 0 && home.hosts.length === 0}
+			<div class="hero-body">
+				<div class="hero-text">
+					<h1>Bienvenue sur Hub</h1>
+					<p class="muted lead">
+						Aucun service pour l’instant. Ils apparaîtront ici une fois un hôte connecté.
+					</p>
+					<div class="actions">
+						<a class="btn primary" href={resolve('/settings#hosts')}>Connecter un hôte</a>
+					</div>
+				</div>
+			</div>
 		{:else}
 			<div class="hero-body">
 				<h1>Rien en lecture</h1>
@@ -90,24 +102,30 @@
 	</section>
 
 	<div class="content">
-		<Shelf title="Favoris" id="fav">
-			{#each home.favorites as service (service.slug)}
-				<AppCard {service} />
-			{/each}
-		</Shelf>
-		<Shelf title="À venir · Sonarr et Radarr" id="soon" focusable>
-			{#each home.upcoming as item (item.title + item.detail)}
-				<PosterCard {item} />
-			{/each}
-		</Shelf>
-		<section aria-labelledby="infra">
-			<h2 id="infra">Infrastructure</h2>
-			<div class="hosts">
-				{#each home.hosts as host (host.id)}
-					<HostCard {host} />
+		{#if home.favorites.length > 0}
+			<Shelf title="Favoris" id="fav">
+				{#each home.favorites as service (service.slug)}
+					<AppCard {service} />
 				{/each}
-			</div>
-		</section>
+			</Shelf>
+		{/if}
+		{#if home.upcoming.length > 0}
+			<Shelf title="À venir · Sonarr et Radarr" id="soon" focusable>
+				{#each home.upcoming as item (item.title + item.detail)}
+					<PosterCard {item} />
+				{/each}
+			</Shelf>
+		{/if}
+		{#if home.hosts.length > 0}
+			<section aria-labelledby="infra">
+				<h2 id="infra">Infrastructure</h2>
+				<div class="hosts">
+					{#each home.hosts as host (host.id)}
+						<HostCard {host} />
+					{/each}
+				</div>
+			</section>
+		{/if}
 	</div>
 {:catch err}
 	<section class="hero">

@@ -109,7 +109,7 @@
 
 <main class="page">
 	<div class="card">
-		<div class="brand" aria-hidden="true">U</div>
+		<div class="brand" aria-hidden="true">H</div>
 		{#if setupMode}
 			<h1>Bienvenue sur Hub</h1>
 			<p class="muted lead">

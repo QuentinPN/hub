@@ -264,3 +264,15 @@ func (s *Store) Seed() ([]api.AgentHost, []api.ServiceSummary) {
 	services, _ := s.Services(context.Background())
 	return s.agents, services
 }
+
+// Empty has no example at all: the catalogue stays empty until agents report real
+// containers. It is what the server runs on unless HUB_DEMO_DATA=on.
+func Empty() *Store {
+	return &Store{
+		agents:   []api.AgentHost{},
+		hosts:    []api.Host{},
+		services: []api.ServiceDetail{},
+		sessions: []api.Session{},
+		upcoming: []api.UpcomingItem{},
+	}
+}

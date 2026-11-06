@@ -88,6 +88,8 @@ Tests Playwright de l'UI (navigation, `Ctrl+K`, focus, axe, débordement et mouv
 cd web && npm run test:e2e
 ```
 
+Le serveur démarre sans aucune donnée d'exemple : le catalogue reste vide jusqu'à ce que des agents remontent de vrais conteneurs. `HUB_DEMO_DATA=on` remplit une base vide avec l'inventaire d'exemple, pour le développement.
+
 Les tests de base de données utilisent `HUB_TEST_DATABASE_URL` (chaque test crée puis supprime son propre schéma) et sont ignorés sans elle :
 
 ```bash

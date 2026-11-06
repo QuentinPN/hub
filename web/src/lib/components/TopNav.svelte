@@ -76,7 +76,7 @@
 		{/each}
 	</nav>
 	<div class="end">
-		{#if total !== undefined}
+		{#if total}
 			<span class="pill tabular"
 				><span class="ok" aria-hidden="true"></span>{online} sur {total} en ligne</span
 			>

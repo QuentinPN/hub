@@ -393,3 +393,29 @@ func TestDeleteSessions(t *testing.T) {
 		t.Fatalf("this session: err = %v", err)
 	}
 }
+
+// Without demo data, a new database holds nothing invented.
+func TestEmptyDataSourceSeedsNothing(t *testing.T) {
+	ctx := context.Background()
+	store, err := pgstore.New(ctx, dbtest.Pool(t), fixture.Empty())
+	if err != nil {
+		t.Fatal(err)
+	}
+	services, err := store.Services(ctx)
+	if err != nil || len(services) != 0 {
+		t.Fatalf("services %v, err %v", services, err)
+	}
+	hosts, err := store.AgentHosts(ctx, time.Now())
+	if err != nil || len(hosts) != 0 {
+		t.Fatalf("hosts %v, err %v", hosts, err)
+	}
+	home, err := store.Home(ctx)
+	if err != nil || len(home.Sessions)+len(home.Upcoming)+len(home.Hosts)+len(home.Favorites) != 0 || home.Summary.Total != 0 {
+		t.Fatalf("home %+v, err %v", home, err)
+	}
+	// The browser relies on empty lists, never null.
+	body, err := json.Marshal(home)
+	if err != nil || strings.Contains(string(body), "null") {
+		t.Fatalf("home JSON %s, err %v", body, err)
+	}
+}

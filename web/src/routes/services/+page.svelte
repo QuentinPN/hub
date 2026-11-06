@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import type { ServiceSummary } from '#lib/api/types.ts';
 	import AppCard from '#lib/components/AppCard.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
@@ -144,7 +145,12 @@
 			{plural(shown, 'service affiché', 'services affichés')}
 		</p>
 
-		{#if shown === 0}
+		{#if list.length === 0}
+			<p class="muted empty">
+				Aucun service pour l’instant. Ils apparaîtront ici une fois un hôte connecté.
+				<a class="link" href={resolve('/settings#hosts')}>Connecter un hôte</a>
+			</p>
+		{:else if shown === 0}
 			<p class="muted empty">
 				Aucun service ne correspond. Essaie un autre filtre ou une autre recherche.
 			</p>
@@ -356,6 +362,10 @@
 		grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
 		gap: 22px;
 		padding: 16px 4px 8px;
+	}
+	.link {
+		color: var(--text);
+		text-decoration: underline;
 	}
 	.empty {
 		margin: 40px 0;

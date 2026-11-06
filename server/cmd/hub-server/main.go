@@ -217,7 +217,12 @@ func openStore(ctx context.Context, databaseURL string) (*pgstore.Store, func(),
 		pool.Close()
 		return nil, nil, err
 	}
-	store, err := pgstore.New(ctx, pool, fixture.New())
+	// No invented service in production: the catalogue stays empty until agents report.
+	live := fixture.Empty()
+	if os.Getenv("HUB_DEMO_DATA") == "on" {
+		live = fixture.New()
+	}
+	store, err := pgstore.New(ctx, pool, live)
 	if err != nil {
 		pool.Close()
 		return nil, nil, err
