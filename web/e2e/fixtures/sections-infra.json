@@ -1,0 +1,71 @@
+{
+	"hosts": [
+		{
+			"id": "mini-pc",
+			"name": "mini-PC",
+			"os": "Debian 13",
+			"arch": "amd64",
+			"state": "connected",
+			"agentVersion": "1.0",
+			"dockerVersion": "29.0",
+			"lastSeenAt": "2026-11-06T18:00:00Z",
+			"certExpiresAt": null,
+			"enrollmentExpiresAt": null,
+			"containers": 36,
+			"services": 1
+		},
+		{
+			"id": "raspberry-pi",
+			"name": "Raspberry Pi",
+			"os": "",
+			"arch": "arm64",
+			"state": "offline",
+			"agentVersion": "",
+			"dockerVersion": "",
+			"lastSeenAt": "2026-11-06T18:00:00Z",
+			"certExpiresAt": null,
+			"enrollmentExpiresAt": null,
+			"containers": 4,
+			"services": 0
+		}
+	],
+	"total": 1,
+	"watch": [
+		{
+			"slug": "tzmasters",
+			"name": "TZ Masters",
+			"monogram": "T",
+			"icon": null,
+			"color": "#a23b4f",
+			"category": "Mes applications",
+			"hostId": "mini-pc",
+			"status": "degraded",
+			"latencyMs": null,
+			"note": "1 appoint arrêté",
+			"favorite": false,
+			"url": null
+		}
+	],
+	"groups": [
+		{
+			"hostId": "mini-pc",
+			"name": "mini-PC",
+			"services": [
+				{
+					"slug": "tzmasters",
+					"name": "TZ Masters",
+					"monogram": "T",
+					"icon": null,
+					"color": "#a23b4f",
+					"category": "Mes applications",
+					"hostId": "mini-pc",
+					"status": "degraded",
+					"latencyMs": null,
+					"note": "1 appoint arrêté",
+					"favorite": false,
+					"url": null
+				}
+			]
+		}
+	]
+}

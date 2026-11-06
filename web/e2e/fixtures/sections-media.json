@@ -1,0 +1,49 @@
+{
+	"connected": 3,
+	"notices": [],
+	"toConnect": [],
+	"sessions": [
+		{
+			"title": "Le film du soir",
+			"subtitle": "",
+			"device": "Apple TV du salon",
+			"progress": 0.58,
+			"durationLabel": "42 min restantes",
+			"transcoding": false
+		}
+	],
+	"sessionsSlug": "emby",
+	"upcoming": [
+		{
+			"title": "Une série",
+			"detail": "S02E06 · Sonarr",
+			"when": "",
+			"kind": "episode",
+			"tone": "",
+			"at": "2030-01-08T20:00:00Z"
+		}
+	],
+	"latest": [
+		{ "title": "Un film", "detail": "Film", "kind": "movie", "addedAt": "2026-11-05T10:00:00Z" }
+	],
+	"requests": { "total": 9, "pending": 4, "approved": 2, "processing": 1, "available": 2 },
+	"requestsSlug": "seerr",
+	"requestsUrl": "http://192.0.2.14:5055",
+	"library": { "movies": 412, "series": 86, "episodes": 3120 },
+	"services": [
+		{
+			"slug": "emby",
+			"name": "Emby",
+			"monogram": "E",
+			"icon": "emby",
+			"color": "#2e7d4f",
+			"category": "Médias",
+			"hostId": "mini-pc",
+			"status": "online",
+			"latencyMs": 42,
+			"note": "en ligne",
+			"favorite": false,
+			"url": null
+		}
+	]
+}

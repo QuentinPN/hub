@@ -79,7 +79,34 @@ func TestSonarrKeepsWhatIsStillToComeSoonestFirst(t *testing.T) {
 		t.Errorf("%+v", q)
 	}
 	if strings.Contains(raw, "nom-de-release-prive") {
-		t.Error("a release name reached the stored data")
+		t.Error("a release name reached the queue's counts")
+	}
+}
+
+func TestQueueItemsNameWhatIsFetched(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("includeSeries") != "true" || r.URL.Query().Get("includeEpisode") != "true" {
+			t.Errorf("queue asked without its series: %s", r.URL)
+		}
+		_, _ = w.Write([]byte(`{"totalRecords":2,"records":[
+			{"title":"nom.de.release","status":"downloading","trackedDownloadStatus":"ok","series":{"title":"Une série"},"episode":{"seasonNumber":2,"episodeNumber":6}},
+			{"title":"nom.seul","status":"queued","trackedDownloadStatus":"warning"}]}`))
+	}))
+	defer srv.Close()
+	data, state := widgets.Read(context.Background(), widgets.Target{Kind: "sonarr", URL: srv.URL}, secrets.NewValue(testKey), nil, []string{widgets.WidgetQueue})
+	if state != widgets.StateOK {
+		t.Fatal(state)
+	}
+	var items []widgets.QueueItem
+	if err := json.Unmarshal(data[widgets.DataQueueItems], &items); err != nil {
+		t.Fatal(err)
+	}
+	want := []widgets.QueueItem{
+		{Title: "Une série", Detail: "S02E06 · Sonarr", Status: "downloading"},
+		{Title: "nom.seul", Detail: "Sonarr", Status: "queued", Problem: true},
+	}
+	if fmt.Sprint(items) != fmt.Sprint(want) {
+		t.Errorf("%+v", items)
 	}
 }
 

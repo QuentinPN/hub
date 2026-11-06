@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
 	connectionLabel,
+	etaLabel,
 	mediaPoster,
+	queueStateLabel,
 	speedLabel,
+	torrentStateLabel,
 	refreshLabel,
 	testFailure,
 	upcomingPoster,
@@ -40,6 +43,15 @@ describe('widgets', () => {
 		expect(speedLabel(850_000)).toBe('850 Ko/s');
 		expect(speedLabel(0)).toBe('0 o/s');
 		expect(connectionLabel('firewalled')).toBe('derrière un pare-feu');
+	});
+
+	it('écrit le temps restant et les états', () => {
+		expect(etaLabel(240)).toBe('4 min');
+		expect(etaLabel(4200)).toBe('1 h 10');
+		expect(etaLabel(0)).toBe('');
+		expect(torrentStateLabel('stalledDL')).toBe('En attente de sources');
+		expect(torrentStateLabel('nouveau')).toBe('nouveau');
+		expect(queueStateLabel('queued')).toBe('En attente');
 	});
 
 	it('écrit la fréquence', () => {

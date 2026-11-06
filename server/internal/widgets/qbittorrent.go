@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"net/http"
@@ -18,6 +19,25 @@ const WidgetTransfer = "transfer"
 // The routes come from its WebUI API page, the key from "API Key Authentication (≥v5.2.0)".
 // No live connection: that documentation describes requests only.
 type qbittorrent struct{}
+
+// DataTorrents holds the torrents in progress. Names: for the Téléchargements page only.
+const DataTorrents = "torrents"
+
+// maxTorrents bounds the list: the busiest first, the total stays in Transfer.
+const maxTorrents = 20
+
+// noETA is what qBittorrent's own example shows when nothing comes in: no real estimate.
+const noETA = 8640000
+
+// Torrent is a download in progress.
+type Torrent struct {
+	Name      string  `json:"name"`
+	Progress  float64 `json:"progress"`
+	DownSpeed int64   `json:"downSpeed"`
+	// ETA is in seconds; 0 when there is no estimate.
+	ETA   int64  `json:"eta"`
+	State string `json:"state"`
+}
 
 // Transfer is what the status bar says. No torrent name: only how many.
 type Transfer struct {
@@ -41,24 +61,40 @@ func (qbittorrent) Authorize(req *http.Request, key secrets.Value) {
 	req.Header.Set("Authorization", "Bearer "+key.Reveal())
 }
 
-func (qbittorrent) read(ctx context.Context, c *Conn) (Transfer, error) {
+func (qbittorrent) read(ctx context.Context, c *Conn) (Transfer, []Torrent, error) {
 	var info struct {
 		DlInfoSpeed      int64  `json:"dl_info_speed"`
 		UpInfoSpeed      int64  `json:"up_info_speed"`
 		ConnectionStatus string `json:"connection_status"`
 	}
 	if err := c.GetJSON(ctx, "/api/v2/transfer/info", nil, &info); err != nil {
-		return Transfer{}, err
+		return Transfer{}, nil, err
 	}
-	var torrents []struct{}
-	if err := c.GetJSON(ctx, "/api/v2/torrents/info", url.Values{"filter": {"downloading"}}, &torrents); err != nil {
-		return Transfer{}, err
+	var found []struct {
+		Name     string
+		Progress float64
+		Dlspeed  int64
+		Eta      int64
+		State    string
 	}
-	return Transfer{DownSpeed: info.DlInfoSpeed, UpSpeed: info.UpInfoSpeed, Downloading: len(torrents), Connection: info.ConnectionStatus}, nil
+	if err := c.GetJSON(ctx, "/api/v2/torrents/info", url.Values{"filter": {"downloading"}}, &found); err != nil {
+		return Transfer{}, nil, err
+	}
+	torrents := make([]Torrent, 0, len(found))
+	for _, f := range found {
+		t := Torrent{Name: f.Name, Progress: f.Progress, DownSpeed: f.Dlspeed, State: f.State}
+		if f.Dlspeed > 0 && f.Eta > 0 && f.Eta < noETA {
+			t.ETA = f.Eta
+		}
+		torrents = append(torrents, t)
+	}
+	slices.SortStableFunc(torrents, func(a, b Torrent) int { return cmp.Compare(b.DownSpeed, a.DownSpeed) })
+	return Transfer{DownSpeed: info.DlInfoSpeed, UpSpeed: info.UpInfoSpeed, Downloading: len(found), Connection: info.ConnectionStatus},
+		torrents[:min(len(torrents), maxTorrents)], nil
 }
 
 func (q qbittorrent) Probe(ctx context.Context, c *Conn) (Probe, error) {
-	t, err := q.read(ctx, c)
+	t, _, err := q.read(ctx, c)
 	if err != nil {
 		return Probe{}, err
 	}
@@ -75,11 +111,11 @@ func (q qbittorrent) Probe(ctx context.Context, c *Conn) (Probe, error) {
 func (q qbittorrent) Fetch(ctx context.Context, c *Conn, enabled []string) (map[string]any, error) {
 	data := map[string]any{}
 	if slices.Contains(enabled, WidgetTransfer) {
-		t, err := q.read(ctx, c)
+		t, torrents, err := q.read(ctx, c)
 		if err != nil {
 			return nil, err
 		}
-		data[WidgetTransfer] = t
+		data[WidgetTransfer], data[DataTorrents] = t, torrents
 	}
 	return data, nil
 }

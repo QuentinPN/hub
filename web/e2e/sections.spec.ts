@@ -1,0 +1,142 @@
+import { expect, test } from '@playwright/test';
+import { fixture, mockApi } from './api.ts';
+
+test.beforeEach(async ({ page }) => {
+	await mockApi(page);
+});
+
+test('les onglets mènent aux trois pages', async ({ page }, testInfo) => {
+	await page.goto('/');
+	const nav = page.getByRole('navigation', {
+		name: testInfo.project.name === 'desktop' ? 'Sections' : 'Navigation principale'
+	});
+	for (const [label, url, heading] of [
+		[testInfo.project.name === 'desktop' ? 'Médias' : 'Médias', '/medias', 'Médias'],
+		[
+			testInfo.project.name === 'desktop' ? 'Téléchargements' : 'Téléch.',
+			'/telechargements',
+			'Téléchargements'
+		],
+		['Infra', '/infra', 'Infra']
+	] as const) {
+		await nav.getByRole('link', { name: label }).click();
+		await expect(page).toHaveURL(url);
+		await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
+		await expect(nav.locator('[aria-current="page"]')).toContainText(label);
+	}
+});
+
+test('Médias rassemble lectures, demandes et bibliothèque', async ({ page }) => {
+	await page.goto('/medias');
+	await expect(page.getByText('Le film du soir')).toBeVisible();
+	await expect(
+		page.getByText('1 lecture en cours · 1 à venir · 4 demandes en attente')
+	).toBeVisible();
+	await expect(page.getByRole('heading', { name: /Demandes/ })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Ouvrir Seerr' })).toHaveAttribute(
+		'href',
+		'http://192.0.2.14:5055'
+	);
+	await expect(page.getByText('412')).toBeVisible();
+});
+
+test('Téléchargements montre vitesses, noms et files', async ({ page }, testInfo) => {
+	await page.goto('/telechargements');
+	await expect(page.getByText('12,4 Mo/s')).toBeVisible();
+	await expect(page.getByText('Une série S02E06', { exact: true })).toBeVisible();
+	await expect(page.getByText('4 min')).toBeVisible();
+	await expect(page.getByText('En attente de sources')).toBeVisible();
+	await expect(page.getByRole('link', { name: /12 indexeurs/ })).toHaveAttribute(
+		'href',
+		'/services/prowlarr#widgets'
+	);
+	const queue = page.getByRole('heading', { name: /File d’attente/ });
+	if (testInfo.project.name === 'desktop') {
+		await expect(queue).toBeVisible();
+		await expect(page.getByText('À vérifier')).toBeVisible();
+	} else {
+		await expect(queue).toBeHidden();
+	}
+});
+
+test('une page sans connexion propose de connecter ses services', async ({ page }) => {
+	await page.route('**/api/v1/sections/downloads', (route) =>
+		route.fulfill({
+			json: {
+				connected: 0,
+				notices: [],
+				toConnect: [
+					{
+						slug: 'sonarr',
+						name: 'Sonarr',
+						monogram: 'S',
+						icon: 'sonarr',
+						color: '#1f6fb2',
+						hostId: 'mini-pc',
+						hasUrl: true,
+						support: 'ready',
+						state: '',
+						dataAt: null,
+						failingSince: null
+					}
+				],
+				transfer: null,
+				torrents: [],
+				queue: [],
+				cards: []
+			}
+		})
+	);
+	await page.goto('/telechargements');
+	await expect(page.getByText('Rien de connecté pour l’instant.')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Connecter Sonarr' })).toHaveAttribute(
+		'href',
+		'/services/sonarr#widgets'
+	);
+});
+
+test('une connexion en panne le dit sans masquer le reste', async ({ page }) => {
+	const media = fixture('sections-media') as Record<string, unknown>;
+	await page.route('**/api/v1/sections/media', (route) =>
+		route.fulfill({
+			json: {
+				...media,
+				notices: [{ slug: 'seerr', name: 'Seerr', state: 'auth', dataAt: null }]
+			}
+		})
+	);
+	await page.goto('/medias');
+	await expect(page.getByRole('link', { name: /Seerr : clé refusée/ })).toHaveAttribute(
+		'href',
+		'/services/seerr#widgets'
+	);
+	await expect(page.getByText('Le film du soir')).toBeVisible();
+});
+
+test('Infra signale ce qui ne va pas, et un hôte muet sans le dire arrêté', async ({
+	page
+}, testInfo) => {
+	await page.goto('/infra');
+	await expect(
+		page.getByText('1 hôte connecté · 40 conteneurs · 0 services sur 1 sans problème')
+	).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'À surveiller' })).toBeVisible();
+	await expect(page.getByRole('link', { name: /TZ Masters/ }).first()).toHaveAttribute(
+		'href',
+		'/services/tzmasters'
+	);
+	await expect(page.getByRole('article', { name: 'Raspberry Pi' })).toContainText('Injoignable');
+	const groups = page.getByRole('heading', { name: 'Services par hôte' });
+	if (testInfo.project.name === 'desktop') await expect(groups).toBeVisible();
+	else await expect(groups).toBeHidden();
+});
+
+test('sans problème, Infra n’affiche pas la carte À surveiller', async ({ page }) => {
+	const infra = fixture('sections-infra') as Record<string, unknown>;
+	await page.route('**/api/v1/sections/infra', (route) =>
+		route.fulfill({ json: { ...infra, watch: [] } })
+	);
+	await page.goto('/infra');
+	await expect(page.getByRole('heading', { name: 'Hôtes' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'À surveiller' })).toHaveCount(0);
+});

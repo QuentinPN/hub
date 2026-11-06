@@ -1,0 +1,50 @@
+{
+	"connected": 3,
+	"notices": [],
+	"toConnect": [],
+	"transfer": {
+		"downSpeed": 12400000,
+		"upSpeed": 1100000,
+		"downloading": 2,
+		"connection": "connected"
+	},
+	"transferSlug": "qbittorrent",
+	"transferHost": "qnap",
+	"torrents": [
+		{
+			"name": "Une série S02E06",
+			"progress": 0.72,
+			"downSpeed": 8200000,
+			"eta": 240,
+			"state": "downloading"
+		},
+		{ "name": "Un film", "progress": 0.09, "downSpeed": 0, "eta": 0, "state": "stalledDL" }
+	],
+	"queue": [
+		{
+			"title": "Une série",
+			"detail": "S02E06 · Sonarr",
+			"status": "downloading",
+			"problem": false
+		},
+		{ "title": "Un film", "detail": "Radarr", "status": "queued", "problem": true }
+	],
+	"cards": [
+		{
+			"slug": "sonarr",
+			"label": "Sonarr · file d’attente",
+			"headline": "1 épisode",
+			"note": "1 en cours · 0 en attente",
+			"state": "ok",
+			"dataAt": "2026-11-06T18:00:00Z"
+		},
+		{
+			"slug": "prowlarr",
+			"label": "Prowlarr · indexeurs",
+			"headline": "12 indexeurs",
+			"note": "1 en panne",
+			"state": "ok",
+			"dataAt": "2026-11-06T18:00:00Z"
+		}
+	]
+}

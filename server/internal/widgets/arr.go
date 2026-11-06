@@ -19,13 +19,14 @@ const (
 
 	arrCalendarDays = 14
 	arrQueuePage    = 100
+	maxQueueItems   = 20
 )
 
 // The routes and fields come from each project's openapi.json (src/*.Api.V3). Sonarr and
 // Radarr share their key and queue; only their calendars differ.
 type arr struct {
 	kind, name, keyHelp, unit string
-	calendarQuery             url.Values
+	calendarQuery, queueQuery url.Values
 	upcoming                  func(ctx context.Context, c *Conn, query url.Values, from time.Time) ([]Upcoming, error)
 }
 
@@ -34,12 +35,14 @@ var (
 		kind: "sonarr", name: "Sonarr", unit: "épisode",
 		keyHelp:       "Dans Sonarr : Settings, General, API Key. La clé donne tous les droits sur Sonarr : Hub ne s’en sert que pour lire.",
 		calendarQuery: url.Values{"includeSeries": {"true"}},
+		queueQuery:    url.Values{"includeSeries": {"true"}, "includeEpisode": {"true"}},
 		upcoming:      sonarrUpcoming,
 	}
 	radarr = arr{
 		kind: "radarr", name: "Radarr", unit: "film",
-		keyHelp:  "Dans Radarr : Settings, General, API Key. La clé donne tous les droits sur Radarr : Hub ne s’en sert que pour lire.",
-		upcoming: radarrUpcoming,
+		keyHelp:    "Dans Radarr : Settings, General, API Key. La clé donne tous les droits sur Radarr : Hub ne s’en sert que pour lire.",
+		queueQuery: url.Values{"includeMovie": {"true"}},
+		upcoming:   radarrUpcoming,
 	}
 )
 
@@ -49,6 +52,18 @@ type Upcoming struct {
 	Detail string `json:"detail"`
 	Kind   string `json:"kind"`
 	At     string `json:"at"`
+}
+
+// DataQueueItems holds the queue's entries. Names: for the Téléchargements page only.
+const DataQueueItems = "queueItems"
+
+// QueueItem is an entry of a queue.
+type QueueItem struct {
+	Title  string `json:"title"`
+	Detail string `json:"detail"`
+	Status string `json:"status"`
+	// Problem says the download client or the import reports a warning or an error.
+	Problem bool `json:"problem"`
 }
 
 // Queue counts what is being fetched. No title: the home page has no use for one.
@@ -122,24 +137,44 @@ func (a arr) Fetch(ctx context.Context, c *Conn, enabled []string) (map[string]a
 		var page struct {
 			TotalRecords int
 			Records      []struct {
+				Title                 string
 				Status                string
 				TrackedDownloadStatus string
+				Series                *struct{ Title string }
+				Episode               *struct{ SeasonNumber, EpisodeNumber int }
+				Movie                 *struct{ Title string }
 			}
 		}
 		query := url.Values{"page": {"1"}, "pageSize": {strconv.Itoa(arrQueuePage)}}
+		for k, v := range a.queueQuery {
+			query[k] = v
+		}
 		if err := c.GetJSON(ctx, "/api/v3/queue", query, &page); err != nil {
 			return nil, err
 		}
 		q := Queue{Total: page.TotalRecords}
+		items := make([]QueueItem, 0, len(page.Records))
 		for _, r := range page.Records {
 			if r.Status == "downloading" {
 				q.Downloading++
 			}
-			if r.TrackedDownloadStatus == "warning" || r.TrackedDownloadStatus == "error" {
+			problem := r.TrackedDownloadStatus == "warning" || r.TrackedDownloadStatus == "error"
+			if problem {
 				q.Problems++
 			}
+			item := QueueItem{Title: r.Title, Detail: a.name, Status: r.Status, Problem: problem}
+			if r.Series != nil && r.Series.Title != "" {
+				item.Title = r.Series.Title
+			}
+			if r.Episode != nil {
+				item.Detail = fmt.Sprintf("S%02dE%02d · %s", r.Episode.SeasonNumber, r.Episode.EpisodeNumber, a.name)
+			}
+			if r.Movie != nil && r.Movie.Title != "" {
+				item.Title = r.Movie.Title
+			}
+			items = append(items, item)
 		}
-		data[WidgetQueue] = q
+		data[WidgetQueue], data[DataQueueItems] = q, items[:min(len(items), maxQueueItems)]
 	}
 	return data, nil
 }

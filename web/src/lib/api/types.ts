@@ -101,6 +101,69 @@ export interface ServiceDetail extends ServiceSummary {
 	widget?: WidgetInfo;
 }
 
+export interface SectionNotice {
+	slug: string;
+	name: string;
+	state: WidgetState;
+	dataAt: string | null;
+}
+
+/** Commun aux pages : toConnect remplit la page tant que rien de sien n'est connecté. */
+export interface SectionBase {
+	connected: number;
+	notices: SectionNotice[];
+	toConnect: WidgetRow[];
+}
+
+export interface MediaPage extends SectionBase {
+	sessions: Session[];
+	sessionsSlug?: string;
+	upcoming: UpcomingItem[];
+	latest: MediaItem[];
+	requests: NonNullable<WidgetConnection['data']['requests']> | null;
+	requestsSlug?: string;
+	requestsUrl: string | null;
+	library: NonNullable<WidgetConnection['data']['library']> | null;
+	services: ServiceSummary[];
+}
+
+export interface Torrent {
+	name: string;
+	progress: number;
+	downSpeed: number;
+	/** En secondes ; 0 sans estimation. */
+	eta: number;
+	state: string;
+}
+
+export interface QueueItem {
+	title: string;
+	detail: string;
+	status: string;
+	problem: boolean;
+}
+
+/** La seule page où des noms de torrents et de releases arrivent au navigateur. */
+export interface DownloadsPage extends SectionBase {
+	transfer: NonNullable<WidgetConnection['data']['transfer']> | null;
+	transferSlug?: string;
+	transferHost?: string;
+	torrents: Torrent[];
+	queue: QueueItem[];
+	cards: DownloadCard[];
+}
+
+export interface InfraHost extends AgentHost {
+	services: number;
+}
+
+export interface InfraPage {
+	hosts: InfraHost[];
+	total: number;
+	watch: ServiceSummary[];
+	groups: { hostId: string; name: string; services: ServiceSummary[] }[];
+}
+
 export type WidgetSupport = 'ready' | 'planned' | 'link';
 
 export type WidgetReadState = 'ok' | 'auth' | 'cert' | 'unreachable' | 'unexpected';

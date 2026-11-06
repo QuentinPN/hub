@@ -4,7 +4,6 @@
 
 	let { online, total }: { online?: number; total?: number } = $props();
 
-	// Médias, Téléchargements et Infra arrivent avec les widgets (phase 3).
 	const tabs = [
 		{
 			label: 'Accueil',
@@ -15,19 +14,19 @@
 		{
 			label: 'Médias',
 			short: 'Médias',
-			href: null,
+			href: '/medias',
 			icon: 'M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm5 4v6l5-3z'
 		},
 		{
 			label: 'Téléchargements',
 			short: 'Téléch.',
-			href: null,
+			href: '/telechargements',
 			icon: 'M12 4v11m0 0-4-4m4 4 4-4M5 20h14'
 		},
 		{
 			label: 'Infra',
 			short: 'Infra',
-			href: null,
+			href: '/infra',
 			icon: 'M5 4h14a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm0 10h14a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z'
 		},
 		{
@@ -40,7 +39,7 @@
 
 	const path = $derived(page.url.pathname);
 	const current = $derived(
-		path.startsWith('/services') ? 'Tous les services' : path === '/' ? 'Accueil' : null
+		tabs.find((tab) => (tab.href === '/' ? path === '/' : path.startsWith(tab.href)))?.label ?? null
 	);
 	const onSettings = $derived(path.startsWith('/settings'));
 </script>
@@ -63,16 +62,12 @@
 	</a>
 	<nav aria-label="Sections">
 		{#each tabs as tab (tab.label)}
-			{#if tab.href}
-				<a
-					class="tab"
-					class:on={current === tab.label}
-					aria-current={current === tab.label ? 'page' : undefined}
-					href={resolve(tab.href)}>{tab.label}</a
-				>
-			{:else}
-				<span class="tab" aria-disabled="true" title="Prochain jalon">{tab.label}</span>
-			{/if}
+			<a
+				class="tab"
+				class:on={current === tab.label}
+				aria-current={current === tab.label ? 'page' : undefined}
+				href={resolve(tab.href)}>{tab.label}</a
+			>
 		{/each}
 	</nav>
 	<div class="end">
@@ -119,16 +114,12 @@
 				aria-hidden="true"><path d={tab.icon}></path></svg
 			>
 		{/snippet}
-		{#if tab.href}
-			<a
-				class="btab"
-				class:on={current === tab.label}
-				aria-current={current === tab.label ? 'page' : undefined}
-				href={resolve(tab.href)}>{@render icon()}{tab.short}</a
-			>
-		{:else}
-			<span class="btab" aria-disabled="true">{@render icon()}{tab.short}</span>
-		{/if}
+		<a
+			class="btab"
+			class:on={current === tab.label}
+			aria-current={current === tab.label ? 'page' : undefined}
+			href={resolve(tab.href)}>{@render icon()}{tab.short}</a
+		>
 	{/each}
 </nav>
 
@@ -167,10 +158,6 @@
 	}
 	a.tab:hover {
 		color: var(--text);
-	}
-	span.tab[aria-disabled='true'] {
-		opacity: 0.55;
-		cursor: default;
 	}
 	.tab.on {
 		background: rgba(255, 255, 255, 0.92);
@@ -248,9 +235,6 @@
 			color: var(--text-2);
 			font-size: 11px;
 			font-weight: 500;
-		}
-		.btab[aria-disabled='true'] {
-			opacity: 0.55;
 		}
 		.btab.on {
 			color: var(--text);

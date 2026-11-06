@@ -2,10 +2,13 @@ import type {
 	AuthState,
 	Container,
 	Discovery,
+	DownloadsPage,
 	Enrollment,
 	HiddenGroup,
 	Home,
 	HostsResponse,
+	InfraPage,
+	MediaPage,
 	PasskeyInfo,
 	ServiceDetail,
 	ServiceEdit,
@@ -146,6 +149,15 @@ export const saveServiceUrl = (
 
 export const clearServiceUrl = (fetchFn: Fetch, slug: string) =>
 	sendService(fetchFn, 'DELETE', `${servicePath(slug)}/url`);
+
+export const getMediaPage = (fetchFn: Fetch) =>
+	getJson<MediaPage>(fetchFn, '/api/v1/sections/media');
+
+export const getDownloadsPage = (fetchFn: Fetch) =>
+	getJson<DownloadsPage>(fetchFn, '/api/v1/sections/downloads');
+
+export const getInfraPage = (fetchFn: Fetch) =>
+	getJson<InfraPage>(fetchFn, '/api/v1/sections/infra');
 
 export const getWidgetRows = (fetchFn: Fetch) => getJson<WidgetRow[]>(fetchFn, '/api/v1/widgets');
 

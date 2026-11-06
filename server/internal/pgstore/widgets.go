@@ -96,7 +96,12 @@ func (c connection) dto(e entry) *api.WidgetConnection {
 		DataAt: c.dataAt, CheckedAt: &checked, FailingSince: c.failingSince, Data: map[string]json.RawMessage{},
 	}
 	if keepsData(state) {
-		out.Data = c.data
+		// Names of torrents and releases stay on the Téléchargements page.
+		for id, raw := range c.data {
+			if id != widgets.DataTorrents && id != widgets.DataQueueItems {
+				out.Data[id] = raw
+			}
+		}
 	}
 	return out
 }

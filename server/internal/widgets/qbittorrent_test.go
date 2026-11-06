@@ -26,7 +26,9 @@ func fakeQbittorrent(t *testing.T) *httptest.Server {
 			if r.URL.Query().Get("filter") != "downloading" {
 				t.Errorf("filter: %s", r.URL)
 			}
-			_, _ = w.Write([]byte(`[{"name":"nom-de-torrent-prive"},{"name":"autre"},{"name":"encore"}]`))
+			_, _ = w.Write([]byte(`[{"name":"lent","progress":0.1,"dlspeed":100,"eta":8640000,"state":"stalledDL"},
+				{"name":"nom-de-torrent-prive","progress":0.72,"dlspeed":8200000,"eta":240,"state":"downloading"},
+				{"name":"encore","dlspeed":0,"eta":500,"state":"metaDL"}]`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -50,6 +52,18 @@ func TestQbittorrentReadsCountsAndSpeedsOnly(t *testing.T) {
 	}
 	if strings.Contains(string(data[widgets.WidgetTransfer]), "nom-de-torrent-prive") {
 		t.Error("a torrent name reached the stored data")
+	}
+	var torrents []widgets.Torrent
+	if err := json.Unmarshal(data[widgets.DataTorrents], &torrents); err != nil {
+		t.Fatal(err)
+	}
+	if len(torrents) != 3 || torrents[0].Name != "nom-de-torrent-prive" || torrents[0].ETA != 240 || torrents[0].Progress != 0.72 {
+		t.Errorf("busiest first: %+v", torrents)
+	}
+	for _, tor := range torrents[1:] {
+		if tor.ETA != 0 {
+			t.Errorf("no real estimate: %+v", tor)
+		}
 	}
 	var got widgets.Transfer
 	if err := json.Unmarshal(data[widgets.WidgetTransfer], &got); err != nil {

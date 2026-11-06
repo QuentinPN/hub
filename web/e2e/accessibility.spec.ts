@@ -10,6 +10,9 @@ const pages = [
 	{ path: '/services', heading: 'Tous les services' },
 	{ path: '/services/emby', heading: 'Emby' },
 	{ path: '/services/prowlarr', heading: 'Prowlarr' },
+	{ path: '/medias', heading: 'Médias' },
+	{ path: '/telechargements', heading: 'Téléchargements' },
+	{ path: '/infra', heading: 'Infra' },
 	{ path: '/settings', heading: 'Réglages' }
 ];
 

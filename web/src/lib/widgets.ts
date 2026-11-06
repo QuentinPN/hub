@@ -98,6 +98,43 @@ const CONNECTIONS: Record<string, string> = {
 
 export const connectionLabel = (status: string) => CONNECTIONS[status] ?? status;
 
+/** « 4 min », « 1 h 10 ». */
+export function etaLabel(seconds: number): string {
+	if (seconds <= 0) return '';
+	const minutes = Math.ceil(seconds / 60);
+	if (minutes < 60) return `${minutes} min`;
+	return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`;
+}
+
+const TORRENT_STATES: Record<string, string> = {
+	downloading: 'Téléchargement',
+	forcedDL: 'Téléchargement forcé',
+	stalledDL: 'En attente de sources',
+	metaDL: 'Récupération des métadonnées',
+	queuedDL: 'En file',
+	pausedDL: 'En pause',
+	checkingDL: 'Vérification',
+	allocating: 'Préparation du disque',
+	moving: 'Déplacement',
+	error: 'Erreur',
+	missingFiles: 'Fichiers manquants'
+};
+
+export const torrentStateLabel = (state: string) => TORRENT_STATES[state] ?? state;
+
+const QUEUE_STATES: Record<string, string> = {
+	downloading: 'En cours',
+	queued: 'En attente',
+	delay: 'En attente',
+	paused: 'En pause',
+	completed: 'Terminé',
+	failed: 'Échec',
+	warning: 'À vérifier',
+	downloadClientUnavailable: 'Client injoignable'
+};
+
+export const queueStateLabel = (status: string) => QUEUE_STATES[status] ?? status;
+
 export function refreshLabel(seconds: number): string {
 	if (seconds === 60) return 'Toutes les minutes';
 	return seconds < 60 ? `Toutes les ${seconds} s` : `Toutes les ${seconds / 60} min`;
