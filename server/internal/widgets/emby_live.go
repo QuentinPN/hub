@@ -17,7 +17,8 @@ import (
 // Emby's WebSocket only ever wakes a read: what it says is not shown. Its page documents the
 // address and the key as a query parameter (dev.emby.media/doc/restapi/Web-Socket.html). It
 // does not cover SessionsStart, Sessions or LibraryChanged, nor /embywebsocket: Listen tries
-// the routes in turn and logs the message types seen, so that production tells which hold.
+// the routes in turn and logs the message types seen. Seen working on a real server: "/" with
+// the key in a header, and Sessions.
 var embyRoutes = []struct {
 	path    string
 	inQuery bool
