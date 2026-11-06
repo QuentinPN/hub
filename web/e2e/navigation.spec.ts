@@ -111,9 +111,9 @@ test('le titre de l’onglet suit la page', async ({ page }) => {
 
 test('chaque service affiche son icône selfh.st embarquée', async ({ page }) => {
 	await page.goto('/services');
-	const icons = page.locator('a.app img');
+	const icons = page.locator('.app img');
 	await expect(icons).toHaveCount(34);
-	await expect(page.getByRole('link', { name: /Emby/ }).locator('img')).toHaveAttribute(
+	await expect(page.locator('.app', { hasText: 'Emby' }).locator('img')).toHaveAttribute(
 		'src',
 		'/api/v1/icons/emby'
 	);
@@ -134,9 +134,9 @@ test('sans icône connue, le monogramme reste affiché', async ({ page }) => {
 	for (const s of list) if (s.slug === 'sonarr') s.icon = 'inconnue-de-l-ui';
 	await page.route('**/api/v1/services', (route) => route.fulfill({ json: list }));
 	await page.goto('/services');
-	await expect(page.getByRole('link', { name: /Emby/ }).locator('img')).toHaveCount(0);
-	await expect(page.getByRole('link', { name: /Emby/ }).locator('.mono-tile')).toHaveText('E');
-	await expect(page.getByRole('link', { name: /Sonarr/ }).locator('.mono-tile')).toHaveText('S');
+	await expect(page.locator('.app', { hasText: 'Emby' }).locator('img')).toHaveCount(0);
+	await expect(page.locator('.app', { hasText: 'Emby' }).locator('.mono-tile')).toHaveText('E');
+	await expect(page.locator('.app', { hasText: 'Sonarr' }).locator('.mono-tile')).toHaveText('S');
 });
 
 test.describe('sans session', () => {

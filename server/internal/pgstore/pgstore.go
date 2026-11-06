@@ -8,6 +8,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -17,6 +19,7 @@ import (
 	"hub/server/internal/domain"
 	"hub/server/internal/fixture"
 	"hub/server/internal/reconcile"
+	"hub/server/internal/urlcheck"
 )
 
 type Store struct {
@@ -68,6 +71,9 @@ type entry struct {
 	discoveryKey *string
 	recognizedBy string
 	group        *reconcile.Group
+	hidden       bool
+	check        *api.URLCheck
+	links        []string
 	// up counts it as running: "configuration required" only says no URL is known yet.
 	up bool
 }
@@ -103,19 +109,33 @@ func (s *Store) entries(ctx context.Context) ([]entry, error) {
 		}
 	}
 
+	links, err := s.serviceLinks(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	rows, err := s.pool.Query(ctx, `SELECT slug, name, monogram, icon, color, category, host_id, favorite,
-			discovery_key, recognized_by, absent_since
+			discovery_key, recognized_by, absent_since, hidden, url, url_cert_sha256, url_result, url_status,
+			url_latency_ms, url_checked_at
 		FROM services WHERE archived_at IS NULL ORDER BY position, slug`)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (entry, error) {
 		var e entry
-		var absent *time.Time
+		var absent, checkedAt *time.Time
+		var pinned string
+		var c api.URLCheck
 		if err := row.Scan(&e.Slug, &e.Name, &e.Monogram, &e.Icon, &e.Color, &e.Category, &e.HostID, &e.Favorite,
-			&e.discoveryKey, &e.recognizedBy, &absent); err != nil {
+			&e.discoveryKey, &e.recognizedBy, &absent, &e.hidden, &e.URL, &pinned, &c.Result, &c.Status,
+			&c.LatencyMs, &checkedAt); err != nil {
 			return e, err
 		}
+		if e.URL != nil {
+			c.CheckedAt, c.CertPinned = checkedAt, pinned != ""
+			e.check = &c
+		}
+		e.links = links[e.Slug]
 		if e.discoveryKey == nil {
 			l, ok := bySlug[e.Slug]
 			if !ok {
@@ -126,8 +146,14 @@ func (s *Store) entries(ctx context.Context) ([]entry, error) {
 			return e, nil
 		}
 		if g, ok := groups[[2]string{e.HostID, *e.discoveryKey}]; ok && absent == nil {
+			for _, key := range e.links {
+				if other, ok := groups[[2]string{e.HostID, key}]; ok {
+					g.Link(other)
+				}
+			}
 			e.group = &g
 			e.Status, e.Note = g.Status()
+			e.applyCheck()
 		} else {
 			e.Status, e.Note = domain.StatusDown, "conteneurs absents"
 		}
@@ -139,14 +165,51 @@ func (s *Store) entries(ctx context.Context) ([]entry, error) {
 	})
 }
 
+// applyCheck refines "everything runs" with what the address answers. An outage the
+// containers already show stays as it is.
+func (e *entry) applyCheck() {
+	if e.Status != domain.StatusConfigRequired || e.check == nil {
+		return
+	}
+	latency := e.check.LatencyMs
+	switch urlcheck.Kind(e.check.Result) {
+	case urlcheck.KindOK:
+		e.Status, e.Note, e.LatencyMs = domain.StatusOnline, "en ligne", &latency
+	case urlcheck.KindAuth:
+		e.Status, e.Note, e.LatencyMs = domain.StatusOnline, "connexion demandée", &latency
+	case urlcheck.KindCert:
+		e.Status, e.Note = domain.StatusDegraded, "certificat non reconnu"
+	case urlcheck.KindError:
+		e.Status, e.Note = domain.StatusDegraded, "erreur "+strconv.Itoa(e.check.Status)
+	default:
+		e.Status, e.Note = domain.StatusDegraded, "adresse injoignable"
+	}
+}
+
+func (s *Store) serviceLinks(ctx context.Context) (map[string][]string, error) {
+	rows, err := s.pool.Query(ctx, "SELECT service_slug, discovery_key FROM service_links ORDER BY discovery_key")
+	if err != nil {
+		return nil, err
+	}
+	links := map[string][]string{}
+	var slug, key string
+	_, err = pgx.ForEachRow(rows, []any{&slug, &key}, func() error {
+		links[slug] = append(links[slug], key)
+		return nil
+	})
+	return links, err
+}
+
 func (s *Store) Services(ctx context.Context) ([]api.ServiceSummary, error) {
 	all, err := s.entries(ctx)
 	if err != nil {
 		return nil, err
 	}
-	list := make([]api.ServiceSummary, len(all))
-	for i, e := range all {
-		list[i] = e.ServiceSummary
+	list := make([]api.ServiceSummary, 0, len(all))
+	for _, e := range all {
+		if !e.hidden {
+			list = append(list, e.ServiceSummary)
+		}
 	}
 	return list, nil
 }
@@ -156,10 +219,11 @@ func (s *Store) Home(ctx context.Context) (api.Home, error) {
 	if err != nil {
 		return home, err
 	}
-	all, err := s.entries(ctx)
+	entries, err := s.entries(ctx)
 	if err != nil {
 		return home, err
 	}
+	all := slices.DeleteFunc(entries, func(e entry) bool { return e.hidden })
 	home.Favorites = []api.ServiceSummary{}
 	home.Services = []api.ServiceSummary{}
 	home.Summary = api.Summary{Total: len(all)}
@@ -210,7 +274,7 @@ func (s *Store) Service(ctx context.Context, slug string) (api.ServiceDetail, er
 			continue
 		}
 		if e.discoveryKey != nil {
-			return discoveredDetail(e.ServiceSummary, *e.discoveryKey, e.recognizedBy, e.group), nil
+			return s.discoveredService(ctx, e)
 		}
 		detail, err := s.live.Service(ctx, slug)
 		if errors.Is(err, api.ErrNotFound) {
@@ -229,6 +293,39 @@ func (s *Store) Service(ctx context.Context, slug string) (api.ServiceDetail, er
 		return detail, nil
 	}
 	return api.ServiceDetail{}, api.ErrNotFound
+}
+
+// discoveredService adds what the fiche and its panel need to the containers' description.
+func (s *Store) discoveredService(ctx context.Context, e entry) (api.ServiceDetail, error) {
+	d := discoveredDetail(e.ServiceSummary, *e.discoveryKey, e.recognizedBy, e.group)
+	d.Hidden, d.URLCheck = e.hidden, e.check
+	d.Project = &api.ProjectRef{Key: *e.discoveryKey}
+	free, err := s.linkable(ctx, e.HostID, e.Slug)
+	if err != nil {
+		return d, err
+	}
+	sizes := map[string]int{}
+	for _, p := range free {
+		sizes[p.Key] = p.Containers
+	}
+	for _, key := range e.links {
+		d.Links = append(d.Links, api.ProjectRef{Key: key, Containers: sizes[key]})
+	}
+	for _, p := range free {
+		if !slices.Contains(e.links, p.Key) {
+			d.Linkable = append(d.Linkable, p)
+		}
+	}
+	if e.group != nil {
+		own := 0
+		for _, m := range e.group.Members {
+			if m.ComposeProject == *e.discoveryKey || (m.ComposeProject == "" && m.Name == *e.discoveryKey) {
+				own++
+			}
+		}
+		d.Project.Containers = own
+	}
+	return d, nil
 }
 
 func (s *Store) Settings(ctx context.Context) (api.Settings, error) {

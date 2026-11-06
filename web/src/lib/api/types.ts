@@ -16,6 +16,8 @@ export interface ServiceSummary {
 	latencyMs: number | null;
 	note: string;
 	favorite: boolean;
+	/** L'adresse à ouvrir, une fois donnée par l'utilisateur. */
+	url?: string | null;
 }
 
 export interface Session {
@@ -74,6 +76,53 @@ export interface ServiceDetail extends ServiceSummary {
 	identification: KeyValue[];
 	access: KeyValue[];
 	connection: KeyValue[];
+	/** Le reste n'existe que pour un service découvert. */
+	discovered?: boolean;
+	hidden?: boolean;
+	ports?: number[];
+	urlCheck?: UrlCheck;
+	project?: ProjectRef;
+	links?: ProjectRef[];
+	linkable?: ProjectRef[];
+}
+
+export type UrlResult = 'ok' | 'auth' | 'cert' | 'unreachable' | 'error';
+
+export interface UrlCheck {
+	result: UrlResult;
+	status: number;
+	latencyMs: number;
+	checkedAt: string | null;
+	certPinned: boolean;
+}
+
+export interface UrlCheckResponse {
+	saved: boolean;
+	result: UrlResult;
+	status: number;
+	latencyMs: number;
+	certSha256?: string;
+	certName?: string;
+}
+
+export interface ProjectRef {
+	key: string;
+	containers: number;
+}
+
+export interface ServiceEdit {
+	name: string;
+	category: string;
+	icon: string;
+	hidden: boolean;
+	links: string[];
+}
+
+export interface HiddenGroup {
+	hostId: string;
+	key: string;
+	reason: 'agent' | 'database' | 'self' | 'user' | 'service';
+	containers: number;
 }
 
 /** Décidé par le serveur, pour que tous les écrans s'accordent sur « agent parti ». */

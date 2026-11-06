@@ -22,6 +22,8 @@ type ServiceSummary struct {
 	LatencyMs *int          `json:"latencyMs"`
 	Note      string        `json:"note"`
 	Favorite  bool          `json:"favorite"`
+	// URL is the address to open, once the user gave one.
+	URL *string `json:"url"`
 }
 
 type Session struct {
@@ -189,4 +191,55 @@ type ServiceDetail struct {
 	Identification []KeyValue     `json:"identification"`
 	Access         []KeyValue     `json:"access"`
 	Connection     []KeyValue     `json:"connection"`
+	// The rest only exists for a service found by discovery.
+	Discovered bool         `json:"discovered,omitempty"`
+	Hidden     bool         `json:"hidden,omitempty"`
+	Ports      []int        `json:"ports,omitempty"`
+	URLCheck   *URLCheck    `json:"urlCheck,omitempty"`
+	Project    *ProjectRef  `json:"project,omitempty"`
+	Links      []ProjectRef `json:"links,omitempty"`
+	Linkable   []ProjectRef `json:"linkable,omitempty"`
+}
+
+// URLCheck is the last verdict on a service's address.
+type URLCheck struct {
+	Result     string     `json:"result"`
+	Status     int        `json:"status"`
+	LatencyMs  int        `json:"latencyMs"`
+	CheckedAt  *time.Time `json:"checkedAt"`
+	CertPinned bool       `json:"certPinned"`
+}
+
+// URLCheckResponse answers an attempt to set an address. The fingerprint is for the user
+// to accept that very certificate.
+type URLCheckResponse struct {
+	Saved      bool   `json:"saved"`
+	Result     string `json:"result"`
+	Status     int    `json:"status"`
+	LatencyMs  int    `json:"latencyMs"`
+	CertSHA256 string `json:"certSha256,omitempty"`
+	CertName   string `json:"certName,omitempty"`
+}
+
+// ProjectRef is a Compose project (or lone container) of the service's host.
+type ProjectRef struct {
+	Key        string `json:"key"`
+	Containers int    `json:"containers"`
+}
+
+// ServiceEdit is what the "Modifier" panel sends.
+type ServiceEdit struct {
+	Name     string   `json:"name"`
+	Category string   `json:"category"`
+	Icon     string   `json:"icon"`
+	Hidden   bool     `json:"hidden"`
+	Links    []string `json:"links"`
+}
+
+// HiddenGroup is a project the catalogue leaves out. Reason: agent, database, self or user.
+type HiddenGroup struct {
+	HostID     string `json:"hostId"`
+	Key        string `json:"key"`
+	Reason     string `json:"reason"`
+	Containers int    `json:"containers"`
 }

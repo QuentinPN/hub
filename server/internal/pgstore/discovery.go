@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -61,9 +62,17 @@ func syncServices(ctx context.Context, tx pgx.Tx, hostID string, now time.Time) 
 	if err != nil {
 		return err
 	}
+	rows, err := tx.Query(ctx, "SELECT discovery_key FROM services WHERE host_id = $1 AND force_visible", hostID)
+	if err != nil {
+		return err
+	}
+	forced, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return err
+	}
 	keys := []string{}
 	for _, g := range reconcile.Groups(byHost[hostID]) {
-		if g.Kind != reconcile.KindService {
+		if g.Kind != reconcile.KindService && !slices.Contains(forced, g.Key) {
 			continue
 		}
 		keys = append(keys, g.Key)
@@ -129,23 +138,15 @@ func discoveredDetail(sum api.ServiceSummary, key, recognizedBy string, g *recon
 			{Label: "Projet", Value: key},
 			{Label: "Catégorie", Value: sum.Category},
 		},
-		Access: []api.KeyValue{
-			{Label: "Hôte", Value: sum.HostID},
-			{Label: "URL", Value: "à renseigner"},
-		},
+		Access:     []api.KeyValue{{Label: "Hôte", Value: sum.HostID}},
 		Connection: []api.KeyValue{{Label: "Widget", Value: "non configuré"}},
+		Discovered: true,
 	}
 	if g == nil {
 		d.Access = append(d.Access, api.KeyValue{Label: "Conteneurs", Value: "aucun présent"})
 		return d
 	}
-	if len(g.Ports) > 0 {
-		ports := make([]string, len(g.Ports))
-		for i, p := range g.Ports {
-			ports[i] = strconv.Itoa(p)
-		}
-		d.Access = append(d.Access, api.KeyValue{Label: "Ports publiés", Value: strings.Join(ports, ", ")})
-	}
+	d.Ports = g.Ports
 	for _, m := range g.Members {
 		value := reconcile.StateLabel(m.State)
 		switch m.Role {

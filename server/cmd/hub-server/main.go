@@ -25,6 +25,7 @@ import (
 	"hub/server/internal/pgstore"
 	"hub/server/internal/pki"
 	"hub/server/internal/secrets"
+	"hub/server/internal/urlcheck"
 	"hub/server/internal/webui"
 )
 
@@ -154,6 +155,9 @@ func main() {
 		}
 		agentsUI = &api.Agents{Admin: agents, ServerURL: "https://" + net.JoinHostPort(agentNames[0], port)}
 	}
+
+	// Each address is requested once a minute, from here, to tell whether it still answers.
+	go urlcheck.Watch(ctx, store, time.Minute)
 
 	ui := webui.New()
 	srv := &http.Server{

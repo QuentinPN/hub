@@ -108,7 +108,7 @@ func classify(key string, list []Container) Group {
 		icon := sig.icon
 		g.Icon = &icon
 	}
-	g.Monogram = monogram(g.Name)
+	g.Monogram = Monogram(g.Name)
 	return g
 }
 
@@ -194,6 +194,16 @@ func signatureOf(key string, list []Container, main int) (signature, string) {
 		color:    fallbackColors[hash(key)%uint32(len(fallbackColors))],
 		category: categoryOther,
 	}, "nom " + key
+}
+
+// Link counts other's containers as support of g, its own tasks staying tasks.
+func (g *Group) Link(other Group) {
+	for _, m := range other.Members {
+		if m.Role == RoleMain {
+			m.Role = RoleSupport
+		}
+		g.Members = append(g.Members, m)
+	}
 }
 
 // Status is what the containers say about the service. Nothing to open yet means
@@ -306,7 +316,8 @@ func displayName(key string) string {
 	return name
 }
 
-func monogram(name string) string {
+// Monogram is the letter a service without icon shows.
+func Monogram(name string) string {
 	for _, r := range name {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
 			return string(unicode.ToUpper(r))

@@ -3,13 +3,16 @@ import type {
 	Container,
 	Discovery,
 	Enrollment,
+	HiddenGroup,
 	Home,
 	HostsResponse,
 	PasskeyInfo,
 	ServiceDetail,
+	ServiceEdit,
 	ServiceSummary,
 	SessionInfo,
-	Settings
+	Settings,
+	UrlCheckResponse
 } from './types';
 import { createPasskey, getPasskey, type PasskeyOptions } from './webauthn';
 
@@ -66,7 +69,7 @@ async function getJson<T>(fetchFn: Fetch, path: string): Promise<T> {
 
 async function send(
 	fetchFn: Fetch,
-	method: 'PUT' | 'POST' | 'DELETE',
+	method: 'PUT' | 'POST' | 'PATCH' | 'DELETE',
 	path: string,
 	body?: unknown
 ): Promise<Response> {
@@ -109,6 +112,42 @@ export const getSettings = (fetchFn: Fetch) => getJson<Settings>(fetchFn, '/api/
 
 export const getService = (fetchFn: Fetch, slug: string) =>
 	getJson<ServiceDetail>(fetchFn, `/api/v1/services/${encodeURIComponent(slug)}`);
+
+const servicePath = (slug: string) => `/api/v1/services/${encodeURIComponent(slug)}`;
+
+async function sendService(
+	fetchFn: Fetch,
+	method: 'PUT' | 'POST' | 'PATCH' | 'DELETE',
+	path: string,
+	body?: unknown
+): Promise<ServiceDetail> {
+	return (await (await send(fetchFn, method, path, body)).json()) as ServiceDetail;
+}
+
+export const setFavorite = (fetchFn: Fetch, slug: string, favorite: boolean) =>
+	sendService(fetchFn, 'PUT', `${servicePath(slug)}/favorite`, { favorite });
+
+export const updateService = (fetchFn: Fetch, slug: string, edit: ServiceEdit) =>
+	sendService(fetchFn, 'PATCH', servicePath(slug), edit);
+
+export const resetService = (fetchFn: Fetch, slug: string) =>
+	sendService(fetchFn, 'POST', `${servicePath(slug)}/reset`);
+
+/** Vérifie l'adresse depuis le serveur ; `saved` dit si elle a été gardée. */
+export const saveServiceUrl = (
+	fetchFn: Fetch,
+	slug: string,
+	body: { url: string; force?: boolean; acceptCert?: string }
+) => postJson<UrlCheckResponse>(fetchFn, `${servicePath(slug)}/url`, body);
+
+export const clearServiceUrl = (fetchFn: Fetch, slug: string) =>
+	sendService(fetchFn, 'DELETE', `${servicePath(slug)}/url`);
+
+export const getHiddenGroups = (fetchFn: Fetch) =>
+	getJson<HiddenGroup[]>(fetchFn, '/api/v1/hidden');
+
+export const showHidden = (fetchFn: Fetch, hostId: string, key: string) =>
+	sendService(fetchFn, 'POST', '/api/v1/hidden/show', { hostId, key });
 
 export const updateDiscovery = (fetchFn: Fetch, discovery: Discovery) =>
 	putJson<Settings>(fetchFn, '/api/v1/settings/discovery', discovery);

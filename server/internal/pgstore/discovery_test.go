@@ -121,7 +121,7 @@ func TestSnapshotCreatesServicesAndHidesTheRest(t *testing.T) {
 	for _, kv := range detail.Access {
 		access[kv.Label] = kv.Value
 	}
-	if access["media-emby"] != "en cours · principal" || access["media-gluetun"] != "en cours" || access["Ports publiés"] != "8096, 8920" || access["URL"] != "à renseigner" {
+	if access["media-emby"] != "en cours · principal" || access["media-gluetun"] != "en cours" || len(detail.Ports) != 2 {
 		t.Fatalf("access: %+v", detail.Access)
 	}
 	if detail.Stats == nil || detail.Upcoming == nil || detail.Connection == nil {

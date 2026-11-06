@@ -88,8 +88,8 @@ test.describe('mouvement réduit', () => {
 test('sans préférence, le focus d’une carte l’agrandit', async ({ page }) => {
 	await mockApi(page);
 	await page.goto('/services');
-	const card = page.getByRole('link', { name: /Emby/ });
-	await card.focus();
+	const card = page.locator('.app', { hasText: 'Emby' });
+	await card.getByRole('link', { name: /Emby/ }).focus();
 	await expect
 		.poll(() => card.evaluate((el) => getComputedStyle(el).transform))
 		.toBe('matrix(1.06, 0, 0, 1.06, 0, 0)');

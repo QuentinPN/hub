@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { afterNavigate, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { ApiError } from '#lib/api/client.ts';
+	import { ApiError, setFavorite } from '#lib/api/client.ts';
+	import type { ServiceDetail } from '#lib/api/types.ts';
+	import EditServiceDialog from '#lib/components/EditServiceDialog.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import InfoCard from '#lib/components/InfoCard.svelte';
 	import PosterCard from '#lib/components/PosterCard.svelte';
@@ -9,6 +11,7 @@
 	import Shelf from '#lib/components/Shelf.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
 	import StatusDot from '#lib/components/StatusDot.svelte';
+	import UrlCard from '#lib/components/UrlCard.svelte';
 	import { statusStyle } from '#lib/status.ts';
 	import type { PageProps } from './$types';
 
@@ -25,6 +28,21 @@
 		fromCatalogue = url?.pathname === resolve('/services');
 	});
 
+	// La dernière réponse du serveur après une action : recharger la page ferait clignoter
+	// le squelette.
+	let fresh = $state<ServiceDetail | null>(null);
+	let editing = $state(false);
+	let actionError = $state('');
+
+	async function toggleFavorite(service: ServiceDetail) {
+		actionError = '';
+		try {
+			fresh = await setFavorite(fetch, service.slug, !service.favorite);
+		} catch (err) {
+			actionError = `Favori non enregistré : ${err instanceof Error ? err.message : String(err)}`;
+		}
+	}
+
 	let name = $state('Service');
 	$effect(() => {
 		data.service.then((svc) => (name = svc.name)).catch(() => (name = 'Service'));
@@ -40,7 +58,8 @@
 			<Skeleton width="min(420px, 80%)" height="56px" radius="14px" />
 		</div>
 	</section>
-{:then svc}
+{:then loaded}
+	{@const svc = fresh?.slug === loaded.slug ? fresh : loaded}
 	<section class="hero" style:--tint={svc.tint}>
 		<div class="hero-body">
 			<div class="hero-text">
@@ -52,7 +71,9 @@
 				<div class="title-row">
 					<ServiceIcon icon={svc.icon} monogram={svc.monogram} color={svc.color} size={96} />
 					<div>
-						<span class="category">{svc.category} · {svc.hostId}</span>
+						<span class="category"
+							>{svc.category} · {svc.hostId}{svc.hidden ? ' · masqué' : ''}</span
+						>
 						<h1>{svc.name}</h1>
 					</div>
 				</div>
@@ -64,6 +85,49 @@
 					<span class="muted">{svc.version}</span>
 				</p>
 			</div>
+			{#if svc.discovered}
+				<div class="hero-actions">
+					{#if svc.url}
+						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- adresse externe -->
+						<a class="btn primary" href={svc.url} target="_blank" rel="noopener noreferrer">
+							Ouvrir {svc.name}
+							<svg
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"></path></svg
+							>
+						</a>
+					{/if}
+					<button
+						type="button"
+						class="btn"
+						class:fav={svc.favorite}
+						aria-pressed={svc.favorite}
+						onclick={() => toggleFavorite(svc)}
+					>
+						<svg
+							width="18"
+							height="18"
+							viewBox="0 0 24 24"
+							fill={svc.favorite ? 'currentColor' : 'none'}
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linejoin="round"
+							aria-hidden="true"
+							><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"
+							></path></svg
+						>
+						Favori
+					</button>
+					<button type="button" class="btn" onclick={() => (editing = true)}>Modifier</button>
+				</div>
+			{/if}
 			<ul class="stats">
 				{#each svc.stats as s (s.label)}
 					<li><b class="tabular">{s.value}</b><span class="muted">{s.label}</span></li>
@@ -90,12 +154,23 @@
 				{/each}
 			</Shelf>
 		{/if}
+		<p class="action-error" role="alert">{actionError}</p>
 		<div class="cards">
+			{#if svc.discovered}
+				<UrlCard service={svc} onchange={(s) => (fresh = s)} />
+			{/if}
 			<InfoCard title="Identification" id="ident" rows={svc.identification} />
 			<InfoCard title="Conteneurs et accès" id="access" rows={svc.access} />
 			<InfoCard title="Connexion du widget" id="conn" rows={svc.connection} />
 		</div>
 	</div>
+	{#if editing}
+		<EditServiceDialog
+			service={svc}
+			onclose={() => (editing = false)}
+			onsaved={(s) => (fresh = s)}
+		/>
+	{/if}
 {:catch err}
 	<section class="hero">
 		<div class="hero-body">
@@ -116,6 +191,45 @@
 {/await}
 
 <style>
+	.hero-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12px;
+	}
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 9px;
+		min-height: 48px;
+		box-sizing: border-box;
+		padding: 0 18px;
+		border: 1px solid var(--border-2);
+		border-radius: var(--r-button);
+		background: var(--surface-2);
+		color: var(--text);
+		font-size: 15px;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.primary {
+		border-color: transparent;
+		background: var(--text);
+		color: var(--text-inverse);
+	}
+	.fav {
+		border-color: rgba(232, 201, 166, 0.4);
+		background: rgba(232, 201, 166, 0.12);
+		color: var(--accent-play);
+	}
+	.action-error {
+		margin: 0;
+		color: #ff8a80;
+		font-size: 14px;
+	}
+	.action-error:empty {
+		display: none;
+	}
 	.hero {
 		--tint: #24466f;
 		display: flex;

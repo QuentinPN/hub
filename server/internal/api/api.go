@@ -13,6 +13,7 @@ import (
 	"hub/server/internal/agentsrv"
 	"hub/server/internal/auth"
 	"hub/server/internal/icons"
+	"hub/server/internal/urlcheck"
 )
 
 // Store is where the API reads the inventory from.
@@ -86,6 +87,9 @@ func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *
 		h.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
 		_, _ = w.Write(icon.Body)
 	})
+	if editor, ok := store.(ServiceEditor); ok {
+		registerServices(mux, store, editor, authSvc, urlcheck.Check)
+	}
 	if sw, ok := store.(SettingsWriter); ok {
 		mux.HandleFunc("PUT /api/v1/settings/discovery", func(w http.ResponseWriter, r *http.Request) {
 			var d Discovery

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { setFavorite, showHidden } from '#lib/api/client.ts';
 	import { resolve } from '$app/paths';
-	import type { ServiceSummary } from '#lib/api/types.ts';
+	import type { HiddenGroup, ServiceSummary } from '#lib/api/types.ts';
 	import AppCard from '#lib/components/AppCard.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
@@ -23,6 +24,7 @@
 	// « Arrêté » n'a pas de puce tant qu'aucun service n'est dans cet état.
 	const filters: { key: StatusFilter; label: string; always: boolean }[] = [
 		{ key: 'all', label: 'Tous', always: true },
+		{ key: 'favorite', label: 'Favoris', always: false },
 		{ key: 'online', label: 'En ligne', always: true },
 		{ key: 'degraded', label: 'Dégradé', always: true },
 		{ key: 'down', label: 'Arrêté', always: false },
@@ -33,6 +35,44 @@
 		{ key: 'category', label: 'Catégorie' },
 		{ key: 'host', label: 'Hôte' }
 	];
+
+	// Masqués : raison lisible, et section ouverte depuis sa puce.
+	const REASONS: Record<HiddenGroup['reason'], string> = {
+		agent: 'agent',
+		database: 'base seule',
+		self: 'Hub lui-même',
+		user: 'masqué par toi',
+		service: 'service'
+	};
+	let hiddenOpen = $state(false);
+	let actionError = $state('');
+
+	// Favoris changés depuis le chargement : recharger ferait clignoter le squelette.
+	let favorites = $state<Record<string, boolean>>({});
+	const withFavorites = (list: ServiceSummary[]) =>
+		list.map((s) => ({ ...s, favorite: favorites[s.slug] ?? s.favorite }));
+
+	async function toggleFavorite(service: ServiceSummary) {
+		actionError = '';
+		const next = !service.favorite;
+		favorites[service.slug] = next;
+		try {
+			await setFavorite(fetch, service.slug, next);
+		} catch (err) {
+			favorites[service.slug] = !next;
+			actionError = `Favori non enregistré : ${err instanceof Error ? err.message : String(err)}`;
+		}
+	}
+
+	async function reveal(group: HiddenGroup) {
+		actionError = '';
+		try {
+			await showHidden(fetch, group.hostId, group.key);
+			await invalidateAll();
+		} catch (err) {
+			actionError = `Impossible de réafficher : ${err instanceof Error ? err.message : String(err)}`;
+		}
+	}
 
 	const hostCount = (list: ServiceSummary[]) => new Set(list.map((s) => s.hostId)).size;
 	const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
@@ -89,7 +129,8 @@
 				<Skeleton height="148px" radius="var(--r-card)" />
 			{/each}
 		</div>
-	{:then list}
+	{:then loaded}
+		{@const list = withFavorites(loaded)}
 		{@const view = catalogueView(list, query, status, groupBy)}
 		{@const toConfigure = list.filter((s) => s.status === 'config_required')}
 		{@const shown = view.groups.reduce((n, g) => n + g.services.length, 0)}
@@ -101,7 +142,10 @@
 					<strong
 						>{plural(toConfigure.length, 'service demande', 'services demandent')} une configuration</strong
 					>
-					<span class="muted">· {toConfigure.map((s) => `${s.name} (${s.note})`).join(', ')}</span>
+					{#if toConfigure.length <= 3}
+						<span class="muted">· {toConfigure.map((s) => `${s.name} (${s.note})`).join(', ')}</span
+						>
+					{/if}
 				</span>
 				<span class="notice-action">Afficher</span>
 			</button>
@@ -118,13 +162,26 @@
 							aria-pressed={status === f.key}
 							onclick={() => (status = f.key)}
 						>
-							{#if f.key !== 'all'}
+							{#if f.key !== 'all' && f.key !== 'favorite'}
 								<span class="dot" style:background={statusStyle(f.key).color}></span>
 							{/if}
 							{f.label} <b class="tabular">{view.counts[f.key]}</b>
 						</button>
 					{/if}
 				{/each}
+				{#await data.hidden then hidden}
+					{#if hidden.length > 0}
+						<button
+							type="button"
+							class="chip dashed"
+							aria-pressed={hiddenOpen}
+							aria-controls="hidden-section"
+							onclick={() => (hiddenOpen = !hiddenOpen)}
+						>
+							Masqués <b class="tabular">{hidden.length}</b>
+						</button>
+					{/if}
+				{/await}
 			</div>
 			<div class="group-by">
 				<span class="muted" id="group-label">Grouper par</span>
@@ -163,13 +220,43 @@
 					{#each group.services as service (service.slug)}
 						<AppCard
 							{service}
-							showFavorite
+							onfavorite={toggleFavorite}
 							sub={`${groupBy === 'category' ? service.hostId : service.category} · ${service.note}`}
 						/>
 					{/each}
 				</div>
 			</section>
 		{/each}
+
+		<p class="action-error" role="alert">{actionError}</p>
+
+		{#await data.hidden then hidden}
+			{#if hiddenOpen && hidden.length > 0}
+				<section id="hidden-section" aria-labelledby="hidden-title">
+					<h2 id="hidden-title">
+						Masqués <span class="muted count tabular"
+							>{plural(hidden.length, 'groupe', 'groupes')}</span
+						>
+					</h2>
+					<ul class="hidden-list">
+						{#each hidden as group (group.hostId + group.key)}
+							<li>
+								<span
+									>{group.key}
+									<span class="muted">· {group.hostId} · {REASONS[group.reason]}</span></span
+								>
+								<button
+									type="button"
+									class="reveal"
+									aria-label="Réafficher {group.key} sur {group.hostId}"
+									onclick={() => reveal(group)}>Réafficher</button
+								>
+							</li>
+						{/each}
+					</ul>
+				</section>
+			{/if}
+		{/await}
 	{:catch err}
 		<ErrorPanel
 			title="Impossible de charger l'inventaire"
@@ -362,6 +449,48 @@
 		grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
 		gap: 22px;
 		padding: 16px 4px 8px;
+	}
+	.dashed {
+		border-style: dashed;
+		border-color: rgba(255, 255, 255, 0.25);
+		background: transparent;
+	}
+	.hidden-list {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+		gap: 10px 22px;
+		margin: 14px 0 0;
+		padding: 0;
+		list-style: none;
+	}
+	.hidden-list li {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 6px 8px 6px 16px;
+		border: 1px solid var(--border-1);
+		border-radius: 14px;
+		overflow-wrap: anywhere;
+	}
+	.reveal {
+		flex: none;
+		min-height: 44px;
+		padding: 0 12px;
+		border: 0;
+		background: transparent;
+		color: var(--text);
+		font-size: 14px;
+		text-decoration: underline;
+		cursor: pointer;
+	}
+	.action-error {
+		margin: 0;
+		color: #ff8a80;
+		font-size: 14px;
+	}
+	.action-error:empty {
+		display: none;
 	}
 	.link {
 		color: var(--text);
