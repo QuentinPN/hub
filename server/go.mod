@@ -2,6 +2,9 @@ module hub/server
 
 go 1.27
 
+// Hub has no use for MPTCP, on by default on Go listeners since Go 1.24 (DECISIONS.md, CVE-2026-98432).
+godebug multipathtcp=0
+
 require (
 	github.com/fxamacker/cbor/v2 v2.9.4
 	github.com/go-webauthn/webauthn v0.18.2
