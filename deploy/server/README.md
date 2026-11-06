@@ -2,7 +2,7 @@
 
 À lire en entier avant de lancer quoi que ce soit. Rien ici n'arrête un service existant, et le Caddy des sites publics n'est pas touché : Hub a son propre Caddy, sur le port 8444. Seules les règles de pare-feu modifient ce qui est en place, et elles se relisent d'abord.
 
-Ce qui a été testé sur Docker Desktop : la pile avec son Caddy (certificat interne à la place de Cloudflare), l'enrôlement d'un agent par `hub-edge`, le redémarrage, la sauvegarde et la restauration. **Pas testé** : les règles de pare-feu, l'obtention du vrai certificat par Cloudflare.
+Déployé sur le mini-PC le 2026-11-06 avec cette procédure : vrai certificat, pare-feu contrôlé depuis ce poste (bloqué) et le Pi (ouvert), compte, passkey et agents du mini-PC, du Pi et du QNAP connectés. Sauvegarde et restauration testées sur Docker Desktop seulement. **Pas encore testé** : le redémarrage de l'hôte, avec le Wi-Fi qui doit avoir son IP pour que les ports se publient.
 
 ## Ce qui sera ajouté sur l'hôte
 
@@ -70,7 +70,7 @@ COMMIT
 Sauvegarder le fichier avant de le modifier, puis recharger et contrôler :
 
 ```bash
-sudo ufw reload && sudo iptables -L DOCKER-USER -n -v
+sudo sh -c 'iptables-restore -n --test < /etc/ufw/after.rules' && sudo ufw reload && sudo iptables -L DOCKER-USER -n -v
 ```
 
 ## 4. Démarrer
@@ -101,7 +101,8 @@ Depuis le Pi et le QNAP, le port doit répondre :
 nc -zv 192.0.2.14 8443
 ```
 
-Depuis un autre appareil du LAN, la même commande doit échouer. `https://home.example.com:8444` doit afficher la création du compte, avec un certificat reconnu.
+Depuis un autre appareil du LAN, la même commande doit échouer. Sur le QNAP, `nc` n'est pas netcat : y utiliser `curl -sk -m5 -o /dev/null -w '%{http_code}
+' https://192.0.2.14:8443/`, qui doit afficher `404`. `https://home.example.com:8444` doit afficher la création du compte, avec un certificat reconnu.
 
 ## 7. Enrôler l'agent du mini-PC
 

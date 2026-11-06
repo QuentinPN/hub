@@ -13,7 +13,7 @@
 [x] Shell UI, navigation, responsive, accessibilité (jalon 3, validé le 2026-11-02 après revue en 1440 et 390 px : shell, axe et clavier, tests Playwright, menu des Réglages en mobile, changement et réinitialisation du mot de passe, déconnexion d'une, des autres ou de toutes les sessions)
 
 ## Phase 2 — Discovery multi-host
-[ ] Agent minimal sûr, connexion d’hôtes, snapshot initial (étape 1 faite sur le poste de dev le 2026-11-02 : AC, enrôlement, mTLS, agent derrière le proxy, instantané et événements ; écran Réglages → Hôtes et agents fait le même jour : enrôlement, annulation, révocation, conteneurs par hôte ; reste le déploiement hôte par hôte)
+[ ] Agent minimal sûr, connexion d’hôtes, snapshot initial (étape 1 faite sur le poste de dev le 2026-11-02 : AC, enrôlement, mTLS, agent derrière le proxy, instantané et événements ; écran Réglages → Hôtes et agents fait le même jour : enrôlement, annulation, révocation, conteneurs par hôte ; mini-PC, Pi et QNAP connectés le 2026-11-06)
 [ ] Events + rescan, réconciliation, matching, inventaire persistant
 [ ] Catalogue et overrides manuels, URLs vérifiées
 
@@ -27,7 +27,7 @@
 
 ## Phase 5 — Hardening & release
 [ ] Tests E2E, sécurité, accessibilité, performance et panne d’agents
-[ ] Déploiement Compose/Caddy, sauvegardes/restauration, observabilité (fichiers et procédure prêts et testés sur le poste de dev le 2026-11-06, `deploy/server/` ; reste le déploiement réel et l'observabilité)
+[ ] Déploiement Compose/Caddy, sauvegardes/restauration, observabilité (fichiers et procédure prêts et testés sur le poste de dev le 2026-11-06, `deploy/server/` ; serveur déployé sur le mini-PC le 2026-11-06 ; reste l'observabilité)
 [ ] Documentation d’exploitation et procédure de rollback
 
 À chaque phase : critères d’acceptation, démonstration, tests et accord avant modifications risquées.
