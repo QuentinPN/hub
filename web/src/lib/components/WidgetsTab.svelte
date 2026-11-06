@@ -3,7 +3,14 @@
 	import type { ServiceDetail } from '#lib/api/types.ts';
 	import { ago } from '#lib/agents.ts';
 	import { onWidgetNews } from '#lib/live.ts';
-	import { mediaPoster, refreshLabel, upcomingPoster, widgetStateView } from '#lib/widgets.ts';
+	import {
+		connectionLabel,
+		mediaPoster,
+		refreshLabel,
+		speedLabel,
+		upcomingPoster,
+		widgetStateView
+	} from '#lib/widgets.ts';
 	import ConnectDialog from './ConnectDialog.svelte';
 	import PosterCard from './PosterCard.svelte';
 	import Shelf from './Shelf.svelte';
@@ -166,6 +173,21 @@
 			{/if}
 		</div>
 		<div class="column side">
+			{#if conn.data.transfer}
+				<section class="card" aria-labelledby="w-transfer">
+					<h2 id="w-transfer">Transferts</h2>
+					<dl>
+						<dt class="muted">Réception</dt>
+						<dd class="tabular">{speedLabel(conn.data.transfer.downSpeed)}</dd>
+						<dt class="muted">Envoi</dt>
+						<dd class="tabular">{speedLabel(conn.data.transfer.upSpeed)}</dd>
+						<dt class="muted">En cours</dt>
+						<dd class="tabular">{conn.data.transfer.downloading}</dd>
+						<dt class="muted">Réseau</dt>
+						<dd>{connectionLabel(conn.data.transfer.connection)}</dd>
+					</dl>
+				</section>
+			{/if}
 			{#if conn.data.queue}
 				<section class="card" aria-labelledby="w-queue">
 					<h2 id="w-queue">File d’attente</h2>

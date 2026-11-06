@@ -387,3 +387,32 @@ test('la fiche de Sonarr montre son calendrier et sa file', async ({ page }) => 
 	await expect(page.getByRole('heading', { name: 'File d’attente' })).toBeVisible();
 	await expect(page.getByText('En cours')).toBeVisible();
 });
+
+test('la fiche de qBittorrent montre ses transferts, sans aucun nom', async ({ page }) => {
+	const service = {
+		...base,
+		slug: 'qbittorrent',
+		name: 'qBittorrent',
+		widget: {
+			...offered.widget,
+			connection: connection({
+				enabled: ['transfer'],
+				data: {
+					transfer: {
+						downSpeed: 12_400_000,
+						upSpeed: 850_000,
+						downloading: 3,
+						connection: 'firewalled'
+					}
+				}
+			})
+		}
+	};
+	await mockApi(page);
+	await page.route('**/api/v1/services/qbittorrent', (route) => route.fulfill({ json: service }));
+	await page.goto('/services/qbittorrent#widgets');
+	await expect(page.getByRole('heading', { name: 'Transferts' })).toBeVisible();
+	await expect(page.getByText('12,4 Mo/s')).toBeVisible();
+	await expect(page.getByText('850 Ko/s')).toBeVisible();
+	await expect(page.getByText('derrière un pare-feu')).toBeVisible();
+});

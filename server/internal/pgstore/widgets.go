@@ -193,6 +193,15 @@ func (s *Store) realWidgets(ctx context.Context, home *api.Home, all []entry) er
 			home.Downloads = append(home.Downloads, api.DownloadCard{Slug: e.Slug, Label: e.Name + " · file d’attente",
 				Headline: headline, Note: note, State: state, DataAt: c.dataAt})
 		}
+		if raw, ok := c.data[widgets.WidgetTransfer]; ok && slices.Contains(c.enabled, widgets.WidgetTransfer) {
+			var t widgets.Transfer
+			if err := json.Unmarshal(raw, &t); err != nil {
+				return err
+			}
+			headline, note := widgets.TransferText(t)
+			home.Downloads = append(home.Downloads, api.DownloadCard{Slug: e.Slug, Label: e.Name + " · " + e.HostID,
+				Headline: headline, Note: note, State: state, DataAt: c.dataAt})
+		}
 	}
 	if upcoming != nil {
 		slices.SortStableFunc(upcoming, func(a, b api.UpcomingItem) int { return strings.Compare(a.At, b.At) })

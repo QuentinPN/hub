@@ -231,3 +231,25 @@ func TestHomeGathersUpcomingAndQueues(t *testing.T) {
 		t.Errorf("upcoming: %+v", home.Upcoming)
 	}
 }
+
+func TestHomeShowsTransfersWithTheirHost(t *testing.T) {
+	e := newDiscoveryEnv(t, "qnap")
+	e.snapshot(t, "qnap", e.container("qbittorrent", "qbittorrent", "linuxserver/qbittorrent", "running", 8181))
+	now := time.Now()
+	if err := e.store.SaveServiceURL(e.ctx, "qbittorrent", "http://q", "", urlcheck.Result{Kind: urlcheck.KindOK, Status: 200}); err != nil {
+		t.Fatal(err)
+	}
+	err := e.store.SaveWidgetConnection(e.ctx, "qbittorrent", api.NewConnection{Kind: "qbittorrent", URL: "http://q", Options: map[string]string{},
+		Enabled: []string{"transfer"}, RefreshSeconds: 30, State: widgets.StateOK, At: now,
+		Data: map[string]json.RawMessage{"transfer": json.RawMessage(`{"downSpeed":12400000,"upSpeed":1100000,"downloading":3,"connection":"connected"}`)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	home, err := e.store.Home(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(home.Downloads) != 1 || home.Downloads[0].Label != "qBittorrent · qnap" || home.Downloads[0].Headline != "12,4 Mo/s" {
+		t.Errorf("%+v", home.Downloads)
+	}
+}

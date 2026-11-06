@@ -104,8 +104,8 @@ const (
 )
 
 var (
-	connectors = map[string]Connector{"emby": emby{}, "sonarr": sonarr, "radarr": radarr}
-	planned    = map[string]bool{"prowlarr": true, "qbittorrent": true, "seerr": true, "jellyseerr": true, "beszel": true}
+	connectors = map[string]Connector{"emby": emby{}, "sonarr": sonarr, "radarr": radarr, "qbittorrent": qbittorrent{}}
+	planned    = map[string]bool{"prowlarr": true, "seerr": true, "jellyseerr": true, "beszel": true}
 	linkOnly   = map[string]bool{"dockhand": true}
 )
 

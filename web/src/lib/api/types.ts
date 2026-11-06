@@ -139,6 +139,7 @@ export interface WidgetConnection {
 		library?: { movies: number; series: number; episodes: number };
 		calendar?: UpcomingItem[];
 		queue?: { total: number; downloading: number; problems: number };
+		transfer?: { downSpeed: number; upSpeed: number; downloading: number; connection: string };
 	};
 }
 

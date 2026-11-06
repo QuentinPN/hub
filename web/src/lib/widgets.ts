@@ -81,6 +81,23 @@ export function testFailure(result: WidgetState): { title: string; detail: strin
 	}
 }
 
+const decimal = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
+
+/** « 12,4 Mo/s », comme le serveur l'écrit pour l'accueil. */
+export function speedLabel(bytes: number): string {
+	if (bytes >= 1_000_000) return `${decimal.format(bytes / 1_000_000)} Mo/s`;
+	if (bytes >= 1_000) return `${Math.floor(bytes / 1_000)} Ko/s`;
+	return `${bytes} o/s`;
+}
+
+const CONNECTIONS: Record<string, string> = {
+	connected: 'connecté',
+	firewalled: 'derrière un pare-feu',
+	disconnected: 'déconnecté'
+};
+
+export const connectionLabel = (status: string) => CONNECTIONS[status] ?? status;
+
 export function refreshLabel(seconds: number): string {
 	if (seconds === 60) return 'Toutes les minutes';
 	return seconds < 60 ? `Toutes les ${seconds} s` : `Toutes les ${seconds / 60} min`;

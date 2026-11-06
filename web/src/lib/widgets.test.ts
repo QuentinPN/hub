@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+	connectionLabel,
 	mediaPoster,
+	speedLabel,
 	refreshLabel,
 	testFailure,
 	upcomingPoster,
@@ -31,6 +33,13 @@ describe('widgets', () => {
 		const read = { ...old, when: '', tone: '', at: new Date(2030, 0, 8, 1, 0).toISOString() };
 		expect(upcomingPoster(read, now).when).toBe('Demain');
 		expect(upcomingPoster(read, now).tone).not.toBe('');
+	});
+
+	it('écrit les vitesses et l’état de la connexion', () => {
+		expect(speedLabel(12_400_000)).toBe('12,4 Mo/s');
+		expect(speedLabel(850_000)).toBe('850 Ko/s');
+		expect(speedLabel(0)).toBe('0 o/s');
+		expect(connectionLabel('firewalled')).toBe('derrière un pare-feu');
 	});
 
 	it('écrit la fréquence', () => {
