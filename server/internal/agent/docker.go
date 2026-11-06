@@ -67,7 +67,7 @@ func (d *Docker) getJSON(ctx context.Context, path string, query url.Values, v a
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	return json.NewDecoder(io.LimitReader(resp.Body, 32<<20)).Decode(v)
 }
 
@@ -150,7 +150,7 @@ func (d *Docker) Events(ctx context.Context) (<-chan Event, <-chan error) {
 			errc <- err
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		sc := bufio.NewScanner(resp.Body)
 		sc.Buffer(make([]byte, 64<<10), 1<<20)
 		for sc.Scan() {

@@ -55,10 +55,10 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 	f.mu.Unlock()
 	switch r.URL.Path {
 	case "/version":
-		fmt.Fprint(w, `{"Version":"29.0.0","ApiVersion":"1.52"}`)
+		_, _ = fmt.Fprint(w, `{"Version":"29.0.0","ApiVersion":"1.52"}`)
 	case "/containers/json":
 		// What Docker really sends, secrets included: the agent must drop them.
-		fmt.Fprintf(w, `[{"Id":%q,"Names":["/emby"],"Image":"emby/embyserver","Command":"/init --password=hunter2",
+		_, _ = fmt.Fprintf(w, `[{"Id":%q,"Names":["/emby"],"Image":"emby/embyserver","Command":"/init --password=hunter2",
 			"State":"running","Status":"Up 2 hours","Created":1793600000,
 			"Labels":{"com.docker.compose.project":"media","traefik.http.middlewares.a.basicauth.users":"admin:$apr1$x"},
 			"Ports":[{"PrivatePort":8096,"PublicPort":8096,"Type":"tcp"}]}]`, cid)

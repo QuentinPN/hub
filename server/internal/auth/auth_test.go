@@ -101,7 +101,7 @@ func TestLoginAndSessionLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sess, user, err := svc.Authenticate(ctx, token)
+	_, user, err := svc.Authenticate(ctx, token)
 	if err != nil || user.Username != "quentin" {
 		t.Fatalf("user %+v, err %v", user, err)
 	}
@@ -118,7 +118,7 @@ func TestLoginAndSessionLifecycle(t *testing.T) {
 
 	// Logout of another, fresh session.
 	token, _ = svc.Login(ctx, "quentin", goodPassword, client)
-	sess, _, _ = svc.Authenticate(ctx, token)
+	sess, _, _ := svc.Authenticate(ctx, token)
 	if err := svc.Logout(ctx, sess, client); err != nil {
 		t.Fatal(err)
 	}

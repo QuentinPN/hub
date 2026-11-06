@@ -227,7 +227,7 @@ func (s *session) send(ctx context.Context, method, path string, body, out any) 
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode/100 != 2 {
 		var buf bytes.Buffer
 		_, _ = buf.ReadFrom(resp.Body)

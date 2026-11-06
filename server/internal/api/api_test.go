@@ -73,7 +73,7 @@ func (e *env) newClient(t *testing.T) *http.Client {
 func (e *env) do(t *testing.T, c *http.Client, method, path, body string, header map[string]string) (int, []byte) {
 	t.Helper()
 	res := e.raw(t, c, method, path, body, header)
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	data, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatal(err)
@@ -143,7 +143,7 @@ func TestUnknownServiceIs404(t *testing.T) {
 func TestSecurityHeaders(t *testing.T) {
 	e := newEnv(t, fixture.New())
 	res := e.raw(t, e.anon, http.MethodGet, "/", "", nil)
-	res.Body.Close()
+	_ = res.Body.Close()
 	csp := res.Header.Get("Content-Security-Policy")
 	if !strings.Contains(csp, "script-src 'self' 'sha256-abc'") || !strings.Contains(csp, "frame-ancestors 'none'") {
 		t.Fatalf("unexpected CSP: %s", csp)
@@ -201,7 +201,7 @@ func TestAPIRequiresSession(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res.Body.Close()
+	_ = res.Body.Close()
 	if res.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("forged cookie: status %d", res.StatusCode)
 	}
@@ -216,7 +216,7 @@ func TestAPIRequiresSession(t *testing.T) {
 func TestSessionCookieAttributes(t *testing.T) {
 	e := newEnv(t, fixture.New())
 	res := e.raw(t, e.anon, http.MethodPost, "/api/v1/auth/login", `{"username":"quentin","password":"`+password+`"}`, nil)
-	res.Body.Close()
+	_ = res.Body.Close()
 	if res.StatusCode != http.StatusNoContent {
 		t.Fatalf("login: status %d", res.StatusCode)
 	}
@@ -258,7 +258,7 @@ func TestLoginLogoutAndLimits(t *testing.T) {
 		}
 	}
 	res := e.raw(t, e.user, http.MethodPost, "/api/v1/auth/login", login, nil)
-	res.Body.Close()
+	_ = res.Body.Close()
 	if res.StatusCode != http.StatusTooManyRequests || res.Header.Get("Retry-After") == "" {
 		t.Fatalf("locked out: status %d, Retry-After %q", res.StatusCode, res.Header.Get("Retry-After"))
 	}
@@ -374,7 +374,7 @@ func TestIcons(t *testing.T) {
 		t.Fatalf("anonymous: status %d", status)
 	}
 	res := e.raw(t, e.user, http.MethodGet, "/api/v1/icons/emby", "", nil)
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	body, _ := io.ReadAll(res.Body)
 	if res.StatusCode != http.StatusOK || res.Header.Get("Content-Type") != "image/svg+xml" || !strings.Contains(string(body), "<svg") {
 		t.Fatalf("emby: %d %q", res.StatusCode, res.Header.Get("Content-Type"))

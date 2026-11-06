@@ -70,7 +70,7 @@ func (f *HTTPFetcher) get(ctx context.Context, url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	switch {
 	case res.StatusCode == http.StatusNotFound:
 		return nil, ErrNotFound

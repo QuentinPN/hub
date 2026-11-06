@@ -76,7 +76,7 @@ func (e *env) do(c *http.Client, method, path string, body any) (int, []byte) {
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var out bytes.Buffer
 	_, _ = out.ReadFrom(resp.Body)
 	return resp.StatusCode, out.Bytes()
