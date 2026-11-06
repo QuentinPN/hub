@@ -41,18 +41,14 @@ services:
       HUB_ADDR: :8080
       HUB_DATABASE_URL: postgres://hub:${HUB_DB_PASSWORD:?HUB_DB_PASSWORD}@db:5432/hub?sslmode=disable
       HUB_SECRET_KEY_FILE: /var/lib/hub/secrets.key
-      HUB_ORIGIN: ${HUB_ORIGIN:?HUB_ORIGIN}
+      HUB_ORIGIN: https://${HUB_DOMAIN:?HUB_DOMAIN}:8444
       HUB_AGENT_CA_FILE: /var/lib/hub/agent-ca.pem
       HUB_AGENT_ADDR: :8443
       HUB_AGENT_NAMES: ${HUB_AGENT_NAMES:?HUB_AGENT_NAMES}
-    # Seul le port agents est publié, sur une seule IP. L'UI ne se joint que par Caddy.
+    # Seul le port agents est publié, sur une seule IP. L'UI ne se joint que par le Caddy ci-dessous.
     ports:
-      - '${HUB_AGENT_BIND:?HUB_AGENT_BIND}:8443:8443'
-    networks:
-      db:
-      edge:
-      caddy:
-        aliases: [hub-server]
+      - '${HUB_BIND:?HUB_BIND}:8443:8443'
+    networks: [db, edge]
     volumes:
       - keys:/var/lib/hub
     healthcheck:
@@ -62,19 +58,38 @@ services:
       retries: 3
       start_period: 15s
 
+  caddy:
+    image: hub-caddy:local
+    restart: unless-stopped
+    depends_on: [hub]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 128m
+    environment:
+      HUB_DOMAIN: ${HUB_DOMAIN:?HUB_DOMAIN}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN}
+    ports:
+      - '${HUB_BIND:?HUB_BIND}:8444:8444'
+    networks: [edge]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
 networks:
   # La base ne sort pas et n'est jointe que par le serveur.
   db:
     internal: true
-  # Port publié, accès sortant vers les icônes, agent de ce même hôte.
+  # Ports publiés, accès sortant (icônes, certificat), agent de ce même hôte.
   edge:
     name: hub-edge
-  # Le réseau du Caddy existant, jamais créé ni modifié ici.
-  caddy:
-    external: true
-    name: ${HUB_CADDY_NETWORK:?HUB_CADDY_NETWORK}
 
 volumes:
   pgdata:
   # Clé des secrets et AC des agents, à part de la base. À sauvegarder à part aussi.
   keys:
+  # Certificat : se réobtient tout seul, inutile à sauvegarder.
+  caddy-data:
+  caddy-config:

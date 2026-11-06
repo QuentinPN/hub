@@ -1,14 +1,16 @@
 # Déployer le serveur Hub
 
-À lire en entier avant de lancer quoi que ce soit. Rien ici n'arrête un service existant ; seules la route Caddy et les règles de pare-feu touchent à ce qui est déjà en place, et elles se relisent d'abord.
+À lire en entier avant de lancer quoi que ce soit. Rien ici n'arrête un service existant, et le Caddy des sites publics n'est pas touché : Hub a son propre Caddy, sur le port 8444. Seules les règles de pare-feu modifient ce qui est en place, et elles se relisent d'abord.
 
-Ce qui a été testé sur Docker Desktop : la pile, un Caddy de test sur un réseau externe, l'enrôlement d'un agent par `hub-edge`, le redémarrage, la sauvegarde et la restauration. **Pas testé** : les règles de pare-feu, le certificat de `home.example.com`.
+Ce qui a été testé sur Docker Desktop : la pile avec son Caddy (certificat interne à la place de Cloudflare), l'enrôlement d'un agent par `hub-edge`, le redémarrage, la sauvegarde et la restauration. **Pas testé** : les règles de pare-feu, l'obtention du vrai certificat par Cloudflare.
 
 ## Ce qui sera ajouté sur l'hôte
 
-- Deux conteneurs, `hub-db-1` et `hub-hub-1`, et deux volumes, `hub_pgdata` et `hub_keys`.
-- Deux réseaux, `hub_db` (sans sortie) et `hub-edge`. Le serveur rejoint aussi le réseau du Caddy existant.
-- Le port 8443, sur l'IP de `HUB_AGENT_BIND` seulement. L'UI (8080) n'est pas publiée.
+- Trois conteneurs, `hub-db-1`, `hub-hub-1` et `hub-caddy-1`, et quatre volumes, `hub_pgdata`, `hub_keys`, `hub_caddy-data` et `hub_caddy-config`.
+- Deux réseaux, `hub_db` (sans sortie) et `hub-edge`.
+- Les ports 8443 (agents) et 8444 (UI), sur l'IP de `HUB_BIND` seulement. Ne les redirige pas sur ta box : Hub reste en LAN.
+
+Accès depuis le VPN : pas encore en place. Le port n'écoute pas sur l'IP Tailscale, et `home.example.com` pointe vers l'IP LAN.
 
 ## 1. Construire et transférer l'image
 
@@ -19,10 +21,10 @@ scripts/build-server.sh
 ```
 
 ```bash
-docker save hub-server:local | ssh hub@192.0.2.14 docker load
+docker save hub-server:local hub-caddy:local | ssh hub@192.0.2.14 docker load
 ```
 
-Copier ensuite `deploy/server/` sur l'hôte, sans le binaire `hub-server`, puis y faire les étapes suivantes.
+Copier ensuite `compose.yml`, `Caddyfile` et `.env.example` de `deploy/server/` sur l'hôte, puis y faire les étapes suivantes.
 
 ## 2. Configurer
 
@@ -32,15 +34,21 @@ Partir de `.env.example` :
 cp .env.example .env && chmod 600 .env
 ```
 
-Remplir `HUB_DB_PASSWORD` (`openssl rand -hex 32`) et `HUB_CADDY_NETWORK`, puis relire le résultat :
+Remplir `HUB_DB_PASSWORD` (`openssl rand -hex 32`) et `CLOUDFLARE_API_TOKEN`. Le token se crée dans Cloudflare, limité à Zone → DNS → Edit sur `example.com`. Relire ensuite le résultat sans l'afficher ailleurs, il contient les secrets :
 
 ```bash
 docker compose config
 ```
 
+Créer aussi dans Cloudflare l'enregistrement `A` de `home.example.com` vers `192.0.2.14`, **sans le proxy** (nuage gris). Depuis un appareil du LAN, vérifier que le nom se résout : certaines box bloquent les réponses DNS vers une IP privée.
+
+```bash
+nslookup home.example.com
+```
+
 ## 3. Filtrer le port 8443
 
-Les ports publiés par Docker contournent ufw : le filtrage se fait dans `DOCKER-USER`. Ces règles ne laissent passer que le Pi et le QNAP, sur l'interface LAN. L'agent du mini-PC passe par `hub-edge` et n'est pas concerné.
+Le 8444 reste ouvert à tout le LAN, il mène à la page de connexion. Les ports publiés par Docker contournent ufw : le filtrage se fait dans `DOCKER-USER`. Ces règles ne laissent passer que le Pi et le QNAP, sur l'interface LAN. L'agent du mini-PC passe par `hub-edge` et n'est pas concerné.
 
 Trouver l'interface LAN (`dev …` dans la réponse) :
 
@@ -77,16 +85,12 @@ Le code de création du compte (une seule fois) est dans les journaux :
 docker compose logs hub | grep setup_code
 ```
 
-## 5. Ajouter la route Caddy
+## 5. Vérifier le certificat
 
-Sauvegarder le Caddyfile, ajouter le bloc de `Caddyfile.example` avec le `tls` des autres sites, puis valider avant de recharger. Remplacer `caddy` par le nom du conteneur :
-
-```bash
-docker exec caddy caddy validate --config /etc/caddy/Caddyfile
-```
+Caddy l'obtient seul au démarrage, en une à deux minutes. En cas d'échec, l'erreur Cloudflare ou ACME est ici :
 
 ```bash
-docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+docker compose logs caddy
 ```
 
 ## 6. Contrôler
@@ -97,7 +101,7 @@ Depuis le Pi et le QNAP, le port doit répondre :
 nc -zv 192.0.2.14 8443
 ```
 
-Depuis un autre appareil du LAN, la même commande doit échouer. `https://home.example.com` doit afficher la création du compte.
+Depuis un autre appareil du LAN, la même commande doit échouer. `https://home.example.com:8444` doit afficher la création du compte, avec un certificat reconnu.
 
 ## 7. Enrôler l'agent du mini-PC
 
@@ -155,9 +159,10 @@ Sauvegarder d'abord : les migrations s'appliquent au démarrage et ne se défont
 
 Dans cet ordre, pour rendre l'hôte dans son état d'origine :
 
-1. Retirer le bloc de Caddy, puis recharger Caddy.
-2. Arrêter l'agent de cet hôte, sinon `hub-edge` reste en place : `docker compose -f compose.yml -f compose.same-host.yml down`.
-3. Arrêter le serveur, sans toucher aux données : `docker compose down`. Ajouter `-v` efface **définitivement** la base et les clés.
-4. Retirer le bloc de `/etc/ufw/after.rules`, puis `sudo ufw reload`. Si `DOCKER-USER` garde les règles, le vider avec `sudo iptables -F DOCKER-USER`.
+1. Arrêter l'agent de cet hôte, sinon `hub-edge` reste en place : `docker compose -f compose.yml -f compose.same-host.yml down`.
+2. Arrêter le serveur, sans toucher aux données : `docker compose down`. Ajouter `-v` efface **définitivement** la base et les clés.
+3. Retirer le bloc de `/etc/ufw/after.rules`, puis `sudo ufw reload`. Si `DOCKER-USER` garde les règles, le vider avec `sudo iptables -F DOCKER-USER`.
+
+4. Supprimer l'enregistrement DNS et le token dans Cloudflare.
 
 Sur les autres hôtes, révoquer puis arrêter leur agent.

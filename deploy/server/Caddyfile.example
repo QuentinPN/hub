@@ -1,5 +1,0 @@
-# À ajouter au Caddyfile existant, après l'avoir relu : modifie un service en place.
-# Reprendre le bloc tls des autres sites de ce Caddy (accès LAN/VPN : pas de défi HTTP public).
-home.example.com {
-	reverse_proxy hub-server:8080
-}

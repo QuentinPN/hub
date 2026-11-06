@@ -1,0 +1,16 @@
+# Proxy de Hub seul : aucun lien avec le Caddy des sites publics de l'hôte.
+{
+	admin off
+	auto_https disable_redirects
+	https_port 8444
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$HUB_DOMAIN}:8444 {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	}
+	reverse_proxy hub:8080
+}
