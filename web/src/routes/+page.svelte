@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { getHome } from '#lib/api/client.ts';
 	import type { Home } from '#lib/api/types.ts';
+	import { onWidgetNews } from '#lib/live.ts';
 	import AppCard from '#lib/components/AppCard.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import HostCard from '#lib/components/HostCard.svelte';
@@ -14,19 +15,25 @@
 
 	let { data }: PageProps = $props();
 
-	// Relu sans repasser par le squelette : la lecture en cours change sous les yeux.
+	// Relu sans repasser par le squelette : la lecture en cours change sous les yeux, dès que
+	// le serveur le signale. La relecture régulière rattrape un signal perdu.
 	let fresh = $state<Home | null>(null);
+	function reload() {
+		if (document.visibilityState !== 'visible') return;
+		getHome(fetch)
+			.then((home) => {
+				fresh = home;
+				shell.summary = home.summary;
+			})
+			.catch(() => {});
+	}
 	$effect(() => {
-		const poll = setInterval(() => {
-			if (document.visibilityState !== 'visible') return;
-			getHome(fetch)
-				.then((home) => {
-					fresh = home;
-					shell.summary = home.summary;
-				})
-				.catch(() => {});
-		}, 30_000);
-		return () => clearInterval(poll);
+		const poll = setInterval(reload, 30_000);
+		const stop = onWidgetNews(reload);
+		return () => {
+			clearInterval(poll);
+			stop();
+		};
 	});
 
 	// Le compteur « en ligne » de la barre du haut n'apparaît que sur l'accueil.

@@ -76,8 +76,10 @@ func widgetEnv(t *testing.T, address string) (*env, *pgstore.Store, *secrets.Sto
 		t.Fatal(err)
 	}
 	keys := secrets.NewStore(kr, store)
-	return newFullEnv(t, store, nil, keys), store, keys
+	return newFullEnv(t, store, nil, &api.Widgets{Keys: keys, Bus: testBus}), store, keys
 }
+
+var testBus = widgets.NewBus()
 
 const saveBody = `{"apiKey":"` + embyKey + `","widgets":["sessions","latest","library"],"refreshSeconds":30,"options":{"userId":"u1"}}`
 

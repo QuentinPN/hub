@@ -203,9 +203,12 @@ func TestKeyHintNeverShowsAShortKey(t *testing.T) {
 type memSource struct {
 	mu    sync.Mutex
 	due   []widgets.Due
+	live  []widgets.Due
 	reads map[string]widgets.State
 	done  chan string
 }
+
+func (m *memSource) LiveConnections(context.Context) ([]widgets.Due, error) { return m.live, nil }
 
 func (m *memSource) DueConnections(context.Context, time.Time) ([]widgets.Due, error) {
 	m.mu.Lock()
@@ -250,7 +253,7 @@ func TestRunIsolatesAHangingServiceFromTheOthers(t *testing.T) {
 	}}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go widgets.Run(ctx, src, memKeys{}, 10*time.Millisecond)
+	go widgets.Run(ctx, src, memKeys{}, widgets.NewBus(), 10*time.Millisecond)
 
 	seen := map[string]bool{}
 	timeout := time.After(3 * time.Second)

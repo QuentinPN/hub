@@ -160,17 +160,21 @@ func main() {
 	// Each address is requested once a minute, from here, to tell whether it still answers.
 	go urlcheck.Watch(ctx, store, time.Minute)
 	// Each connection is read at its own rate; this only looks for those due.
-	go widgets.Run(ctx, store, secretStore, 5*time.Second)
+	bus := widgets.NewBus()
+	go widgets.Run(ctx, store, secretStore, bus, 5*time.Second)
 
 	ui := webui.New()
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           api.NewHandler(store, authSvc, iconSvc, agentsUI, secretStore, ui.Handler, ui.ScriptHashes),
+		Handler:           api.NewHandler(store, authSvc, iconSvc, agentsUI, &api.Widgets{Keys: secretStore, Bus: bus}, ui.Handler, ui.ScriptHashes),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
+
+	// Open event streams must not hold the shutdown up.
+	srv.RegisterOnShutdown(bus.Close)
 
 	go func() {
 		slog.Info("listening", "addr", *addr)

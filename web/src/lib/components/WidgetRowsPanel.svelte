@@ -3,6 +3,7 @@
 	import { getWidgetRows } from '#lib/api/client.ts';
 	import type { WidgetRow } from '#lib/api/types.ts';
 	import { ago } from '#lib/agents.ts';
+	import { onWidgetNews } from '#lib/live.ts';
 	import { widgetStateView } from '#lib/widgets.ts';
 	import ServiceIcon from './ServiceIcon.svelte';
 	import Skeleton from './Skeleton.svelte';
@@ -23,8 +24,12 @@
 
 	$effect(() => {
 		void load();
-		const poll = setInterval(load, 15_000);
-		return () => clearInterval(poll);
+		const poll = setInterval(load, 30_000);
+		const stop = onWidgetNews(() => void load());
+		return () => {
+			clearInterval(poll);
+			stop();
+		};
 	});
 
 	function stateText(r: WidgetRow): string {

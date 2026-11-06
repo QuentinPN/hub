@@ -76,6 +76,39 @@ async function openTab(page: Page, service: unknown) {
 	await page.goto('/services/emby#widgets');
 }
 
+test('un signal du serveur met la fiche à jour sans attendre', async ({ page }) => {
+	await openTab(page, connected());
+	await expect(page.getByText('Le film du soir')).toBeVisible();
+	const next = connected({
+		data: {
+			sessions: [
+				{
+					title: 'Un autre film',
+					subtitle: '',
+					device: 'iPad',
+					progress: 0.1,
+					durationLabel: '90 min restantes',
+					transcoding: false
+				}
+			]
+		}
+	});
+	await page.route('**/api/v1/services/emby', (route) => route.fulfill({ json: next }));
+	await page.route('**/api/v1/events', (route) =>
+		route.fulfill({
+			contentType: 'text/event-stream',
+			body: 'event: widgets\ndata: autre\n\nevent: widgets\ndata: emby\n\n'
+		})
+	);
+	await page.reload();
+	await expect(page.getByText('Un autre film')).toBeVisible();
+	await page.route('**/api/v1/services/emby', (route) =>
+		route.fulfill({ json: connected({ data: { sessions: [] } }) })
+	);
+	// La réponse se termine : le navigateur se reconnecte, et le signal suivant recharge.
+	await expect(page.getByText('Rien en lecture.')).toBeVisible({ timeout: 10_000 });
+});
+
 test('les onglets de la fiche passent d’Aperçu à Widgets', async ({ page }) => {
 	await openTab(page, offered);
 	const nav = page.getByRole('navigation', { name: 'Sections du service' });

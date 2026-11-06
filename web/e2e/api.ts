@@ -56,6 +56,8 @@ export async function mockApi(page: Page, { authenticated = true } = {}) {
 		if (!authenticated)
 			return route.fulfill({ status: 401, json: { error: 'authentication required' } });
 		if (path === 'hosts') return route.fulfill({ json: hostsNow() });
+		// Un 204 dit au navigateur de ne pas se reconnecter : pas de signal, comme sans nouveauté.
+		if (path === 'events') return route.fulfill({ status: 204 });
 		const name = routes[path];
 		if (!name) return route.fulfill({ status: 404, json: { error: 'not found' } });
 		return route.fulfill({ json: fixture(name) });

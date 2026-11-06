@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/coder/websocket"
+
 	"hub/server/internal/secrets"
 	"hub/server/internal/urlcheck"
 )
@@ -150,6 +152,8 @@ func StateOf(err error) State {
 
 // Conn is a connection being read.
 type Conn struct {
+	// name is the service, for the logs.
+	name        string
 	base        string
 	key         secrets.Value
 	options     map[string]string
@@ -194,6 +198,16 @@ func (c *Conn) GetJSON(ctx context.Context, path string, query url.Values, out a
 		return &Failure{StateUnexpected}
 	}
 	return nil
+}
+
+// dialWS opens a WebSocket under the service's address, with the rules of its client.
+func (c *Conn) dialWS(ctx context.Context, path string, query url.Values, header http.Header) (*websocket.Conn, error) {
+	target := strings.TrimRight(c.base, "/") + path
+	if len(query) > 0 {
+		target += "?" + query.Encode()
+	}
+	conn, _, err := websocket.Dial(ctx, target, &websocket.DialOptions{HTTPClient: c.client, HTTPHeader: header})
+	return conn, err
 }
 
 // Target is where a connection reads.
@@ -284,6 +298,8 @@ type Due struct {
 
 // Source is where Run finds connections and leaves what it read.
 type Source interface {
+	// LiveConnections lists those worth talking to now.
+	LiveConnections(ctx context.Context) ([]Due, error)
 	DueConnections(ctx context.Context, now time.Time) ([]Due, error)
 	// RecordRead ignores a read of a connection saved again since it began.
 	RecordRead(ctx context.Context, d Due, data map[string]json.RawMessage, state State, at time.Time) error
@@ -294,40 +310,50 @@ type Keys interface {
 	Get(ctx context.Context, name string) (secrets.Value, error)
 }
 
-// Run reads each connection when due, until ctx ends. A slow one only holds its own slot.
-func Run(ctx context.Context, src Source, keys Keys, every time.Duration) {
-	var mu sync.Mutex
-	running := map[string]bool{}
-	limit := make(chan struct{}, concurrency)
+// Listener is a connector the service can warn of a change, without waiting for the next read.
+type Listener interface {
+	// Listen stays connected until ctx ends, and calls wake when something changed.
+	Listen(ctx context.Context, c *Conn, wake func())
+}
+
+// wakeSpacing keeps a chatty service from turning its signals into constant reads.
+const wakeSpacing = 3 * time.Second
+
+type engine struct {
+	src       Source
+	keys      Keys
+	bus       *Bus
+	limit     chan struct{}
+	locks     sync.Map // slug -> *sync.Mutex: one read at a time per connection
+	listening map[string]listening
+}
+
+type listening struct {
+	generation int64
+	stop       context.CancelFunc
+}
+
+// Run reads each connection when due or when it signals a change, until ctx ends. A slow one
+// only holds its own slot. Every read is announced on bus.
+func Run(ctx context.Context, src Source, keys Keys, bus *Bus, every time.Duration) {
+	e := &engine{src: src, keys: keys, bus: bus, limit: make(chan struct{}, concurrency), listening: map[string]listening{}}
 	ticker := time.NewTicker(every)
 	defer ticker.Stop()
 	for {
+		live, err := src.LiveConnections(ctx)
+		if err != nil {
+			if ctx.Err() == nil {
+				slog.Error("widgets", "err", err)
+			}
+		} else {
+			e.reconcile(ctx, live)
+		}
 		due, err := src.DueConnections(ctx, time.Now())
 		if err != nil && ctx.Err() == nil {
 			slog.Error("widgets", "err", err)
 		}
 		for _, d := range due {
-			mu.Lock()
-			busy := running[d.Slug]
-			running[d.Slug] = true
-			mu.Unlock()
-			if busy {
-				continue
-			}
-			go func() {
-				defer func() {
-					mu.Lock()
-					delete(running, d.Slug)
-					mu.Unlock()
-				}()
-				select {
-				case limit <- struct{}{}:
-					defer func() { <-limit }()
-				case <-ctx.Done():
-					return
-				}
-				readOne(ctx, src, keys, d)
-			}()
+			go e.read(ctx, d, false)
 		}
 		select {
 		case <-ctx.Done():
@@ -335,6 +361,89 @@ func Run(ctx context.Context, src Source, keys Keys, every time.Duration) {
 		case <-ticker.C:
 		}
 	}
+}
+
+// reconcile keeps one listener per connection that can have one. A connection saved again
+// gets a new one: its key or address may have changed.
+func (e *engine) reconcile(ctx context.Context, live []Due) {
+	wanted := map[string]bool{}
+	for _, d := range live {
+		if _, ok := connectors[d.Kind].(Listener); !ok {
+			continue
+		}
+		wanted[d.Slug] = true
+		if l, ok := e.listening[d.Slug]; ok {
+			if l.generation == d.Generation {
+				continue
+			}
+			l.stop()
+			delete(e.listening, d.Slug)
+		}
+		key, err := e.keys.Get(ctx, KeyName(d.Slug))
+		if err != nil {
+			continue // the read says what is wrong with the key
+		}
+		c, err := open(d.Target, key, d.Options)
+		if err != nil {
+			continue
+		}
+		c.name = d.Slug
+		lctx, stop := context.WithCancel(ctx)
+		e.listening[d.Slug] = listening{generation: d.Generation, stop: stop}
+		go e.listen(lctx, d, c)
+	}
+	for slug, l := range e.listening {
+		if !wanted[slug] {
+			l.stop()
+			delete(e.listening, slug)
+		}
+	}
+}
+
+func (e *engine) listen(ctx context.Context, d Due, c *Conn) {
+	woke := make(chan struct{}, 1)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-woke:
+			}
+			e.read(ctx, d, true)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(wakeSpacing):
+			}
+		}
+	}()
+	c.connector.(Listener).Listen(ctx, c, func() {
+		select {
+		case woke <- struct{}{}:
+		default:
+		}
+	})
+}
+
+// read skips a connection being read already, unless asked to wait: a signal says the read
+// in progress may have missed the change.
+func (e *engine) read(ctx context.Context, d Due, wait bool) {
+	v, _ := e.locks.LoadOrStore(d.Slug, &sync.Mutex{})
+	lock := v.(*sync.Mutex)
+	if wait {
+		lock.Lock()
+	} else if !lock.TryLock() {
+		return
+	}
+	defer lock.Unlock()
+	select {
+	case e.limit <- struct{}{}:
+		defer func() { <-e.limit }()
+	case <-ctx.Done():
+		return
+	}
+	readOne(ctx, e.src, e.keys, d)
+	e.bus.Publish(d.Slug)
 }
 
 func readOne(ctx context.Context, src Source, keys Keys, d Due) {

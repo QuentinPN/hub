@@ -43,8 +43,8 @@ var ErrNotFound = errors.New("not found")
 // except the auth routes in publicAPI, a health check, and ui for everything else.
 // scriptHashes are CSP sources ('sha256-…') for the UI's inline bootstrap scripts.
 // agents is nil while the agent listener is off.
-// keys is nil when connections cannot be stored: the widget routes stay off.
-func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *Agents, keys WidgetKeys, ui http.Handler, scriptHashes []string) http.Handler {
+// live is nil when connections cannot be stored: the widget routes stay off.
+func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *Agents, live *Widgets, ui http.Handler, scriptHashes []string) http.Handler {
 	mux := http.NewServeMux()
 	registerAuth(mux, authSvc)
 	if hr, ok := store.(HostReader); ok {
@@ -91,8 +91,8 @@ func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *
 	if editor, ok := store.(ServiceEditor); ok {
 		registerServices(mux, store, editor, authSvc, urlcheck.Check)
 	}
-	if editor, ok := store.(WidgetEditor); ok && keys != nil {
-		registerWidgets(mux, store, editor, keys, authSvc)
+	if editor, ok := store.(WidgetEditor); ok && live != nil {
+		registerWidgets(mux, store, editor, live, authSvc)
 	}
 	if sw, ok := store.(SettingsWriter); ok {
 		mux.HandleFunc("PUT /api/v1/settings/discovery", func(w http.ResponseWriter, r *http.Request) {

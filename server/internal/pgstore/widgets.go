@@ -283,9 +283,16 @@ func (s *Store) DeleteWidgetConnection(ctx context.Context, slug string) error {
 	return err
 }
 
-// DueConnections leaves out a refused key, an address changed since the key was tested, and
-// a stopped service: its API would only time out.
-func (s *Store) DueConnections(ctx context.Context, now time.Time) ([]widgets.Due, error) {
+// liveRow is a connection worth talking to, with when to read it.
+type liveRow struct {
+	widgets.Due
+	refresh, failures int
+	checked           time.Time
+}
+
+// liveRows leaves out a refused key, an address changed since the key was tested, and a
+// stopped service: its API would only time out.
+func (s *Store) liveRows(ctx context.Context) ([]liveRow, error) {
 	rows, err := s.pool.Query(ctx, `SELECT c.service_slug, c.kind, c.url, s.url_cert_sha256, c.options, c.enabled,
 			c.refresh_seconds, c.failures, c.checked_at, c.generation
 		FROM widget_connections c JOIN services s ON s.slug = c.service_slug
@@ -293,27 +300,46 @@ func (s *Store) DueConnections(ctx context.Context, now time.Time) ([]widgets.Du
 	if err != nil {
 		return nil, err
 	}
-	var refresh, failures int
-	var checked time.Time
-	due := []widgets.Due{}
-	var d widgets.Due
-	_, err = pgx.ForEachRow(rows, []any{&d.Slug, &d.Kind, &d.URL, &d.Pinned, &d.Options, &d.Enabled, &refresh, &failures, &checked, &d.Generation}, func() error {
-		if !checked.Add(widgets.NextDelay(time.Duration(refresh)*time.Second, failures)).After(now) {
-			due = append(due, d)
-		}
-		d = widgets.Due{}
-		return nil
+	list, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (liveRow, error) {
+		var r liveRow
+		return r, row.Scan(&r.Slug, &r.Kind, &r.URL, &r.Pinned, &r.Options, &r.Enabled, &r.refresh, &r.failures, &r.checked, &r.Generation)
 	})
-	if err != nil || len(due) == 0 {
+	if err != nil || len(list) == 0 {
 		return nil, err
 	}
 	all, err := s.entries(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return slices.DeleteFunc(due, func(d widgets.Due) bool {
-		return slices.ContainsFunc(all, func(e entry) bool { return e.Slug == d.Slug && e.Status == domain.StatusDown })
+	return slices.DeleteFunc(list, func(r liveRow) bool {
+		return slices.ContainsFunc(all, func(e entry) bool { return e.Slug == r.Slug && e.Status == domain.StatusDown })
 	}), nil
+}
+
+func (s *Store) LiveConnections(ctx context.Context) ([]widgets.Due, error) {
+	rows, err := s.liveRows(ctx)
+	if err != nil {
+		return nil, err
+	}
+	list := make([]widgets.Due, 0, len(rows))
+	for _, r := range rows {
+		list = append(list, r.Due)
+	}
+	return list, nil
+}
+
+func (s *Store) DueConnections(ctx context.Context, now time.Time) ([]widgets.Due, error) {
+	rows, err := s.liveRows(ctx)
+	if err != nil {
+		return nil, err
+	}
+	due := []widgets.Due{}
+	for _, r := range rows {
+		if !r.checked.Add(widgets.NextDelay(time.Duration(r.refresh)*time.Second, r.failures)).After(now) {
+			due = append(due, r.Due)
+		}
+	}
+	return due, nil
 }
 
 // RecordRead keeps the last good data through a failure.

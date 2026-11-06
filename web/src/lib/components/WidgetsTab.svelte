@@ -2,6 +2,7 @@
 	import { getService } from '#lib/api/client.ts';
 	import type { ServiceDetail } from '#lib/api/types.ts';
 	import { ago } from '#lib/agents.ts';
+	import { onWidgetNews } from '#lib/live.ts';
 	import { mediaPoster, refreshLabel, widgetStateView } from '#lib/widgets.ts';
 	import ConnectDialog from './ConnectDialog.svelte';
 	import PosterCard from './PosterCard.svelte';
@@ -22,21 +23,26 @@
 	let connecting = $state(false);
 	let now = $state(Date.now());
 
-	// Relue tant que l'onglet est ouvert : le serveur a déjà lu le service à sa propre fréquence.
+	// Relue dès que le serveur signale du nouveau ; la relecture régulière rattrape un signal perdu.
 	$effect(() => {
 		if (!service.widget?.connection) return;
 		const slug = service.slug;
-		const poll = setInterval(() => {
+		const reload = () => {
 			if (document.visibilityState === 'visible') {
 				getService(fetch, slug)
 					.then(onchange)
 					.catch(() => {});
 			}
-		}, 15_000);
+		};
+		const poll = setInterval(reload, 30_000);
+		const stop = onWidgetNews((news) => {
+			if (news === slug) reload();
+		});
 		const tick = setInterval(() => (now = Date.now()), 5_000);
 		return () => {
 			clearInterval(poll);
 			clearInterval(tick);
+			stop();
 		};
 	});
 </script>

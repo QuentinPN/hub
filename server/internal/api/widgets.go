@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"slices"
 	"strings"
@@ -57,6 +58,12 @@ type WidgetKeys interface {
 	Delete(ctx context.Context, name string) error
 }
 
+// Widgets is what the widget routes need besides the store.
+type Widgets struct {
+	Keys WidgetKeys
+	Bus  *widgets.Bus
+}
+
 // A key goes in a header: nothing that could break out of one.
 func validKey(key string) bool {
 	return key != "" && len(key) <= 512 && strings.IndexFunc(key, unicode.IsControl) < 0
@@ -90,7 +97,8 @@ func allowedOptions(asked map[string]string, offered []widgets.Option) map[strin
 	return kept
 }
 
-func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, keys WidgetKeys, authSvc *auth.Service) {
+func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live *Widgets, authSvc *auth.Service) {
+	keys := live.Keys
 	audit := func(r *http.Request, kind, detail string) {
 		p, _ := current(r.Context())
 		authSvc.Audit(r.Context(), auth.Event{Kind: kind, UserID: &p.user.ID, IP: clientOf(r).IP, Detail: detail})
@@ -138,6 +146,10 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, keys 
 		}
 		return stored, true
 	}
+
+	mux.HandleFunc("GET /api/v1/events", func(w http.ResponseWriter, r *http.Request) {
+		streamEvents(w, r, live.Bus)
+	})
 
 	mux.HandleFunc("GET /api/v1/widgets", func(w http.ResponseWriter, r *http.Request) {
 		respond(w, r)(editor.WidgetRows(r.Context()))
@@ -209,6 +221,7 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, keys 
 			return
 		}
 		audit(r, "widget_connected", slug)
+		live.Bus.Publish(slug)
 		svc, err := store.Service(r.Context(), slug)
 		if err != nil {
 			respond(w, r)(nil, err)
@@ -229,6 +242,58 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, keys 
 			return
 		}
 		audit(r, "widget_disconnected", slug)
+		live.Bus.Publish(slug)
 		respond(w, r)(store.Service(r.Context(), slug))
 	})
+}
+
+const (
+	eventsPing = 25 * time.Second
+	// eventsMaxAge ends a stream so the browser reconnects: the session is checked at each
+	// request only, and a stream must not outlive a closed session for long.
+	eventsMaxAge       = 5 * time.Minute
+	eventsWriteTimeout = 10 * time.Second
+)
+
+// streamEvents sends the names of the services that have news, as Server-Sent Events. The
+// page then reads them through the API: nothing else travels on the stream.
+func streamEvents(w http.ResponseWriter, r *http.Request, bus *widgets.Bus) {
+	rc := http.NewResponseController(w)
+	write := func(text string) bool {
+		if err := rc.SetWriteDeadline(time.Now().Add(eventsWriteTimeout)); err != nil {
+			return false
+		}
+		if _, err := io.WriteString(w, text); err != nil {
+			return false
+		}
+		return rc.Flush() == nil
+	}
+	h := w.Header()
+	h.Set("Content-Type", "text/event-stream")
+	h.Set("Cache-Control", "no-store")
+	signals, stop := bus.Subscribe()
+	defer stop()
+	if !write(": ok\n\n") {
+		return
+	}
+	ping := time.NewTicker(eventsPing)
+	defer ping.Stop()
+	maxAge := time.NewTimer(eventsMaxAge)
+	defer maxAge.Stop()
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-maxAge.C:
+			return
+		case <-ping.C:
+			if !write(": ping\n\n") {
+				return
+			}
+		case slug, ok := <-signals:
+			if !ok || !write("event: widgets\ndata: "+slug+"\n\n") {
+				return
+			}
+		}
+	}
 }
