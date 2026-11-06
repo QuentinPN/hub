@@ -24,7 +24,8 @@ const (
 // ArrWakeSpacing keeps a running download, which reports often, from causing constant reads.
 var ArrWakeSpacing = 10 * time.Second
 
-// What changes a widget. Radarr's page handles these names; Sonarr's are assumed alike.
+// What changes a widget. Radarr's page handles these names; on real servers both sent the
+// queue ones, while the others have not been seen yet.
 var arrWakingNames = map[string]bool{
 	"calendar": true, "queue": true, "queue/status": true, "queue/details": true,
 	"episode": true, "episodefile": true, "movie": true, "moviefile": true,
