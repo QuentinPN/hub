@@ -52,6 +52,8 @@ type Upcoming struct {
 	Detail string `json:"detail"`
 	Kind   string `json:"kind"`
 	At     string `json:"at"`
+	// Poster names the image to ask for: see PosterRequest.
+	Poster string `json:"poster,omitempty"`
 }
 
 // DataQueueItems holds the queue's entries. Names: for the Téléchargements page only.
@@ -78,7 +80,7 @@ func (a arr) Manifest() Manifest {
 		Kind:    a.kind,
 		Name:    a.name,
 		KeyHelp: a.keyHelp,
-		Reads:   []string{"GET /api/v3/queue/status", "GET /api/v3/calendar", "GET /api/v3/queue", "POST puis WebSocket /signalr/messages : signaux de changement"},
+		Reads:   []string{"GET /api/v3/queue/status", "GET /api/v3/calendar", "GET /api/v3/queue", "GET /api/v3/mediacover/… : affiches", "POST puis WebSocket /signalr/messages : signaux de changement"},
 		Widgets: []Widget{
 			{ID: WidgetCalendar, Label: "À venir", Where: "accueil et fiche"},
 			{ID: WidgetQueue, Label: "File d’attente", Where: "accueil et fiche"},
@@ -181,6 +183,7 @@ func (a arr) Fetch(ctx context.Context, c *Conn, enabled []string) (map[string]a
 
 func sonarrUpcoming(ctx context.Context, c *Conn, query url.Values, _ time.Time) ([]Upcoming, error) {
 	var found []struct {
+		SeriesID      int
 		Title         string
 		SeasonNumber  int
 		EpisodeNumber int
@@ -205,6 +208,7 @@ func sonarrUpcoming(ctx context.Context, c *Conn, query url.Values, _ time.Time)
 			Detail: fmt.Sprintf("S%02dE%02d · Sonarr", e.SeasonNumber, e.EpisodeNumber),
 			Kind:   "episode",
 			At:     e.AirDateUtc,
+			Poster: posterID(e.SeriesID),
 		})
 	}
 	return list, nil
@@ -212,6 +216,7 @@ func sonarrUpcoming(ctx context.Context, c *Conn, query url.Values, _ time.Time)
 
 func radarrUpcoming(ctx context.Context, c *Conn, query url.Values, from time.Time) ([]Upcoming, error) {
 	var found []struct {
+		ID              int
 		Title           string
 		InCinemas       string
 		DigitalRelease  string
@@ -245,9 +250,16 @@ func radarrUpcoming(ctx context.Context, c *Conn, query url.Values, from time.Ti
 		if next.IsZero() {
 			continue
 		}
-		list = append(list, Upcoming{Title: m.Title, Detail: label + " · Radarr", Kind: "movie", At: next.UTC().Format(time.RFC3339)})
+		list = append(list, Upcoming{Title: m.Title, Detail: label + " · Radarr", Kind: "movie", At: next.UTC().Format(time.RFC3339), Poster: posterID(m.ID)})
 	}
 	return list, nil
+}
+
+func posterID(id int) string {
+	if id <= 0 {
+		return ""
+	}
+	return strconv.Itoa(id)
 }
 
 // QueueText words a queue for the home page. Sonarr counts episodes, Radarr films.

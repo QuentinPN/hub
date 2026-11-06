@@ -126,7 +126,7 @@
 				{#if conn.data.calendar.length > 0}
 					<Shelf title="À venir" id="w-calendar" focusable>
 						{#each conn.data.calendar as item, i (item.title + item.detail + i)}
-							<PosterCard item={upcomingPoster(item, new Date())} />
+							<PosterCard item={upcomingPoster(item, new Date(), service.slug)} />
 						{/each}
 					</Shelf>
 				{:else}
@@ -140,7 +140,7 @@
 				{#if conn.data.latest.length > 0}
 					<Shelf title="Ajoutés récemment" id="w-latest" focusable>
 						{#each conn.data.latest as item, i (item.title + item.detail + i)}
-							<PosterCard item={mediaPoster(item)} />
+							<PosterCard item={mediaPoster(item, service.slug)} />
 						{/each}
 					</Shelf>
 				{:else}

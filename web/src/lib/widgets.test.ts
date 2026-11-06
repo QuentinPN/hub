@@ -54,6 +54,28 @@ describe('widgets', () => {
 		expect(queueStateLabel('queued')).toBe('En attente');
 	});
 
+	it('fait passer les images par Hub', () => {
+		const now = new Date(2030, 0, 7);
+		const read = {
+			title: 'X',
+			detail: '',
+			when: '',
+			kind: 'movie' as const,
+			tone: '',
+			at: new Date(2030, 0, 8).toISOString(),
+			poster: '12',
+			source: 'radarr'
+		};
+		expect(upcomingPoster(read, now).image).toBe('/api/v1/posters/radarr/12');
+		expect(upcomingPoster({ ...read, source: undefined }, now, 'sonarr').image).toBe(
+			'/api/v1/posters/sonarr/12'
+		);
+		expect(upcomingPoster({ ...read, poster: undefined }, now).image).toBeUndefined();
+		const added = { title: 'X', detail: '', kind: 'movie' as const, addedAt: '', poster: 'a/b' };
+		expect(mediaPoster(added, 'emby').image).toBe('/api/v1/posters/emby/a%2Fb');
+		expect(mediaPoster(added).image).toBeUndefined();
+	});
+
 	it('écrit la fréquence', () => {
 		expect(refreshLabel(30)).toBe('Toutes les 30 s');
 		expect(refreshLabel(60)).toBe('Toutes les minutes');

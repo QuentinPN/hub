@@ -56,7 +56,7 @@
 					<div class="wide">
 						<Shelf title="Ajoutés récemment · Emby" id="latest" focusable>
 							{#each page.latest as item, i (item.title + item.detail + i)}
-								<PosterCard item={mediaPoster(item)} />
+								<PosterCard item={mediaPoster(item, page.latestSlug)} />
 							{/each}
 						</Shelf>
 					</div>

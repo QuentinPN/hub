@@ -88,12 +88,15 @@ func (s *Store) MediaPage(ctx context.Context) (api.MediaPage, error) {
 		if list, ok, err := decode[[]api.UpcomingItem](c, widgets.WidgetCalendar, widgets.WidgetCalendar); err != nil {
 			return err
 		} else if ok {
+			for i := range list {
+				list[i].Source = e.Slug
+			}
 			page.Upcoming = append(page.Upcoming, list...)
 		}
 		if list, ok, err := decode[[]widgets.MediaItem](c, widgets.EmbyLatest, widgets.EmbyLatest); err != nil {
 			return err
 		} else if ok && len(page.Latest) == 0 {
-			page.Latest = list
+			page.Latest, page.LatestSlug = list, e.Slug
 		}
 		if lib, ok, err := decode[widgets.Library](c, widgets.EmbyLibrary, widgets.EmbyLibrary); err != nil {
 			return err

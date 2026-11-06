@@ -46,6 +46,9 @@ type UpcomingItem struct {
 	// At replaces When and Tone for what a connection read: the page words the date itself,
 	// in the viewer's time zone.
 	At string `json:"at,omitempty"`
+	// Poster and Source name an image: /api/v1/posters/{Source}/{Poster}.
+	Poster string `json:"poster,omitempty"`
+	Source string `json:"source,omitempty"`
 }
 
 // DownloadCard is a card of the home page's "Téléchargements".

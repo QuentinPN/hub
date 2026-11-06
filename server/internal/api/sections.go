@@ -38,6 +38,7 @@ type MediaPage struct {
 	SessionsSlug string              `json:"sessionsSlug,omitempty"`
 	Upcoming     []UpcomingItem      `json:"upcoming"`
 	Latest       []widgets.MediaItem `json:"latest"`
+	LatestSlug   string              `json:"latestSlug,omitempty"`
 	Requests     *widgets.Requests   `json:"requests"`
 	RequestsSlug string              `json:"requestsSlug,omitempty"`
 	RequestsURL  *string             `json:"requestsUrl"`

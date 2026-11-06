@@ -94,7 +94,7 @@ func (prowlarr) Manifest() Manifest {
 		Kind:    "prowlarr",
 		Name:    "Prowlarr",
 		KeyHelp: "Dans Prowlarr : Settings, General, API Key.",
-		Reads:   []string{"GET /api/v1/indexer", "GET /api/v1/indexerstatus"},
+		Reads:   []string{"GET /api/v1/indexer", "GET /api/v1/indexerstatus", "POST puis WebSocket /signalr/messages : signaux de changement"},
 		Widgets: []Widget{{ID: WidgetIndexers, Label: "Indexeurs", Where: "accueil et fiche"}},
 	}
 }

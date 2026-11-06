@@ -162,17 +162,33 @@ export function whenLabel(iso: string, now: Date): string {
 	return weekday.format(at);
 }
 
-/** Ce qu'une connexion a lu reçoit sa date et sa teinte ici ; le reste passe tel quel. */
-export const upcomingPoster = (item: UpcomingItem, now: Date): UpcomingItem =>
+/** Hub seul tient la clé : l'image passe par lui. */
+function posterUrl(slug: string | undefined, poster: string | undefined): string | undefined {
+	if (!slug || !poster) return undefined;
+	return `/api/v1/posters/${encodeURIComponent(slug)}/${encodeURIComponent(poster)}`;
+}
+
+/** Ce qu'une connexion a lu reçoit sa date, sa teinte et son image ici ; le reste passe tel quel. */
+export const upcomingPoster = (
+	item: UpcomingItem,
+	now: Date,
+	slug?: string
+): UpcomingItem & { image?: string } =>
 	item.at
-		? { ...item, when: whenLabel(item.at, now), tone: item.tone || toneOf(item.title) }
+		? {
+				...item,
+				when: whenLabel(item.at, now),
+				tone: item.tone || toneOf(item.title),
+				image: posterUrl(item.source ?? slug, item.poster)
+			}
 		: item;
 
 /** Un média ajouté, sous la forme des affiches de l'accueil. */
-export const mediaPoster = (item: MediaItem): UpcomingItem => ({
+export const mediaPoster = (item: MediaItem, slug?: string): UpcomingItem & { image?: string } => ({
 	title: item.title,
 	detail: item.detail,
 	when: item.addedAt ? formatDay(item.addedAt) : '',
 	kind: item.kind,
-	tone: toneOf(item.title)
+	tone: toneOf(item.title),
+	image: posterUrl(slug, item.poster)
 });

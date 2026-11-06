@@ -31,7 +31,7 @@ func (emby) Manifest() Manifest {
 		Kind:    "emby",
 		Name:    "Emby",
 		KeyHelp: "Dans Emby : tableau de bord du serveur, Clés d’API. Crée une clé réservée à Hub : tu pourras la révoquer seule.",
-		Reads:   []string{"GET /emby/Sessions", "GET /emby/Users/Query", "GET /emby/Users/…/Items/Latest", "GET /emby/Items/Counts", "WebSocket : signaux de changement"},
+		Reads:   []string{"GET /emby/Sessions", "GET /emby/Users/Query", "GET /emby/Users/…/Items/Latest", "GET /emby/Items/Counts", "GET /emby/Items/…/Images/Primary : affiches", "WebSocket : signaux de changement"},
 		Widgets: []Widget{
 			{ID: EmbySessions, Label: "Sessions en cours", Where: "accueil et fiche"},
 			{ID: EmbyLatest, Label: "Ajoutés récemment", Where: "fiche"},
@@ -46,6 +46,7 @@ func (emby) Authorize(req *http.Request, key secrets.Value) {
 
 type embyItem struct {
 	ID                string
+	SeriesID          string `json:"SeriesId"`
 	Name              string
 	Type              string
 	SeriesName        string
@@ -81,6 +82,8 @@ type MediaItem struct {
 	Detail  string `json:"detail"`
 	Kind    string `json:"kind"`
 	AddedAt string `json:"addedAt"`
+	// Poster names the image to ask for: see PosterRequest.
+	Poster string `json:"poster,omitempty"`
 }
 
 // Library counts what a library holds.
@@ -215,7 +218,11 @@ func (e emby) Fetch(ctx context.Context, c *Conn, enabled []string) (map[string]
 }
 
 func (i embyItem) mediaItem() MediaItem {
-	out := MediaItem{Title: i.Name, AddedAt: i.DateCreated}
+	out := MediaItem{Title: i.Name, AddedAt: i.DateCreated, Poster: i.ID}
+	// An episode shows its series' poster: its own image is a landscape still.
+	if i.SeriesID != "" {
+		out.Poster = i.SeriesID
+	}
 	switch i.Type {
 	case "Movie":
 		out.Kind, out.Detail = "movie", "Film"

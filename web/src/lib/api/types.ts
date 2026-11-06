@@ -37,6 +37,9 @@ export interface UpcomingItem {
 	tone: string;
 	/** Lu par une connexion : la page écrit la date elle-même, à l'heure de celui qui regarde. */
 	at?: string;
+	/** L'image à demander, et le service qui la tient. */
+	poster?: string;
+	source?: string;
 }
 
 export interface DownloadCard {
@@ -134,6 +137,7 @@ export interface MediaPage extends SectionBase {
 	sessionsSlug?: string;
 	upcoming: UpcomingItem[];
 	latest: MediaItem[];
+	latestSlug?: string;
 	requests: NonNullable<WidgetConnection['data']['requests']> | null;
 	requestsSlug?: string;
 	requestsUrl: string | null;
@@ -233,6 +237,7 @@ export interface MediaItem {
 	detail: string;
 	kind: 'episode' | 'movie';
 	addedAt: string;
+	poster?: string;
 }
 
 export interface WidgetInfo {

@@ -190,6 +190,9 @@ func (s *Store) realWidgets(ctx context.Context, home *api.Home, all []entry, ex
 			if err := json.Unmarshal(raw, &list); err != nil {
 				return err
 			}
+			for i := range list {
+				list[i].Source = e.Slug
+			}
 			upcoming = append(upcoming, list...)
 		}
 		if slices.Contains(excluded[api.RowDownloads], e.Slug) {

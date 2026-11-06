@@ -140,3 +140,58 @@ test('sans problème, Infra n’affiche pas la carte À surveiller', async ({ pa
 	await expect(page.getByRole('heading', { name: 'Hôtes' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'À surveiller' })).toHaveCount(0);
 });
+
+test('les affiches passent par Hub, et l’aplat reste si le service n’en a pas', async ({
+	page
+}) => {
+	const media = fixture('sections-media') as Record<string, unknown>;
+	const png = Buffer.from(
+		'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+		'base64'
+	);
+	await page.route('**/api/v1/sections/media', (route) =>
+		route.fulfill({
+			json: {
+				...media,
+				latestSlug: 'emby',
+				upcoming: [
+					{
+						title: 'Avec affiche',
+						detail: 'Sonarr',
+						when: '',
+						kind: 'episode',
+						tone: '',
+						at: '2030-01-08T20:00:00Z',
+						poster: '12',
+						source: 'sonarr'
+					},
+					{
+						title: 'Sans affiche',
+						detail: 'Radarr',
+						when: '',
+						kind: 'movie',
+						tone: '',
+						at: '2030-01-09T20:00:00Z',
+						poster: '99',
+						source: 'radarr'
+					}
+				]
+			}
+		})
+	);
+	await page.route('**/api/v1/posters/sonarr/12', (route) =>
+		route.fulfill({ contentType: 'image/png', body: png })
+	);
+	await page.route('**/api/v1/posters/radarr/99', (route) =>
+		route.fulfill({ status: 404, json: { error: 'not found' } })
+	);
+	await page.goto('/medias');
+	const withPoster = page.locator('article.poster', { hasText: 'Avec affiche' });
+	await expect(withPoster.locator('img')).toHaveAttribute('src', '/api/v1/posters/sonarr/12');
+	await expect
+		.poll(() => withPoster.locator('img').evaluate((el: HTMLImageElement) => el.naturalWidth))
+		.toBeGreaterThan(0);
+	const without = page.locator('article.poster', { hasText: 'Sans affiche' });
+	await expect(without).toBeVisible();
+	await expect(without.locator('img')).toHaveCount(0);
+});

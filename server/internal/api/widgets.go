@@ -151,6 +151,31 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live 
 		streamEvents(w, r, live.Bus)
 	})
 
+	// The image goes through the server: only it holds the key. Nothing here reveals why a
+	// poster is missing: the page falls back on its flat color.
+	mux.HandleFunc("GET /api/v1/posters/{slug}/{ref}", func(w http.ResponseWriter, r *http.Request) {
+		slug := r.PathValue("slug")
+		t, err := editor.WidgetTarget(r.Context(), slug)
+		if err != nil || t.ConnectedURL == "" || t.ConnectedURL != t.URL {
+			writeError(w, http.StatusNotFound, "not found")
+			return
+		}
+		key, err := keys.Get(r.Context(), widgets.KeyName(slug))
+		if err != nil {
+			writeError(w, http.StatusNotFound, "not found")
+			return
+		}
+		poster, ok := widgets.FetchPoster(r.Context(), widgets.Target{Kind: t.Kind, URL: t.URL, Pinned: t.Pinned}, key, r.PathValue("ref"))
+		if !ok {
+			writeError(w, http.StatusNotFound, "not found")
+			return
+		}
+		h := w.Header()
+		h.Set("Content-Type", poster.ContentType)
+		h.Set("Cache-Control", "private, max-age=86400")
+		_, _ = w.Write(poster.Body)
+	})
+
 	mux.HandleFunc("GET /api/v1/widgets", func(w http.ResponseWriter, r *http.Request) {
 		respond(w, r)(editor.WidgetRows(r.Context()))
 	})

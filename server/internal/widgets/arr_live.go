@@ -12,8 +12,8 @@ import (
 	"github.com/coder/websocket"
 )
 
-// Sonarr and Radarr's SignalR hub feeds their own web pages: /signalr/messages, message
-// receiveMessage (Radarr's SignalRConnector.js, Sonarr's MessageHub.cs). It is no public API
+// The SignalR hub of Sonarr, Radarr and Prowlarr feeds their own web pages: /signalr/messages,
+// message receiveMessage (SignalRConnector.js of Radarr and Prowlarr, Sonarr's MessageHub.cs). It is no public API
 // and may change: it only ever wakes a read through the documented routes.
 const (
 	arrHubPath   = "/signalr/messages"
@@ -33,17 +33,28 @@ var arrWakingNames = map[string]bool{
 
 func (arr) WakeSpacing() time.Duration { return ArrWakeSpacing }
 
-// Listen tries the key in a header, then in the address as their own page does.
-func (a arr) Listen(ctx context.Context, c *Conn, wake func()) {
+func (arr) Listen(ctx context.Context, c *Conn, wake func()) { listenHub(ctx, c, arrWakingNames, wake) }
+
+// What changes Prowlarr's widget: handlers of its own SignalRConnector.js.
+var prowlarrWakingNames = map[string]bool{"indexer": true, "indexerstatus": true, "health": true}
+
+func (prowlarr) WakeSpacing() time.Duration { return ArrWakeSpacing }
+
+func (prowlarr) Listen(ctx context.Context, c *Conn, wake func()) {
+	listenHub(ctx, c, prowlarrWakingNames, wake)
+}
+
+// listenHub tries the key in a header, then in the address as their own page does.
+func listenHub(ctx context.Context, c *Conn, names map[string]bool, wake func()) {
 	seen := map[string]bool{}
 	listenLoop(ctx, 2, func(route int) bool {
-		return a.listenOnce(ctx, c, route == 1, seen, wake)
+		return listenHubOnce(ctx, c, route == 1, seen, names, wake)
 	})
 }
 
 // listenOnce holds one connection and tells whether the hub answered. Errors are not logged:
 // they may quote an address holding the key.
-func (arr) listenOnce(ctx context.Context, c *Conn, inQuery bool, seen map[string]bool, wake func()) bool {
+func listenHubOnce(ctx context.Context, c *Conn, inQuery bool, seen, names map[string]bool, wake func()) bool {
 	query := url.Values{"negotiateVersion": {"1"}}
 	auth := "header"
 	if inQuery {
@@ -124,7 +135,7 @@ func (arr) listenOnce(ctx context.Context, c *Conn, inQuery bool, seen map[strin
 			}
 			for _, a := range msg.Arguments {
 				logLiveType(c, seen, a.Name)
-				if arrWakingNames[a.Name] {
+				if names[a.Name] {
 					wake()
 				}
 			}
