@@ -130,7 +130,11 @@ func (s *Store) widgetInfo(ctx context.Context, e entry, d *api.ServiceDetail) e
 	d.Widget.Connection = conn.dto(e)
 	d.Connection = []api.KeyValue{{Label: "Widget", Value: stateLabel(d.Widget.Connection.State)}}
 	if conn.keyHint != "" {
-		d.Connection = append(d.Connection, api.KeyValue{Label: "Clé d’API", Value: "•••• " + conn.keyHint})
+		row := api.KeyValue{Label: "Clé d’API", Value: "•••• " + conn.keyHint}
+		if d.Widget.Manifest != nil && d.Widget.Manifest.Auth == widgets.AuthPassword {
+			row = api.KeyValue{Label: "Compte", Value: conn.keyHint}
+		}
+		d.Connection = append(d.Connection, row)
 	}
 	return nil
 }

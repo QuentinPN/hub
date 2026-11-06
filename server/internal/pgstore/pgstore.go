@@ -258,6 +258,19 @@ func (s *Store) Home(ctx context.Context) (api.Home, error) {
 	if err := s.realHosts(ctx, &home); err != nil {
 		return home, err
 	}
+	conns, err := s.connections(ctx)
+	if err != nil {
+		return home, err
+	}
+	metrics, _, err := hostMetrics(all, conns)
+	if err != nil {
+		return home, err
+	}
+	for i := range home.Hosts {
+		if m, ok := metrics[home.Hosts[i].ID]; ok {
+			home.Hosts[i].Metrics = m
+		}
+	}
 	home.Hosts = slices.DeleteFunc(home.Hosts, func(h api.Host) bool {
 		return slices.Contains(excluded[api.RowHosts], h.ID)
 	})

@@ -23,7 +23,7 @@
 
 ## Phase 4 — Integrations
 [x] Emby, Sonarr, Radarr, qBittorrent (socle et Emby faits le 2026-11-06, maquette validée, testés contre un faux Emby, déployés sur le mini-PC et confirmés sur le vrai Emby le même jour ; Sonarr et Radarr codés le même jour d'après leurs specs officielles, avec réaction immédiate par SignalR, déployés, connectés aux vrais et flux SignalR confirmé dans les journaux le même jour ; qBittorrent déployé et confirmé sur le vrai le même jour)
-[ ] Autres connecteurs priorisés après inventaire réel (Seerr et Prowlarr déployés et connectés aux vrais le 2026-11-06 ; reste Beszel)
+[ ] Autres connecteurs priorisés après inventaire réel (Seerr et Prowlarr déployés et connectés aux vrais le 2026-11-06 ; Beszel codé le 2026-11-07, à essayer sur le vrai)
 
 ## Phase 5 — Hardening & release
 [ ] Tests E2E, sécurité, accessibilité, performance et panne d’agents

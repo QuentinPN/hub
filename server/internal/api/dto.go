@@ -281,7 +281,9 @@ type WidgetTest struct {
 
 // WidgetSave is what the connection panel sends. An empty key keeps the stored one.
 type WidgetSave struct {
-	APIKey         string            `json:"apiKey"`
+	APIKey string `json:"apiKey"`
+	// Identity goes with the password, for a connector that signs in.
+	Identity       string            `json:"identity"`
 	Widgets        []string          `json:"widgets"`
 	RefreshSeconds int               `json:"refreshSeconds"`
 	Options        map[string]string `json:"options"`

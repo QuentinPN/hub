@@ -195,3 +195,33 @@ test('les affiches passent par Hub, et l’aplat reste si le service n’en a pa
 	await expect(without).toBeVisible();
 	await expect(without.locator('img')).toHaveCount(0);
 });
+
+test('Infra affiche les mesures d’un hôte quand Beszel les donne', async ({ page }) => {
+	const infra = fixture('sections-infra') as { hosts: Record<string, unknown>[] };
+	await page.route('**/api/v1/sections/infra', (route) =>
+		route.fulfill({
+			json: {
+				...infra,
+				hasMetrics: true,
+				hosts: [
+					{
+						...infra.hosts[0],
+						metrics: [
+							{ label: 'CPU', percent: 12 },
+							{ label: 'Mémoire', percent: 41 },
+							{ label: 'Disque', percent: 78 }
+						]
+					},
+					infra.hosts[1]
+				]
+			}
+		})
+	);
+	await page.goto('/infra');
+	await expect(page.getByRole('meter', { name: 'Disque de mini-PC' })).toHaveAttribute(
+		'aria-valuenow',
+		'78'
+	);
+	await expect(page.getByText('78 %')).toBeVisible();
+	await expect(page.getByText('arriveront avec le connecteur Beszel')).toHaveCount(0);
+});

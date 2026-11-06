@@ -440,3 +440,89 @@ test('les fiches de Seerr et Prowlarr montrent leurs nombres', async ({ page }) 
 	await expect(page.getByRole('heading', { name: 'Indexeurs' })).toBeVisible();
 	await expect(page.getByText('En panne')).toBeVisible();
 });
+
+test('Beszel demande un compte, et chaque hôte retrouve son système', async ({ page }) => {
+	const manifestBeszel = {
+		kind: 'beszel',
+		name: 'Beszel',
+		auth: 'password',
+		keyHelp: 'Crée un compte au rôle readonly.',
+		reads: ['GET /api/collections/systems/records'],
+		widgets: [{ id: 'systems', label: 'CPU, mémoire et disque', where: 'accueil, Infra et fiche' }]
+	};
+	const service = {
+		...base,
+		slug: 'beszel',
+		name: 'Beszel',
+		widget: { support: 'ready', manifest: manifestBeszel, refreshChoices: [30] }
+	};
+	await mockApi(page);
+	await page.route('**/api/v1/services/beszel', (route) => route.fulfill({ json: service }));
+	const tests: unknown[] = [];
+	const saves: unknown[] = [];
+	await page.route('**/api/v1/services/beszel/connection/test', async (route) => {
+		tests.push(route.request().postDataJSON());
+		await route.fulfill({
+			json: {
+				result: 'ok',
+				latencyMs: 10,
+				note: '2 systèmes visibles',
+				options: [
+					{
+						id: 'host:mini-pc',
+						label: 'Système de mini-PC',
+						choices: [
+							{ value: 'mini', label: 'mini' },
+							{ value: '', label: 'Aucun' }
+						]
+					}
+				]
+			}
+		});
+	});
+	await page.route('**/api/v1/services/beszel/connection', async (route) => {
+		saves.push(route.request().postDataJSON());
+		await route.fulfill({
+			json: {
+				saved: true,
+				result: 'ok',
+				service: {
+					...service,
+					widget: {
+						...service.widget,
+						connection: connection({
+							keyHint: 'hub@local',
+							enabled: ['systems'],
+							data: {
+								systems: [{ name: 'mini', status: 'up', cpu: 12, memory: 41, disk: 78 }]
+							}
+						})
+					}
+				}
+			}
+		});
+	});
+	await page.goto('/services/beszel#widgets');
+	await page.getByRole('button', { name: 'Connecter Beszel' }).click();
+	const dialog = page.getByRole('dialog');
+	await expect(dialog.getByRole('button', { name: 'Tester le compte' })).toBeDisabled();
+	await dialog.getByLabel('E-mail du compte').fill('hub@local');
+	await dialog.getByLabel('Mot de passe').fill('un mot de passe');
+	await dialog.getByRole('button', { name: 'Tester le compte' }).click();
+	await expect(dialog.getByText('Compte accepté')).toBeVisible();
+	expect(tests).toEqual([{ apiKey: 'un mot de passe', identity: 'hub@local' }]);
+	await expect(dialog.getByLabel('Système de mini-PC')).toHaveValue('mini');
+	await dialog.getByRole('button', { name: 'Enregistrer' }).click();
+	expect(saves).toEqual([
+		{
+			apiKey: 'un mot de passe',
+			identity: 'hub@local',
+			widgets: ['systems'],
+			refreshSeconds: 30,
+			options: { 'host:mini-pc': 'mini' }
+		}
+	]);
+	await expect(page.getByText('CPU 12 % · Mémoire 41 % · Disque 78 %')).toBeVisible();
+	await expect(page.getByText('hub@local')).toBeVisible();
+	await expect(page.getByText('un mot de passe')).toHaveCount(0);
+});

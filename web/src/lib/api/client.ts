@@ -173,8 +173,11 @@ export const getInfraPage = (fetchFn: Fetch) =>
 export const getWidgetRows = (fetchFn: Fetch) => getJson<WidgetRow[]>(fetchFn, '/api/v1/widgets');
 
 /** Sans clé tapée, le serveur reprend la sienne, jamais renvoyée ici. */
-export const testWidgetKey = (fetchFn: Fetch, slug: string, apiKey: string) =>
-	postJson<WidgetTest>(fetchFn, `${servicePath(slug)}/connection/test`, { apiKey });
+export const testWidgetKey = (fetchFn: Fetch, slug: string, apiKey: string, identity?: string) =>
+	postJson<WidgetTest>(fetchFn, `${servicePath(slug)}/connection/test`, {
+		apiKey,
+		...(identity ? { identity } : {})
+	});
 
 export const saveWidgetConnection = (fetchFn: Fetch, slug: string, body: WidgetSave) =>
 	putJson<WidgetSaved>(fetchFn, `${servicePath(slug)}/connection`, body);

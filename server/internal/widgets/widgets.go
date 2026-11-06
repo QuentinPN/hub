@@ -54,11 +54,18 @@ type Widget struct {
 	Where string `json:"where"`
 }
 
+// AuthPassword is a connector signing in with an account rather than a key.
+const AuthPassword = "password"
+
 // Manifest describes a connector to the connection panel.
 type Manifest struct {
-	Kind    string `json:"kind"`
-	Name    string `json:"name"`
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+	// Auth is AuthPassword for an account, empty for a key.
+	Auth    string `json:"auth,omitempty"`
 	KeyHelp string `json:"keyHelp"`
+	// MapHosts asks which of the service's systems each Hub host is.
+	MapHosts bool `json:"-"`
 	// Reads lists the requests the connector makes: nothing else is ever sent.
 	Reads   []string `json:"reads"`
 	Widgets []Widget `json:"widgets"`
@@ -81,6 +88,8 @@ type Option struct {
 type Probe struct {
 	Note    string   `json:"note"`
 	Options []Option `json:"options"`
+	// Systems names what a MapHosts connector found.
+	Systems []string `json:"-"`
 }
 
 // Connector reads one kind of service.
@@ -104,8 +113,8 @@ const (
 )
 
 var (
-	connectors = map[string]Connector{"emby": emby{}, "sonarr": sonarr, "radarr": radarr, "qbittorrent": qbittorrent{}, "seerr": seerr{}, "prowlarr": prowlarr{}}
-	planned    = map[string]bool{"jellyseerr": true, "beszel": true}
+	connectors = map[string]Connector{"emby": emby{}, "sonarr": sonarr, "radarr": radarr, "qbittorrent": qbittorrent{}, "seerr": seerr{}, "prowlarr": prowlarr{}, "beszel": beszel{}}
+	planned    = map[string]bool{"jellyseerr": true}
 	linkOnly   = map[string]bool{"dockhand": true}
 )
 
@@ -154,9 +163,11 @@ func StateOf(err error) State {
 // Conn is a connection being read.
 type Conn struct {
 	// name is the service, for the logs.
-	name        string
-	base        string
-	key         secrets.Value
+	name string
+	base string
+	key  secrets.Value
+	// token replaces the key once signed in, for a connector that does.
+	token       string
 	options     map[string]string
 	connector   Connector
 	client      *http.Client
@@ -188,6 +199,9 @@ func (c *Conn) requestJSON(ctx context.Context, method, path string, query url.V
 	req.Header.Set("User-Agent", "Hub")
 	req.Header.Set("Accept", "application/json")
 	c.connector.Authorize(req, c.key)
+	if c.token != "" {
+		req.Header.Set("Authorization", c.token)
+	}
 	resp, err := c.client.Do(req)
 	if err != nil {
 		if c.certRefused() {

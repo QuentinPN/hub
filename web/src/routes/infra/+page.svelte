@@ -79,6 +79,24 @@
 								<dd>{ago(h.lastSeenAt, Date.now())}</dd>
 							{/if}
 						</dl>
+						{#if h.metrics?.length}
+							<div class="metrics small">
+								{#each h.metrics as m (m.label)}
+									<span class="muted">{m.label}</span>
+									<div
+										class="bar"
+										role="meter"
+										aria-label="{m.label} de {h.name}"
+										aria-valuenow={m.percent}
+										aria-valuemin={0}
+										aria-valuemax={100}
+									>
+										<span style:width="{m.percent}%" class:warn={m.percent >= 70}></span>
+									</div>
+									<span class="tabular pct">{m.percent} %</span>
+								{/each}
+							</div>
+						{/if}
 					</article>
 				{:else}
 					<p class="muted">
@@ -87,7 +105,7 @@
 					</p>
 				{/each}
 			</div>
-			{#if page.hosts.length > 0}
+			{#if page.hosts.length > 0 && !page.hasMetrics}
 				<p class="muted beszel">CPU, mémoire et disque arriveront avec le connecteur Beszel.</p>
 			{/if}
 		</section>
@@ -190,6 +208,30 @@
 	dd {
 		margin: 0;
 		overflow-wrap: anywhere;
+		text-align: right;
+	}
+	.metrics {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 8px 12px;
+		padding-top: 6px;
+	}
+	.bar {
+		height: 6px;
+		overflow: hidden;
+		border-radius: 99px;
+		background: rgba(255, 255, 255, 0.12);
+	}
+	.bar span {
+		display: block;
+		height: 100%;
+		background: var(--status-online);
+	}
+	.bar span.warn {
+		background: var(--status-degraded);
+	}
+	.pct {
 		text-align: right;
 	}
 	p {

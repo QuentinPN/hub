@@ -170,6 +170,11 @@ func (s *Store) InfraPage(ctx context.Context) (api.InfraPage, error) {
 	if err != nil {
 		return page, err
 	}
+	metrics, has, err := hostMetrics(p.all, p.conns)
+	if err != nil {
+		return page, err
+	}
+	page.HasMetrics = has
 	page.Total = len(p.all)
 	for _, e := range p.all {
 		if e.Status == domain.StatusDegraded || e.Status == domain.StatusDown {
@@ -186,10 +191,43 @@ func (s *Store) InfraPage(ctx context.Context) (api.InfraPage, error) {
 				group.Services = append(group.Services, e.ServiceSummary)
 			}
 		}
-		page.Hosts = append(page.Hosts, api.InfraHost{AgentHost: h, Services: len(group.Services)})
+		page.Hosts = append(page.Hosts, api.InfraHost{AgentHost: h, Services: len(group.Services), Metrics: metrics[h.ID]})
 		if len(group.Services) > 0 {
 			page.Groups = append(page.Groups, group)
 		}
 	}
 	return page, nil
+}
+
+// hostMetrics reads what a connection last said of each host. Only a fresh read counts: an old
+// CPU figure says nothing, and neither does a system that is down.
+func hostMetrics(all []entry, conns map[string]connection) (map[string][]api.HostMetric, bool, error) {
+	out := map[string][]api.HostMetric{}
+	has := false
+	for _, e := range all {
+		c, ok := conns[e.Slug]
+		if !ok || c.stateFor(e) != string(widgets.StateOK) {
+			continue
+		}
+		systems, ok, err := decode[[]widgets.System](c, widgets.WidgetSystems, widgets.WidgetSystems)
+		if err != nil {
+			return nil, false, err
+		}
+		if !ok {
+			continue
+		}
+		has = true
+		for option, name := range c.options {
+			host, isHost := strings.CutPrefix(option, widgets.HostOptionPrefix)
+			if !isHost || name == "" {
+				continue
+			}
+			i := slices.IndexFunc(systems, func(s widgets.System) bool { return s.Name == name })
+			if i >= 0 && systems[i].Status == "up" {
+				s := systems[i]
+				out[host] = []api.HostMetric{{Label: "CPU", Percent: s.CPU}, {Label: "Mémoire", Percent: s.Memory}, {Label: "Disque", Percent: s.Disk}}
+			}
+		}
+	}
+	return out, has, nil
 }

@@ -122,22 +122,32 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live 
 		return t, m, false
 	}
 	// key picks the key to use. The stored one only serves on the address it was tested on.
-	key := func(w http.ResponseWriter, r *http.Request, t WidgetTarget, typed string) (secrets.Value, bool) {
-		typed = strings.TrimSpace(typed)
+	key := func(w http.ResponseWriter, r *http.Request, t WidgetTarget, m widgets.Manifest, typed, identity string) (secrets.Value, bool) {
+		identity = strings.TrimSpace(identity)
+		missing := "saisis la clé d'API"
+		if m.Auth == widgets.AuthPassword {
+			missing = "saisis l'identifiant et le mot de passe"
+		}
+		if m.Auth != widgets.AuthPassword {
+			typed = strings.TrimSpace(typed)
+		}
 		if typed != "" {
-			if !validKey(typed) {
-				writeError(w, http.StatusBadRequest, "clé illisible")
+			if !validKey(typed) || !validKey(identity) && m.Auth == widgets.AuthPassword {
+				writeError(w, http.StatusBadRequest, "saisis l'identifiant et le mot de passe")
 				return secrets.Value{}, false
+			}
+			if m.Auth == widgets.AuthPassword {
+				typed = widgets.JoinCredentials(identity, typed)
 			}
 			return secrets.NewValue(typed), true
 		}
-		if t.ConnectedURL == "" || t.ConnectedURL != t.URL {
-			writeError(w, http.StatusBadRequest, "saisis la clé d'API")
+		if t.ConnectedURL == "" || t.ConnectedURL != t.URL || identity != "" {
+			writeError(w, http.StatusBadRequest, missing)
 			return secrets.Value{}, false
 		}
 		stored, err := keys.Get(r.Context(), widgets.KeyName(r.PathValue("slug")))
 		if errors.Is(err, secrets.ErrNotFound) {
-			writeError(w, http.StatusBadRequest, "saisis la clé d'API")
+			writeError(w, http.StatusBadRequest, missing)
 			return secrets.Value{}, false
 		}
 		if err != nil {
@@ -145,6 +155,37 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live 
 			return secrets.Value{}, false
 		}
 		return stored, true
+	}
+	// offered lists what the panel can set: the connector's options, plus which system each
+	// Hub host is for a connector that asks, the system named alike first.
+	offered := func(ctx context.Context, m widgets.Manifest, probe widgets.Probe) ([]widgets.Option, error) {
+		options := probe.Options
+		hosts, ok := store.(HostReader)
+		if !m.MapHosts || !ok {
+			return options, nil
+		}
+		list, err := hosts.AgentHosts(ctx, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		for _, h := range list {
+			if h.LastSeenAt == nil {
+				continue
+			}
+			choices := []widgets.Choice{}
+			match := widgets.MatchSystem(probe.Systems, h.ID, h.Name)
+			if match != "" {
+				choices = append(choices, widgets.Choice{Value: match, Label: match})
+			}
+			choices = append(choices, widgets.Choice{Value: "", Label: "Aucun"})
+			for _, name := range probe.Systems {
+				if name != match {
+					choices = append(choices, widgets.Choice{Value: name, Label: name})
+				}
+			}
+			options = append(options, widgets.Option{ID: widgets.HostOptionPrefix + h.ID, Label: "Système de " + h.Name, Choices: choices})
+		}
+		return options, nil
 	}
 
 	mux.HandleFunc("GET /api/v1/events", func(w http.ResponseWriter, r *http.Request) {
@@ -181,15 +222,15 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live 
 	})
 
 	mux.HandleFunc("POST /api/v1/services/{slug}/connection/test", func(w http.ResponseWriter, r *http.Request) {
-		var body struct{ APIKey string }
+		var body struct{ APIKey, Identity string }
 		if !decodeJSON(w, r, &body) {
 			return
 		}
-		t, _, ok := target(w, r)
+		t, manifest, ok := target(w, r)
 		if !ok {
 			return
 		}
-		value, ok := key(w, r, t, body.APIKey)
+		value, ok := key(w, r, t, manifest, body.APIKey, body.Identity)
 		if !ok {
 			return
 		}
@@ -197,7 +238,12 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live 
 		probe, state := widgets.TestKey(r.Context(), widgets.Target{Kind: t.Kind, URL: t.URL, Pinned: t.Pinned}, value)
 		out := WidgetTest{Result: state, LatencyMs: int(time.Since(start).Milliseconds())}
 		if state == widgets.StateOK {
-			out.Note, out.Options = probe.Note, probe.Options
+			options, err := offered(r.Context(), manifest, probe)
+			if err != nil {
+				internalError(w, r, err)
+				return
+			}
+			out.Note, out.Options = probe.Note, options
 		}
 		writeJSON(w, http.StatusOK, out)
 	})
@@ -215,7 +261,7 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live 
 			writeError(w, http.StatusBadRequest, msg)
 			return
 		}
-		value, ok := key(w, r, t, body.APIKey)
+		value, ok := key(w, r, t, manifest, body.APIKey, body.Identity)
 		if !ok {
 			return
 		}
@@ -226,18 +272,27 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live 
 			writeJSON(w, http.StatusOK, WidgetSaved{Result: state})
 			return
 		}
-		options := allowedOptions(body.Options, probe.Options)
+		choices, err := offered(r.Context(), manifest, probe)
+		if err != nil {
+			internalError(w, r, err)
+			return
+		}
+		options := allowedOptions(body.Options, choices)
 		data, state := widgets.Read(r.Context(), where, value, options, body.Widgets)
 		slug := r.PathValue("slug")
 		hint := t.KeyHint
-		if strings.TrimSpace(body.APIKey) != "" {
+		if body.APIKey != "" && strings.TrimSpace(body.APIKey+body.Identity) != "" {
 			if err := keys.Put(r.Context(), widgets.KeyName(slug), value); err != nil {
 				internalError(w, r, err)
 				return
 			}
 			hint = widgets.KeyHint(value.Reveal())
+			// An account is not a secret to its owner, and tells which one this is.
+			if manifest.Auth == widgets.AuthPassword {
+				hint = strings.TrimSpace(body.Identity)
+			}
 		}
-		err := editor.SaveWidgetConnection(r.Context(), slug, NewConnection{
+		err = editor.SaveWidgetConnection(r.Context(), slug, NewConnection{
 			Kind: t.Kind, URL: t.URL, KeyHint: hint, Options: options, Enabled: body.Widgets,
 			RefreshSeconds: body.RefreshSeconds, State: state, Data: data, At: time.Now(),
 		})

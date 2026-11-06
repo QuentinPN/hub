@@ -26,7 +26,9 @@
 	const initial = () => service.widget?.connection;
 	const choices = () => service.widget?.refreshChoices ?? [];
 	const offered = () => manifest.widgets.map((w) => w.id);
+	const needsAccount = () => manifest.auth === 'password';
 	let apiKey = $state('');
+	let identity = $state('');
 	let enabled = $state<string[]>(initial()?.enabled ?? offered());
 	let refresh = $state(initial()?.refreshSeconds ?? choices()[0] ?? 30);
 	let options = $state<Record<string, string>>({ ...(initial()?.options ?? {}) });
@@ -58,7 +60,7 @@
 		error = '';
 		test = null;
 		try {
-			test = await testWidgetKey(fetch, service.slug, apiKey);
+			test = await testWidgetKey(fetch, service.slug, apiKey, identity);
 			for (const o of test.options ?? []) {
 				if (!o.choices.some((c) => c.value === options[o.id]) && o.choices[0]) {
 					options[o.id] = o.choices[0].value;
@@ -77,6 +79,7 @@
 		try {
 			const res = await saveWidgetConnection(fetch, service.slug, {
 				apiKey,
+				...(identity ? { identity } : {}),
 				widgets: enabled,
 				refreshSeconds: refresh,
 				options
@@ -139,15 +142,32 @@
 			</header>
 
 			<div class="key">
+				{#if needsAccount()}
+					<label class="account">
+						E-mail du compte
+						<input
+							bind:value={identity}
+							type="text"
+							autocomplete="off"
+							spellcheck="false"
+							placeholder={initial()?.keyHint ?? ''}
+							oninput={() => (test = null)}
+						/>
+					</label>
+				{/if}
 				<label>
-					Clé d’API
+					{needsAccount() ? 'Mot de passe' : 'Clé d’API'}
 					<input
 						bind:value={apiKey}
 						type="password"
 						autocomplete="off"
 						spellcheck="false"
-						placeholder={canReuseKey && initial()?.keyHint
-							? `•••• ${initial()?.keyHint}, laisse vide pour la garder`
+						placeholder={canReuseKey
+							? needsAccount()
+								? 'Laisse vide pour le garder'
+								: initial()?.keyHint
+									? `•••• ${initial()?.keyHint}, laisse vide pour la garder`
+									: ''
 							: ''}
 						aria-describedby="key-help"
 						oninput={() => (test = null)}
@@ -156,10 +176,12 @@
 				<button
 					type="button"
 					class="btn"
-					disabled={busy || (!apiKey.trim() && !canReuseKey)}
+					disabled={busy ||
+						(!apiKey.trim() && !canReuseKey) ||
+						(needsAccount() && !!apiKey && !identity.trim())}
 					onclick={runTest}
 				>
-					{busy && !test ? 'Test…' : 'Tester la clé'}
+					{busy && !test ? 'Test…' : needsAccount() ? 'Tester le compte' : 'Tester la clé'}
 				</button>
 				<span id="key-help" class="muted help">{manifest.keyHelp}</span>
 			</div>
@@ -169,7 +191,7 @@
 					<div class="result good">
 						<span class="dot"></span>
 						<p>
-							<strong>Clé acceptée</strong>
+							<strong>{needsAccount() ? 'Compte accepté' : 'Clé acceptée'}</strong>
 							<span class="muted">{test.note}, réponse en {test.latencyMs} ms.</span>
 						</p>
 					</div>
@@ -224,7 +246,11 @@
 			<footer>
 				{#if initial()}
 					<button type="button" class="link" disabled={busy} onclick={remove}>
-						{confirmRemove ? 'Confirmer : effacer la clé' : 'Retirer la connexion'}
+						{confirmRemove
+							? needsAccount()
+								? 'Confirmer : effacer le mot de passe'
+								: 'Confirmer : effacer la clé'
+							: 'Retirer la connexion'}
 					</button>
 				{/if}
 				<span class="buttons">
@@ -252,15 +278,20 @@
 					{/each}
 				</code>
 				<span class="muted"
-					>Aucune écriture. Une clé peut sans doute faire plus : c’est Hub qui se limite.</span
+					>{needsAccount()
+						? 'Aucune écriture : c’est Hub qui se limite, et le rôle readonly le borne aussi.'
+						: 'Aucune écriture. Une clé peut sans doute faire plus : c’est Hub qui se limite.'}</span
 				>
 			</div>
 			<div>
-				<strong>Garder la clé à l’abri</strong>
-				<span class="muted"
-					>Chiffrée en base, jamais renvoyée au navigateur. Tu ne verras plus que ses 4 derniers
-					caractères.</span
+				<strong
+					>{needsAccount() ? 'Garder le mot de passe à l’abri' : 'Garder la clé à l’abri'}</strong
 				>
+				<span class="muted">
+					{needsAccount()
+						? 'Chiffré en base, jamais renvoyé au navigateur. Seul l’e-mail du compte reste visible.'
+						: 'Chiffrée en base, jamais renvoyée au navigateur. Tu ne verras plus que ses 4 derniers caractères.'}
+				</span>
 			</div>
 			<div>
 				<strong>Parler depuis le serveur</strong>
@@ -272,8 +303,9 @@
 			<div>
 				<strong>Remplacer ou retirer</strong>
 				<span class="muted"
-					>Une nouvelle clé n’est gardée qu’après un test réussi. Retirer la connexion efface la
-					clé.</span
+					>{needsAccount()
+						? 'Un nouveau mot de passe n’est gardé qu’après un test réussi. Retirer la connexion l’efface.'
+						: 'Une nouvelle clé n’est gardée qu’après un test réussi. Retirer la connexion efface la clé.'}</span
 				>
 			</div>
 		</aside>
@@ -378,6 +410,9 @@
 		align-items: end;
 		gap: 7px 12px;
 	}
+	.account {
+		grid-column: 1 / -1;
+	}
 	.help {
 		grid-column: 1 / -1;
 		font-size: 14px;
@@ -391,6 +426,7 @@
 		font-weight: 500;
 	}
 	input[type='password'],
+	input[type='text'],
 	select {
 		height: 50px;
 		min-width: 0;

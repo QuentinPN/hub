@@ -173,9 +173,12 @@ export interface DownloadsPage extends SectionBase {
 
 export interface InfraHost extends AgentHost {
 	services: number;
+	metrics?: HostMetric[] | null;
 }
 
 export interface InfraPage {
+	/** Une connexion peut donner CPU, mémoire et disque. */
+	hasMetrics?: boolean;
 	hosts: InfraHost[];
 	total: number;
 	watch: ServiceSummary[];
@@ -192,6 +195,8 @@ export type WidgetState = WidgetReadState | 'stopped' | 'address_changed';
 export interface WidgetManifest {
 	kind: string;
 	name: string;
+	/** « password » : un compte plutôt qu'une clé. */
+	auth?: 'password';
 	keyHelp: string;
 	/** Les requêtes du connecteur, et rien d'autre. */
 	reads: string[];
@@ -228,6 +233,7 @@ export interface WidgetConnection {
 			available: number;
 		};
 		indexers?: { enabled: number; failing: number };
+		systems?: { name: string; status: string; cpu: number; memory: number; disk: number }[];
 		transfer?: { downSpeed: number; upSpeed: number; downloading: number; connection: string };
 	};
 }
@@ -272,6 +278,8 @@ export interface WidgetTest {
 export interface WidgetSave {
 	/** Vide : la clé enregistrée reste. */
 	apiKey: string;
+	/** Avec le mot de passe, pour un service qui demande un compte. */
+	identity?: string;
 	widgets: string[];
 	refreshSeconds: number;
 	options: Record<string, string>;

@@ -158,7 +158,7 @@ func TestRowsListWhatHubKnowsFirstTheActionable(t *testing.T) {
 	for _, r := range rows {
 		got = append(got, r.Slug+":"+string(r.Support))
 	}
-	if want := []string{"emby:ready", "prowlarr:ready", "sonarr:ready", "beszel:planned", "dockhand:link"}; !slices.Equal(got, want) {
+	if want := []string{"beszel:ready", "emby:ready", "prowlarr:ready", "sonarr:ready", "dockhand:link"}; !slices.Equal(got, want) {
 		t.Errorf("%v, want %v", got, want)
 	}
 }

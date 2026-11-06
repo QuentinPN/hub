@@ -60,7 +60,8 @@ type DownloadsPage struct {
 // InfraHost is a host with the number of services it runs.
 type InfraHost struct {
 	AgentHost
-	Services int `json:"services"`
+	Services int          `json:"services"`
+	Metrics  []HostMetric `json:"metrics"`
 }
 
 // InfraGroup lists a host's services.
@@ -72,10 +73,12 @@ type InfraGroup struct {
 
 // InfraPage is the state of the machines and of what they run.
 type InfraPage struct {
-	Hosts  []InfraHost      `json:"hosts"`
-	Total  int              `json:"total"`
-	Watch  []ServiceSummary `json:"watch"`
-	Groups []InfraGroup     `json:"groups"`
+	// HasMetrics says a connection could give CPU, memory and disk.
+	HasMetrics bool             `json:"hasMetrics"`
+	Hosts      []InfraHost      `json:"hosts"`
+	Total      int              `json:"total"`
+	Watch      []ServiceSummary `json:"watch"`
+	Groups     []InfraGroup     `json:"groups"`
 }
 
 func registerSections(mux *http.ServeMux, sections SectionReader) {

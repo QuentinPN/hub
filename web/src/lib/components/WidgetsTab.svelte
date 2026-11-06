@@ -152,6 +152,25 @@
 			{/if}
 		</div>
 		<div class="column side">
+			{#if conn.data.systems}
+				<section class="card" aria-labelledby="w-systems">
+					<h2 id="w-systems">Systèmes</h2>
+					{#each conn.data.systems as sys (sys.name)}
+						<div class="system">
+							<strong>{sys.name}</strong>
+							{#if sys.status === 'up'}
+								<span class="muted tabular"
+									>CPU {sys.cpu} % · Mémoire {sys.memory} % · Disque {sys.disk} %</span
+								>
+							{:else}
+								<span class="muted">Hors ligne</span>
+							{/if}
+						</div>
+					{:else}
+						<p class="muted">Aucun système visible : partage-les avec ce compte dans Beszel.</p>
+					{/each}
+				</section>
+			{/if}
 			{#if conn.data.requests}
 				<section class="card" aria-labelledby="w-requests">
 					<h2 id="w-requests">Demandes</h2>
@@ -225,8 +244,13 @@
 					<dt class="muted">État</dt>
 					<dd>{view.label}</dd>
 					{#if conn.keyHint}
-						<dt class="muted">Clé d’API</dt>
-						<dd>•••• {conn.keyHint}</dd>
+						{#if widget.manifest?.auth === 'password'}
+							<dt class="muted">Compte</dt>
+							<dd>{conn.keyHint}</dd>
+						{:else}
+							<dt class="muted">Clé d’API</dt>
+							<dd>•••• {conn.keyHint}</dd>
+						{/if}
 					{/if}
 					<dt class="muted">Rafraîchi</dt>
 					<dd>{refreshLabel(conn.refreshSeconds).toLowerCase()}</dd>
@@ -296,6 +320,17 @@
 	}
 	.age {
 		font-size: 14px;
+	}
+	.system {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+		padding-top: 10px;
+		border-top: 1px solid var(--border-1);
+	}
+	.system strong {
+		font-weight: 600;
+		overflow-wrap: anywhere;
 	}
 	dl {
 		display: grid;
