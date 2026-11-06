@@ -1,0 +1,41 @@
+[
+	{
+		"slug": "emby",
+		"name": "Emby",
+		"monogram": "E",
+		"icon": "emby",
+		"color": "#2e7d4f",
+		"hostId": "mini-pc",
+		"hasUrl": true,
+		"support": "ready",
+		"state": "ok",
+		"dataAt": "2026-11-06T18:00:00Z",
+		"failingSince": null
+	},
+	{
+		"slug": "sonarr",
+		"name": "Sonarr",
+		"monogram": "S",
+		"icon": "sonarr",
+		"color": "#1f6fb2",
+		"hostId": "mini-pc",
+		"hasUrl": false,
+		"support": "planned",
+		"state": "",
+		"dataAt": null,
+		"failingSince": null
+	},
+	{
+		"slug": "dockhand",
+		"name": "Dockhand",
+		"monogram": "D",
+		"icon": "dockhand",
+		"color": "#3a5f8a",
+		"hostId": "mini-pc",
+		"hasUrl": true,
+		"support": "link",
+		"state": "",
+		"dataAt": null,
+		"failingSince": null
+	}
+]

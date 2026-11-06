@@ -6,6 +6,7 @@
 	import PasswordForm from '#lib/components/PasswordForm.svelte';
 	import HostsPanel from '#lib/components/HostsPanel.svelte';
 	import SessionsList from '#lib/components/SessionsList.svelte';
+	import WidgetRowsPanel from '#lib/components/WidgetRowsPanel.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
 	import type { PageProps } from './$types';
 
@@ -13,13 +14,12 @@
 
 	let sessionsVersion = $state(0);
 
-	// Seules « Hôtes et agents », « Découverte » et « Sécurité et accès » ont du contenu ; le
-	// reste arrive par jalons.
+	// Les sections sans identifiant n'ont pas encore de contenu : elles arrivent par jalons.
 	const sections = [
 		{ label: 'Général', id: null },
 		{ label: 'Hôtes et agents', id: 'hosts' },
 		{ label: 'Découverte', id: 'discovery' },
-		{ label: 'Widgets et connexions', id: null },
+		{ label: 'Widgets et connexions', id: 'widgets' },
 		{ label: 'Notifications', id: null },
 		{ label: 'Apparence', id: null },
 		{ label: 'Sécurité et accès', id: 'security' },
@@ -74,6 +74,10 @@
 					onretry={() => invalidateAll()}
 				/>
 			{/await}
+
+			<section class="card" id="widgets" aria-labelledby="widgets-title">
+				<WidgetRowsPanel />
+			</section>
 
 			<section class="card" id="security" aria-labelledby="security-title">
 				<h2 id="security-title">Sécurité et accès</h2>

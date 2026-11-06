@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -74,40 +75,11 @@ func Check(ctx context.Context, raw, pinned string) Result {
 	}
 	var mu sync.Mutex
 	var seen Result
-	transport := &http.Transport{
-		DisableKeepAlives: true,
-		TLSClientConfig: &tls.Config{
-			// Verified below: the standard check has no room for an accepted certificate.
-			InsecureSkipVerify: true, //nolint:gosec
-			VerifyConnection: func(cs tls.ConnectionState) error {
-				leaf := cs.PeerCertificates[0]
-				sum := sha256.Sum256(leaf.Raw)
-				fingerprint := hex.EncodeToString(sum[:])
-				if pinned != "" && fingerprint == pinned {
-					return nil
-				}
-				intermediates := x509.NewCertPool()
-				for _, c := range cs.PeerCertificates[1:] {
-					intermediates.AddCert(c)
-				}
-				_, err := leaf.Verify(x509.VerifyOptions{DNSName: u.Hostname(), Intermediates: intermediates})
-				if err != nil {
-					mu.Lock()
-					seen = Result{Kind: KindCert, CertSHA256: fingerprint, CertName: certName(leaf)}
-					mu.Unlock()
-				}
-				return err
-			},
-		},
-	}
-	defer transport.CloseIdleConnections()
-	client := http.Client{
-		Transport: transport,
-		Timeout:   Timeout,
-		CheckRedirect: func(*http.Request, []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
+	client := newClient(u.Hostname(), pinned, func(r Result) {
+		mu.Lock()
+		seen = r
+		mu.Unlock()
+	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
 	if err != nil {
 		return Result{Kind: KindUnreachable}
@@ -133,6 +105,52 @@ func Check(ctx context.Context, raw, pinned string) Result {
 		r.Kind = KindError
 	}
 	return r
+}
+
+// Client returns a client for one address, with the same rules as Check: no redirect, so a
+// credential never reaches another host, and the same certificate verification. rejected
+// tells whether a request failed on the certificate.
+func Client(raw, pinned string) (client *http.Client, rejected func() bool, err error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return nil, nil, err
+	}
+	var refused atomic.Bool
+	client = newClient(u.Hostname(), pinned, func(Result) { refused.Store(true) })
+	return client, refused.Load, nil
+}
+
+func newClient(host, pinned string, onReject func(Result)) *http.Client {
+	return &http.Client{
+		Transport: &http.Transport{
+			DisableKeepAlives: true,
+			TLSClientConfig: &tls.Config{
+				// Verified below: the standard check has no room for an accepted certificate.
+				InsecureSkipVerify: true, //nolint:gosec
+				VerifyConnection: func(cs tls.ConnectionState) error {
+					leaf := cs.PeerCertificates[0]
+					sum := sha256.Sum256(leaf.Raw)
+					fingerprint := hex.EncodeToString(sum[:])
+					if pinned != "" && fingerprint == pinned {
+						return nil
+					}
+					intermediates := x509.NewCertPool()
+					for _, c := range cs.PeerCertificates[1:] {
+						intermediates.AddCert(c)
+					}
+					_, err := leaf.Verify(x509.VerifyOptions{DNSName: host, Intermediates: intermediates})
+					if err != nil {
+						onReject(Result{Kind: KindCert, CertSHA256: fingerprint, CertName: certName(leaf)})
+					}
+					return err
+				},
+			},
+		},
+		Timeout: Timeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 }
 
 func certName(c *x509.Certificate) string {

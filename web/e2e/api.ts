@@ -12,6 +12,7 @@ const routes: Record<string, string> = {
 	'services/emby': 'services-emby',
 	'services/prowlarr': 'services-prowlarr',
 	settings: 'settings',
+	widgets: 'widgets',
 	'auth/sessions': 'auth-sessions',
 	'auth/passkeys': 'auth-passkeys',
 	hosts: 'hosts',

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { afterNavigate, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { ApiError, setFavorite } from '#lib/api/client.ts';
 	import type { ServiceDetail } from '#lib/api/types.ts';
 	import EditServiceDialog from '#lib/components/EditServiceDialog.svelte';
@@ -12,13 +13,15 @@
 	import Skeleton from '#lib/components/Skeleton.svelte';
 	import StatusDot from '#lib/components/StatusDot.svelte';
 	import UrlCard from '#lib/components/UrlCard.svelte';
+	import WidgetsTab from '#lib/components/WidgetsTab.svelte';
 	import { statusStyle } from '#lib/status.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-	// Les sous-onglets autres qu'Aperçu arrivent avec la découverte réelle (phase 2).
-	const subtabs = ['Aperçu', 'Widgets', 'Conteneurs', 'Historique'];
+	// Conteneurs et Historique arrivent par jalons.
+	const later = ['Conteneurs', 'Historique'];
+	const onWidgets = $derived(page.url.hash === '#widgets');
 
 	// Le lien retour ramène d'où l'on vient : le catalogue ou, par défaut, l'accueil.
 	let fromCatalogue = $state(false);
@@ -138,31 +141,42 @@
 
 	<div class="content">
 		<nav class="subtabs" aria-label="Sections du service">
-			{#each subtabs as t, i (t)}
-				<span
-					class="subtab"
-					class:on={i === 0}
-					aria-current={i === 0 ? 'page' : undefined}
-					aria-disabled={i === 0 ? undefined : 'true'}>{t}</span
-				>
+			<a
+				class="subtab"
+				class:on={!onWidgets}
+				href="#apercu"
+				aria-current={onWidgets ? undefined : 'page'}>Aperçu</a
+			>
+			<a
+				class="subtab"
+				class:on={onWidgets}
+				href="#widgets"
+				aria-current={onWidgets ? 'page' : undefined}>Widgets</a
+			>
+			{#each later as t (t)}
+				<span class="subtab" aria-disabled="true">{t}</span>
 			{/each}
 		</nav>
-		{#if svc.upcoming.length > 0}
-			<Shelf title="Cette semaine" id="week" focusable>
-				{#each svc.upcoming as item (item.title + item.detail)}
-					<PosterCard {item} />
-				{/each}
-			</Shelf>
-		{/if}
-		<p class="action-error" role="alert">{actionError}</p>
-		<div class="cards">
-			{#if svc.discovered}
-				<UrlCard service={svc} onchange={(s) => (fresh = s)} />
+		{#if onWidgets}
+			<WidgetsTab service={svc} onchange={(s) => (fresh = s)} />
+		{:else}
+			{#if svc.upcoming.length > 0}
+				<Shelf title="Cette semaine" id="week" focusable>
+					{#each svc.upcoming as item (item.title + item.detail)}
+						<PosterCard {item} />
+					{/each}
+				</Shelf>
 			{/if}
-			<InfoCard title="Identification" id="ident" rows={svc.identification} />
-			<InfoCard title="Conteneurs et accès" id="access" rows={svc.access} />
-			<InfoCard title="Connexion du widget" id="conn" rows={svc.connection} />
-		</div>
+			<p class="action-error" role="alert">{actionError}</p>
+			<div class="cards">
+				{#if svc.discovered}
+					<UrlCard service={svc} onchange={(s) => (fresh = s)} />
+				{/if}
+				<InfoCard title="Identification" id="ident" rows={svc.identification} />
+				<InfoCard title="Conteneurs et accès" id="access" rows={svc.access} />
+				<InfoCard title="Connexion du widget" id="conn" rows={svc.connection} />
+			</div>
+		{/if}
 	</div>
 	{#if editing}
 		<EditServiceDialog

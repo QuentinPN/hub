@@ -18,11 +18,11 @@
 [x] Catalogue et overrides manuels, URLs vérifiées (2026-11-06, maquette validée ; déployé sur le mini-PC le même jour)
 
 ## Phase 3 — Dashboard
-[ ] Widgets génériques, grille personnalisable, recherche, favoris
+[ ] Widgets génériques, grille personnalisable, recherche, favoris (recherche et favoris faits ; rangées personnalisables validées en maquette, pas encore codées)
 [ ] États loading/empty/error/offline, live updates
 
 ## Phase 4 — Integrations
-[ ] Emby, Sonarr, Radarr, qBittorrent
+[ ] Emby, Sonarr, Radarr, qBittorrent (socle et Emby faits le 2026-11-06, maquette validée, testés contre un faux Emby ; reste l'essai sur le vrai Emby et les trois autres)
 [ ] Autres connecteurs priorisés après inventaire réel
 
 ## Phase 5 — Hardening & release

@@ -15,7 +15,12 @@ test('le menu des sections reste accessible et mène à la section', async ({ pa
 	await expect(nav).toBeVisible();
 	// En mobile, seules les sections qui ont du contenu figurent dans la rangée de pilules.
 	const links = nav.getByRole('link');
-	await expect(links).toHaveText(['Hôtes et agents', 'Découverte', 'Sécurité et accès']);
+	await expect(links).toHaveText([
+		'Hôtes et agents',
+		'Découverte',
+		'Widgets et connexions',
+		'Sécurité et accès'
+	]);
 	if (testInfo.project.name === 'mobile') {
 		await expect(nav.getByText('Général')).toBeHidden();
 	}

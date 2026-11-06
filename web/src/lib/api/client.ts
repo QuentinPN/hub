@@ -12,7 +12,11 @@ import type {
 	ServiceSummary,
 	SessionInfo,
 	Settings,
-	UrlCheckResponse
+	UrlCheckResponse,
+	WidgetRow,
+	WidgetSave,
+	WidgetSaved,
+	WidgetTest
 } from './types';
 import { createPasskey, getPasskey, type PasskeyOptions } from './webauthn';
 
@@ -142,6 +146,18 @@ export const saveServiceUrl = (
 
 export const clearServiceUrl = (fetchFn: Fetch, slug: string) =>
 	sendService(fetchFn, 'DELETE', `${servicePath(slug)}/url`);
+
+export const getWidgetRows = (fetchFn: Fetch) => getJson<WidgetRow[]>(fetchFn, '/api/v1/widgets');
+
+/** Sans clé tapée, le serveur reprend la sienne, jamais renvoyée ici. */
+export const testWidgetKey = (fetchFn: Fetch, slug: string, apiKey: string) =>
+	postJson<WidgetTest>(fetchFn, `${servicePath(slug)}/connection/test`, { apiKey });
+
+export const saveWidgetConnection = (fetchFn: Fetch, slug: string, body: WidgetSave) =>
+	putJson<WidgetSaved>(fetchFn, `${servicePath(slug)}/connection`, body);
+
+export const deleteWidgetConnection = (fetchFn: Fetch, slug: string) =>
+	sendService(fetchFn, 'DELETE', `${servicePath(slug)}/connection`);
 
 export const getHiddenGroups = (fetchFn: Fetch) =>
 	getJson<HiddenGroup[]>(fetchFn, '/api/v1/hidden');

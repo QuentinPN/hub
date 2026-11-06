@@ -27,6 +27,7 @@ import (
 	"hub/server/internal/secrets"
 	"hub/server/internal/urlcheck"
 	"hub/server/internal/webui"
+	"hub/server/internal/widgets"
 )
 
 func main() {
@@ -108,9 +109,9 @@ func main() {
 		return
 	}
 
-	// No connector reads secrets yet; opening them now checks the key file at each start
-	// and finishes any rotation.
-	if _, err := openSecrets(ctx, os.Getenv("HUB_SECRET_KEY_FILE"), store); err != nil {
+	// Opening them checks the key file at each start and finishes any rotation.
+	secretStore, err := openSecrets(ctx, os.Getenv("HUB_SECRET_KEY_FILE"), store)
+	if err != nil {
 		slog.Error("startup", "err", err)
 		os.Exit(1)
 	}
@@ -158,11 +159,13 @@ func main() {
 
 	// Each address is requested once a minute, from here, to tell whether it still answers.
 	go urlcheck.Watch(ctx, store, time.Minute)
+	// Each connection is read at its own rate; this only looks for those due.
+	go widgets.Run(ctx, store, secretStore, 5*time.Second)
 
 	ui := webui.New()
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           api.NewHandler(store, authSvc, iconSvc, agentsUI, ui.Handler, ui.ScriptHashes),
+		Handler:           api.NewHandler(store, authSvc, iconSvc, agentsUI, secretStore, ui.Handler, ui.ScriptHashes),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

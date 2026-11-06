@@ -55,6 +55,8 @@ export interface Host {
 export interface Home {
 	summary: { online: number; total: number };
 	sessions: Session[];
+	/** Le service qui les fournit, dès qu'une vraie connexion les lit. */
+	sessionsSlug?: string;
 	favorites: ServiceSummary[];
 	/** Tous les services tant qu'aucun favori n'est choisi, sinon vide. */
 	services: ServiceSummary[];
@@ -84,6 +86,96 @@ export interface ServiceDetail extends ServiceSummary {
 	project?: ProjectRef;
 	links?: ProjectRef[];
 	linkable?: ProjectRef[];
+	widget?: WidgetInfo;
+}
+
+export type WidgetSupport = 'ready' | 'planned' | 'link';
+
+export type WidgetReadState = 'ok' | 'auth' | 'cert' | 'unreachable' | 'unexpected';
+
+/** Les deux derniers sont décidés par le serveur d'après le service tel qu'il est maintenant. */
+export type WidgetState = WidgetReadState | 'stopped' | 'address_changed';
+
+export interface WidgetManifest {
+	kind: string;
+	name: string;
+	keyHelp: string;
+	/** Les requêtes du connecteur, et rien d'autre. */
+	reads: string[];
+	widgets: { id: string; label: string; where: string }[];
+}
+
+export interface WidgetOption {
+	id: string;
+	label: string;
+	choices: { value: string; label: string }[];
+}
+
+/** Jamais la clé : seulement ses derniers caractères. */
+export interface WidgetConnection {
+	state: WidgetState;
+	keyHint: string;
+	refreshSeconds: number;
+	enabled: string[];
+	options: Record<string, string>;
+	dataAt: string | null;
+	checkedAt: string | null;
+	failingSince: string | null;
+	data: {
+		sessions?: Session[];
+		latest?: MediaItem[];
+		library?: { movies: number; series: number; episodes: number };
+	};
+}
+
+export interface MediaItem {
+	title: string;
+	detail: string;
+	kind: 'episode' | 'movie';
+	addedAt: string;
+}
+
+export interface WidgetInfo {
+	support: WidgetSupport;
+	manifest?: WidgetManifest;
+	refreshChoices?: number[];
+	connection?: WidgetConnection;
+}
+
+export interface WidgetRow {
+	slug: string;
+	name: string;
+	monogram: string;
+	icon: string | null;
+	color: string;
+	hostId: string;
+	hasUrl: boolean;
+	support: WidgetSupport;
+	/** Vide tant que le service n'est pas connecté. */
+	state: WidgetState | '';
+	dataAt: string | null;
+	failingSince: string | null;
+}
+
+export interface WidgetTest {
+	result: WidgetReadState;
+	latencyMs: number;
+	note?: string;
+	options?: WidgetOption[];
+}
+
+export interface WidgetSave {
+	/** Vide : la clé enregistrée reste. */
+	apiKey: string;
+	widgets: string[];
+	refreshSeconds: number;
+	options: Record<string, string>;
+}
+
+export interface WidgetSaved {
+	saved: boolean;
+	result: WidgetReadState;
+	service?: ServiceDetail;
 }
 
 export type UrlResult = 'ok' | 'auth' | 'cert' | 'unreachable' | 'error';

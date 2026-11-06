@@ -1,9 +1,11 @@
 package api
 
 import (
+	"encoding/json"
 	"time"
 
 	"hub/server/internal/domain"
+	"hub/server/internal/widgets"
 )
 
 // DTOs sent to the browser. They mirror web/src/lib/api/types.ts and must never carry a
@@ -64,9 +66,11 @@ type Summary struct {
 }
 
 type Home struct {
-	Summary   Summary          `json:"summary"`
-	Sessions  []Session        `json:"sessions"`
-	Favorites []ServiceSummary `json:"favorites"`
+	Summary  Summary   `json:"summary"`
+	Sessions []Session `json:"sessions"`
+	// SessionsSlug is the service they come from, once a real connection reads them.
+	SessionsSlug string           `json:"sessionsSlug,omitempty"`
+	Favorites    []ServiceSummary `json:"favorites"`
 	// Services is every service while no favorite is chosen, empty otherwise.
 	Services []ServiceSummary `json:"services"`
 	Upcoming []UpcomingItem   `json:"upcoming"`
@@ -199,6 +203,75 @@ type ServiceDetail struct {
 	Project    *ProjectRef  `json:"project,omitempty"`
 	Links      []ProjectRef `json:"links,omitempty"`
 	Linkable   []ProjectRef `json:"linkable,omitempty"`
+	Widget     *WidgetInfo  `json:"widget,omitempty"`
+}
+
+// Widget states the UI words itself: those of the last read, plus two it decides from the
+// service as it is now.
+const (
+	WidgetStopped        = "stopped"         // its containers are stopped: its API is not asked
+	WidgetAddressChanged = "address_changed" // the key was tested on another address: it stays home
+)
+
+// WidgetInfo is what a service offers as widgets, and its connection if there is one.
+type WidgetInfo struct {
+	Support        widgets.Support   `json:"support"`
+	Manifest       *widgets.Manifest `json:"manifest,omitempty"`
+	RefreshChoices []int             `json:"refreshChoices,omitempty"`
+	Connection     *WidgetConnection `json:"connection,omitempty"`
+}
+
+// WidgetConnection never carries the key: only its last characters.
+type WidgetConnection struct {
+	State          string            `json:"state"`
+	KeyHint        string            `json:"keyHint"`
+	RefreshSeconds int               `json:"refreshSeconds"`
+	Enabled        []string          `json:"enabled"`
+	Options        map[string]string `json:"options"`
+	DataAt         *time.Time        `json:"dataAt"`
+	CheckedAt      *time.Time        `json:"checkedAt"`
+	FailingSince   *time.Time        `json:"failingSince"`
+	// Data holds the last successful read, widget by widget, while it still means something.
+	Data map[string]json.RawMessage `json:"data"`
+}
+
+// WidgetRow is a line of the settings' "Widgets et connexions".
+type WidgetRow struct {
+	Slug     string          `json:"slug"`
+	Name     string          `json:"name"`
+	Monogram string          `json:"monogram"`
+	Icon     *string         `json:"icon"`
+	Color    string          `json:"color"`
+	HostID   string          `json:"hostId"`
+	HasURL   bool            `json:"hasUrl"`
+	Support  widgets.Support `json:"support"`
+	// State is empty while not connected.
+	State        string     `json:"state"`
+	DataAt       *time.Time `json:"dataAt"`
+	FailingSince *time.Time `json:"failingSince"`
+}
+
+// WidgetTest answers a key test. The options only exist for a key that works.
+type WidgetTest struct {
+	Result    widgets.State    `json:"result"`
+	LatencyMs int              `json:"latencyMs"`
+	Note      string           `json:"note,omitempty"`
+	Options   []widgets.Option `json:"options,omitempty"`
+}
+
+// WidgetSave is what the connection panel sends. An empty key keeps the stored one.
+type WidgetSave struct {
+	APIKey         string            `json:"apiKey"`
+	Widgets        []string          `json:"widgets"`
+	RefreshSeconds int               `json:"refreshSeconds"`
+	Options        map[string]string `json:"options"`
+}
+
+// WidgetSaved answers a save: a refused key leaves everything as it was.
+type WidgetSaved struct {
+	Saved   bool           `json:"saved"`
+	Result  widgets.State  `json:"result"`
+	Service *ServiceDetail `json:"service,omitempty"`
 }
 
 // URLCheck is the last verdict on a service's address.

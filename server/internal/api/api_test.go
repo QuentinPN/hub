@@ -39,6 +39,11 @@ func newEnv(t *testing.T, store api.Store) *env {
 // newEnvWithAgents is newEnv with the agent listener on (agents not nil).
 func newEnvWithAgents(t *testing.T, store api.Store, agents *api.Agents) *env {
 	t.Helper()
+	return newFullEnv(t, store, agents, nil)
+}
+
+func newFullEnv(t *testing.T, store api.Store, agents *api.Agents, keys api.WidgetKeys) *env {
+	t.Helper()
 	repo := authtest.New()
 	svc, err := auth.New(repo)
 	if err != nil {
@@ -49,7 +54,7 @@ func newEnvWithAgents(t *testing.T, store api.Store, agents *api.Agents) *env {
 		t.Fatal(err)
 	}
 	ui := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ui")) })
-	srv := httptest.NewTLSServer(api.NewHandler(store, svc, icons.NewService(noCache{}, nil), agents, ui, []string{"sha256-abc"}))
+	srv := httptest.NewTLSServer(api.NewHandler(store, svc, icons.NewService(noCache{}, nil), agents, keys, ui, []string{"sha256-abc"}))
 	t.Cleanup(srv.Close)
 
 	e := &env{srv: srv, repo: repo, svc: svc, secret: code}

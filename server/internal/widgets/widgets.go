@@ -1,0 +1,363 @@
+// Package widgets reads the services' own APIs, from the server. A connector only reads, a
+// key never leaves the server, and what reaches the browser is what the connector kept.
+// One failing connection never holds up another (WIDGETS.md).
+package widgets
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"strings"
+	"sync"
+	"time"
+
+	"hub/server/internal/secrets"
+	"hub/server/internal/urlcheck"
+)
+
+// State is the outcome of the last read.
+type State string
+
+const (
+	StateOK          State = "ok"
+	StateAuth        State = "auth"        // the key is refused: no retry until it changes
+	StateCert        State = "cert"        // the certificate is no longer the accepted one
+	StateUnreachable State = "unreachable" // no answer, or a 5xx: retried, further apart
+	StateUnexpected  State = "unexpected"  // an answer in a format the connector does not know
+)
+
+const (
+	// maxBody bounds an answer; beyond it the JSON is cut and reads as unexpected.
+	maxBody = 4 << 20
+	// fetchTimeout bounds a whole read, several requests included.
+	fetchTimeout = 20 * time.Second
+	maxDelay     = 10 * time.Minute
+	concurrency  = 4
+)
+
+// RefreshChoices are the rates the user can pick, in seconds.
+var RefreshChoices = []int{30, 60, 300}
+
+// Widget is what a connection can show.
+type Widget struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+	// Where says where it appears, for the connection panel.
+	Where string `json:"where"`
+}
+
+// Manifest describes a connector to the connection panel.
+type Manifest struct {
+	Kind    string `json:"kind"`
+	Name    string `json:"name"`
+	KeyHelp string `json:"keyHelp"`
+	// Reads lists the requests the connector makes: nothing else is ever sent.
+	Reads   []string `json:"reads"`
+	Widgets []Widget `json:"widgets"`
+}
+
+// Choice is one value of an Option.
+type Choice struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+}
+
+// Option is a setting only the service itself can list, offered once the key works.
+type Option struct {
+	ID      string   `json:"id"`
+	Label   string   `json:"label"`
+	Choices []Choice `json:"choices"`
+}
+
+// Probe is what a working key found.
+type Probe struct {
+	Note    string   `json:"note"`
+	Options []Option `json:"options"`
+}
+
+// Connector reads one kind of service.
+type Connector interface {
+	Manifest() Manifest
+	// Authorize puts the key on a request, in a header: never in the URL.
+	Authorize(req *http.Request, key secrets.Value)
+	Probe(ctx context.Context, c *Conn) (Probe, error)
+	// Fetch reads the widgets asked for and keeps only what they show.
+	Fetch(ctx context.Context, c *Conn, enabled []string) (map[string]any, error)
+}
+
+// Support says what Hub offers for an application the catalogue recognizes.
+type Support string
+
+const (
+	SupportNone    Support = ""
+	SupportReady   Support = "ready"
+	SupportPlanned Support = "planned" // API found in its documentation, connector not written
+	SupportLink    Support = "link"    // no confirmed API: a link and nothing more
+)
+
+var (
+	connectors = map[string]Connector{"emby": emby{}}
+	planned    = map[string]bool{"sonarr": true, "radarr": true, "prowlarr": true, "qbittorrent": true, "seerr": true, "jellyseerr": true, "beszel": true}
+	linkOnly   = map[string]bool{"dockhand": true}
+)
+
+// SupportOf looks up an application by its catalogue slug.
+func SupportOf(app string) Support {
+	switch {
+	case connectors[app] != nil:
+		return SupportReady
+	case planned[app]:
+		return SupportPlanned
+	case linkOnly[app]:
+		return SupportLink
+	}
+	return SupportNone
+}
+
+// ManifestOf returns the connector's manifest, if it exists.
+func ManifestOf(kind string) (Manifest, bool) {
+	c, ok := connectors[kind]
+	if !ok {
+		return Manifest{}, false
+	}
+	return c.Manifest(), true
+}
+
+// Failure is an error that says which state it leads to.
+type Failure struct{ State State }
+
+func (f *Failure) Error() string { return "widget: " + string(f.State) }
+
+// StateOf maps an error to a state. Anything unforeseen reads as unexpected.
+func StateOf(err error) State {
+	if err == nil {
+		return StateOK
+	}
+	var f *Failure
+	if errors.As(err, &f) {
+		return f.State
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return StateUnreachable
+	}
+	return StateUnexpected
+}
+
+// Conn is a connection being read.
+type Conn struct {
+	base        string
+	key         secrets.Value
+	options     map[string]string
+	connector   Connector
+	client      *http.Client
+	certRefused func() bool
+}
+
+// Option returns a setting of the connection, or "".
+func (c *Conn) Option(id string) string { return c.options[id] }
+
+// GetJSON requests a path under the service's address and decodes its answer.
+func (c *Conn) GetJSON(ctx context.Context, path string, query url.Values, out any) error {
+	target := strings.TrimRight(c.base, "/") + path
+	if len(query) > 0 {
+		target += "?" + query.Encode()
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	if err != nil {
+		return &Failure{StateUnexpected}
+	}
+	req.Header.Set("User-Agent", "Hub")
+	req.Header.Set("Accept", "application/json")
+	c.connector.Authorize(req, c.key)
+	resp, err := c.client.Do(req)
+	if err != nil {
+		if c.certRefused() {
+			return &Failure{StateCert}
+		}
+		return &Failure{StateUnreachable}
+	}
+	defer func() { _ = resp.Body.Close() }()
+	switch {
+	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+		return &Failure{StateAuth}
+	case resp.StatusCode >= 500:
+		return &Failure{StateUnreachable}
+	case resp.StatusCode != http.StatusOK:
+		return &Failure{StateUnexpected}
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxBody)).Decode(out); err != nil {
+		return &Failure{StateUnexpected}
+	}
+	return nil
+}
+
+// Target is where a connection reads.
+type Target struct {
+	Kind   string
+	URL    string
+	Pinned string
+}
+
+func open(t Target, key secrets.Value, options map[string]string) (*Conn, error) {
+	connector, ok := connectors[t.Kind]
+	if !ok {
+		return nil, fmt.Errorf("no connector for %q", t.Kind)
+	}
+	client, rejected, err := urlcheck.Client(t.URL, t.Pinned)
+	if err != nil {
+		return nil, &Failure{StateUnexpected}
+	}
+	return &Conn{base: t.URL, key: key, options: options, connector: connector, client: client, certRefused: rejected}, nil
+}
+
+// TestKey asks the service whether it accepts the key.
+func TestKey(ctx context.Context, t Target, key secrets.Value) (Probe, State) {
+	ctx, cancel := context.WithTimeout(ctx, fetchTimeout)
+	defer cancel()
+	c, err := open(t, key, nil)
+	if err != nil {
+		return Probe{}, StateOf(err)
+	}
+	p, err := c.connector.Probe(ctx, c)
+	return p, StateOf(err)
+}
+
+// Read fetches the widgets asked for, as stored JSON.
+func Read(ctx context.Context, t Target, key secrets.Value, options map[string]string, enabled []string) (map[string]json.RawMessage, State) {
+	ctx, cancel := context.WithTimeout(ctx, fetchTimeout)
+	defer cancel()
+	c, err := open(t, key, options)
+	if err != nil {
+		return nil, StateOf(err)
+	}
+	found, err := c.connector.Fetch(ctx, c, enabled)
+	if err != nil {
+		return nil, StateOf(err)
+	}
+	data := make(map[string]json.RawMessage, len(found))
+	for id, v := range found {
+		raw, err := json.Marshal(v)
+		if err != nil {
+			return nil, StateUnexpected
+		}
+		data[id] = raw
+	}
+	return data, StateOK
+}
+
+// KeyName is the secret holding a service's key.
+func KeyName(slug string) string { return "widget:" + slug + ":api_key" }
+
+// KeyHint keeps enough of a key to recognize it. A short key shows nothing.
+func KeyHint(key string) string {
+	if len(key) < 12 {
+		return ""
+	}
+	return key[len(key)-4:]
+}
+
+// NextDelay spaces out the reads of a connection that keeps failing.
+func NextDelay(refresh time.Duration, failures int) time.Duration {
+	delay := refresh
+	for range failures {
+		delay *= 2
+		if delay >= maxDelay {
+			return max(refresh, maxDelay)
+		}
+	}
+	return delay
+}
+
+// Due is a connection to read now.
+type Due struct {
+	Target
+	Slug       string
+	Options    map[string]string
+	Enabled    []string
+	Generation int64
+}
+
+// Source is where Run finds connections and leaves what it read.
+type Source interface {
+	DueConnections(ctx context.Context, now time.Time) ([]Due, error)
+	// RecordRead ignores a read of a connection saved again since it began.
+	RecordRead(ctx context.Context, d Due, data map[string]json.RawMessage, state State, at time.Time) error
+}
+
+// Keys opens the stored keys.
+type Keys interface {
+	Get(ctx context.Context, name string) (secrets.Value, error)
+}
+
+// Run reads each connection when due, until ctx ends. A slow one only holds its own slot.
+func Run(ctx context.Context, src Source, keys Keys, every time.Duration) {
+	var mu sync.Mutex
+	running := map[string]bool{}
+	limit := make(chan struct{}, concurrency)
+	ticker := time.NewTicker(every)
+	defer ticker.Stop()
+	for {
+		due, err := src.DueConnections(ctx, time.Now())
+		if err != nil && ctx.Err() == nil {
+			slog.Error("widgets", "err", err)
+		}
+		for _, d := range due {
+			mu.Lock()
+			busy := running[d.Slug]
+			running[d.Slug] = true
+			mu.Unlock()
+			if busy {
+				continue
+			}
+			go func() {
+				defer func() {
+					mu.Lock()
+					delete(running, d.Slug)
+					mu.Unlock()
+				}()
+				select {
+				case limit <- struct{}{}:
+					defer func() { <-limit }()
+				case <-ctx.Done():
+					return
+				}
+				readOne(ctx, src, keys, d)
+			}()
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func readOne(ctx context.Context, src Source, keys Keys, d Due) {
+	key, err := keys.Get(ctx, KeyName(d.Slug))
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.Error("widgets: key unavailable", "service", d.Slug, "err", err)
+		}
+		// A database hiccup is retried; a key that is gone (key file changed, secret deleted)
+		// leaves the connection as good as refused.
+		if !errors.Is(err, secrets.ErrNotFound) && !errors.Is(err, secrets.ErrUnknownKey) && !errors.Is(err, secrets.ErrDecrypt) {
+			return
+		}
+		if err := src.RecordRead(ctx, d, nil, StateAuth, time.Now()); err != nil && ctx.Err() == nil {
+			slog.Error("widgets", "service", d.Slug, "err", err)
+		}
+		return
+	}
+	data, state := Read(ctx, d.Target, key, d.Options, d.Enabled)
+	if ctx.Err() != nil {
+		return
+	}
+	if err := src.RecordRead(ctx, d, data, state, time.Now()); err != nil && ctx.Err() == nil {
+		slog.Error("widgets", "service", d.Slug, "err", err)
+	}
+}

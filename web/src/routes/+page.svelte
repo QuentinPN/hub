@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { getHome } from '#lib/api/client.ts';
+	import type { Home } from '#lib/api/types.ts';
 	import AppCard from '#lib/components/AppCard.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import HostCard from '#lib/components/HostCard.svelte';
@@ -11,6 +13,21 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	// Relu sans repasser par le squelette : la lecture en cours change sous les yeux.
+	let fresh = $state<Home | null>(null);
+	$effect(() => {
+		const poll = setInterval(() => {
+			if (document.visibilityState !== 'visible') return;
+			getHome(fetch)
+				.then((home) => {
+					fresh = home;
+					shell.summary = home.summary;
+				})
+				.catch(() => {});
+		}, 30_000);
+		return () => clearInterval(poll);
+	});
 
 	// Le compteur « en ligne » de la barre du haut n'apparaît que sur l'accueil.
 	$effect(() => {
@@ -37,7 +54,8 @@
 			<Skeleton width="320px" height="16px" />
 		</div>
 	</section>
-{:then home}
+{:then loaded}
+	{@const home = fresh ?? loaded}
 	{@const main = home.sessions[0]}
 	<section class="hero">
 		{#if main}
@@ -64,7 +82,9 @@
 						<span style:width="{main.progress * 100}%"></span>
 					</div>
 					<div class="actions">
-						<a class="btn primary" href={resolve('/services/[slug]', { slug: 'emby' })}
+						<a
+							class="btn primary"
+							href={resolve('/services/[slug]', { slug: home.sessionsSlug ?? 'emby' })}
 							>Ouvrir la fiche Emby</a
 						>
 						<span class="muted sessions"

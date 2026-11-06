@@ -241,6 +241,9 @@ func (s *Store) Home(ctx context.Context) (api.Home, error) {
 			home.Services = append(home.Services, e.ServiceSummary)
 		}
 	}
+	if err := s.realSessions(ctx, &home, all); err != nil {
+		return home, err
+	}
 	return home, s.realHosts(ctx, &home)
 }
 
@@ -300,6 +303,9 @@ func (s *Store) discoveredService(ctx context.Context, e entry) (api.ServiceDeta
 	d := discoveredDetail(e.ServiceSummary, *e.discoveryKey, e.recognizedBy, e.group)
 	d.Hidden, d.URLCheck = e.hidden, e.check
 	d.Project = &api.ProjectRef{Key: *e.discoveryKey}
+	if err := s.widgetInfo(ctx, e, &d); err != nil {
+		return d, err
+	}
 	free, err := s.linkable(ctx, e.HostID, e.Slug)
 	if err != nil {
 		return d, err
