@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { mediaPoster, refreshLabel, testFailure, widgetStateView } from './widgets';
+import {
+	mediaPoster,
+	refreshLabel,
+	testFailure,
+	upcomingPoster,
+	whenLabel,
+	widgetStateView
+} from './widgets';
 
 describe('widgets', () => {
 	it('dit quand il faut agir et quand Hub réessaie seul', () => {
@@ -12,6 +19,18 @@ describe('widgets', () => {
 	it('explique un test de clé raté', () => {
 		expect(testFailure('auth').title).toBe('Clé refusée');
 		expect(testFailure('unreachable').title).toBe('Injoignable depuis le serveur');
+	});
+
+	it('écrit la date à venir et garde ce qui n’a pas de date', () => {
+		const now = new Date(2030, 0, 7, 22, 0);
+		expect(whenLabel(new Date(2030, 0, 7, 23, 0).toISOString(), now)).toBe('Aujourd’hui');
+		expect(whenLabel(new Date(2030, 0, 8, 1, 0).toISOString(), now)).toBe('Demain');
+		expect(whenLabel(new Date(2030, 0, 14, 1, 0).toISOString(), now)).toBe('lun. 14');
+		const old = { title: 'X', detail: '', when: 'Lun', kind: 'movie' as const, tone: '#000' };
+		expect(upcomingPoster(old, now)).toEqual(old);
+		const read = { ...old, when: '', tone: '', at: new Date(2030, 0, 8, 1, 0).toISOString() };
+		expect(upcomingPoster(read, now).when).toBe('Demain');
+		expect(upcomingPoster(read, now).tone).not.toBe('');
 	});
 
 	it('écrit la fréquence', () => {

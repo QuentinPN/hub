@@ -3,7 +3,7 @@
 	import type { ServiceDetail } from '#lib/api/types.ts';
 	import { ago } from '#lib/agents.ts';
 	import { onWidgetNews } from '#lib/live.ts';
-	import { mediaPoster, refreshLabel, widgetStateView } from '#lib/widgets.ts';
+	import { mediaPoster, refreshLabel, upcomingPoster, widgetStateView } from '#lib/widgets.ts';
 	import ConnectDialog from './ConnectDialog.svelte';
 	import PosterCard from './PosterCard.svelte';
 	import Shelf from './Shelf.svelte';
@@ -136,6 +136,20 @@
 					{/each}
 				</section>
 			{/if}
+			{#if conn.data.calendar}
+				{#if conn.data.calendar.length > 0}
+					<Shelf title="À venir" id="w-calendar" focusable>
+						{#each conn.data.calendar as item, i (item.title + item.detail + i)}
+							<PosterCard item={upcomingPoster(item, new Date())} />
+						{/each}
+					</Shelf>
+				{:else}
+					<section class="card" aria-labelledby="w-calendar-empty">
+						<h2 id="w-calendar-empty">À venir</h2>
+						<p class="muted">Rien de prévu dans les 14 prochains jours.</p>
+					</section>
+				{/if}
+			{/if}
 			{#if conn.data.latest}
 				{#if conn.data.latest.length > 0}
 					<Shelf title="Ajoutés récemment" id="w-latest" focusable>
@@ -152,6 +166,19 @@
 			{/if}
 		</div>
 		<div class="column side">
+			{#if conn.data.queue}
+				<section class="card" aria-labelledby="w-queue">
+					<h2 id="w-queue">File d’attente</h2>
+					<dl>
+						<dt class="muted">En tout</dt>
+						<dd class="tabular">{conn.data.queue.total}</dd>
+						<dt class="muted">En cours</dt>
+						<dd class="tabular">{conn.data.queue.downloading}</dd>
+						<dt class="muted">À vérifier</dt>
+						<dd class="tabular">{conn.data.queue.problems}</dd>
+					</dl>
+				</section>
+			{/if}
 			{#if conn.data.library}
 				<section class="card" aria-labelledby="w-library">
 					<h2 id="w-library">Bibliothèque</h2>

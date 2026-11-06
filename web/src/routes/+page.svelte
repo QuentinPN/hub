@@ -3,7 +3,9 @@
 	import { resolve } from '$app/paths';
 	import { getHome } from '#lib/api/client.ts';
 	import type { Home } from '#lib/api/types.ts';
+	import { ago } from '#lib/agents.ts';
 	import { onWidgetNews } from '#lib/live.ts';
+	import { upcomingPoster, widgetStateView } from '#lib/widgets.ts';
 	import AppCard from '#lib/components/AppCard.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import HostCard from '#lib/components/HostCard.svelte';
@@ -144,10 +146,36 @@
 		{/if}
 		{#if home.upcoming.length > 0}
 			<Shelf title="À venir · Sonarr et Radarr" id="soon" focusable>
-				{#each home.upcoming as item (item.title + item.detail)}
-					<PosterCard {item} />
+				{#each home.upcoming as item, i (item.title + item.detail + i)}
+					<PosterCard item={upcomingPoster(item, new Date())} />
 				{/each}
 			</Shelf>
+		{/if}
+		{#if home.downloads?.length}
+			<section aria-labelledby="downloads">
+				<h2 id="downloads">Téléchargements</h2>
+				<div class="downloads">
+					{#each home.downloads as card (card.slug)}
+						<a
+							class="download"
+							class:stale={card.state !== 'ok'}
+							href="{resolve('/services/[slug]', { slug: card.slug })}#widgets"
+						>
+							<span class="muted small">{card.label}</span>
+							<strong>{card.headline}</strong>
+							{#if card.state === 'ok'}
+								<span class="muted">{card.note}</span>
+							{:else}
+								<span class="late"
+									><span class="dot"></span>{widgetStateView(card.state).label}{card.dataAt
+										? `, données ${ago(card.dataAt, Date.now())}`
+										: ''}</span
+								>
+							{/if}
+						</a>
+					{/each}
+				</div>
+			</section>
 		{/if}
 		{#if home.hosts.length > 0}
 			<section aria-labelledby="infra">
@@ -287,6 +315,41 @@
 		margin: 0 0 18px;
 		font-size: var(--fs-h2);
 		font-weight: 600;
+	}
+	.downloads {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+		gap: 18px;
+	}
+	.download {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		padding: 18px;
+		border: 1px solid var(--border-1);
+		border-radius: var(--r-card);
+		background: var(--surface-1);
+	}
+	.download strong {
+		font-size: 30px;
+		font-weight: 700;
+		letter-spacing: -0.02em;
+	}
+	.stale {
+		border-color: rgba(255, 214, 10, 0.3);
+		background: rgba(255, 214, 10, 0.06);
+	}
+	.late {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.dot {
+		flex: none;
+		width: 8px;
+		height: 8px;
+		border-radius: 99px;
+		background: var(--status-degraded);
 	}
 	.hosts {
 		display: flex;

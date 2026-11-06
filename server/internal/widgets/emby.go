@@ -31,7 +31,7 @@ func (emby) Manifest() Manifest {
 		Kind:    "emby",
 		Name:    "Emby",
 		KeyHelp: "Dans Emby : tableau de bord du serveur, Clés d’API. Crée une clé réservée à Hub : tu pourras la révoquer seule.",
-		Reads:   []string{"GET /emby/Sessions", "GET /emby/Users/Query", "GET /emby/Users/…/Items/Latest", "GET /emby/Items/Counts"},
+		Reads:   []string{"GET /emby/Sessions", "GET /emby/Users/Query", "GET /emby/Users/…/Items/Latest", "GET /emby/Items/Counts", "WebSocket : signaux de changement"},
 		Widgets: []Widget{
 			{ID: EmbySessions, Label: "Sessions en cours", Where: "accueil et fiche"},
 			{ID: EmbyLatest, Label: "Ajoutés récemment", Where: "fiche"},

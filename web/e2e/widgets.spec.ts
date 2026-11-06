@@ -295,3 +295,95 @@ test('l’accueil mène à la fiche du service qui lit les sessions', async ({ p
 		'/services/emby-qnap'
 	);
 });
+
+test('l’accueil rassemble ce qui arrive et ce qui se télécharge', async ({ page }) => {
+	await mockApi(page);
+	const tomorrow = new Date(Date.now() + 86_400_000).toISOString();
+	await page.route('**/api/v1/home', (route) =>
+		route.fulfill({
+			json: {
+				summary: { online: 2, total: 2 },
+				sessions: [],
+				favorites: [],
+				services: [],
+				upcoming: [
+					{
+						title: 'Une série',
+						detail: 'S02E06 · Sonarr',
+						when: '',
+						kind: 'episode',
+						tone: '',
+						at: tomorrow
+					}
+				],
+				downloads: [
+					{
+						slug: 'sonarr',
+						label: 'Sonarr · file d’attente',
+						headline: '2 épisodes',
+						note: '1 en cours · 1 en attente',
+						state: 'ok',
+						dataAt: new Date().toISOString()
+					},
+					{
+						slug: 'radarr',
+						label: 'Radarr · file d’attente',
+						headline: 'File vide',
+						note: 'Rien à récupérer',
+						state: 'unreachable',
+						dataAt: new Date(Date.now() - 480_000).toISOString()
+					}
+				],
+				hosts: []
+			}
+		})
+	);
+	await page.goto('/');
+	await expect(page.getByText('Demain')).toBeVisible();
+	await expect(page.getByText('S02E06 · Sonarr')).toBeVisible();
+	const section = page.getByRole('region', { name: 'Téléchargements' });
+	await expect(section.getByRole('link', { name: /2 épisodes/ })).toHaveAttribute(
+		'href',
+		'/services/sonarr#widgets'
+	);
+	await expect(section.getByText('1 en cours · 1 en attente')).toBeVisible();
+	const stale = section.getByRole('link', { name: /Radarr/ });
+	await expect(stale).toContainText('Injoignable, données il y a 8 min');
+	await expect(stale).not.toContainText('Rien à récupérer');
+	const axe = await new AxeBuilder({ page }).include('main').analyze();
+	expect(axe.violations).toEqual([]);
+});
+
+test('la fiche de Sonarr montre son calendrier et sa file', async ({ page }) => {
+	const service = {
+		...base,
+		slug: 'sonarr',
+		name: 'Sonarr',
+		widget: {
+			...offered.widget,
+			connection: connection({
+				enabled: ['calendar', 'queue'],
+				data: {
+					calendar: [
+						{
+							title: 'Une série',
+							detail: 'S02E06 · Sonarr',
+							when: '',
+							kind: 'episode',
+							tone: '',
+							at: new Date(Date.now() + 86_400_000).toISOString()
+						}
+					],
+					queue: { total: 2, downloading: 1, problems: 0 }
+				}
+			})
+		}
+	};
+	await mockApi(page);
+	await page.route('**/api/v1/services/sonarr', (route) => route.fulfill({ json: service }));
+	await page.goto('/services/sonarr#widgets');
+	await expect(page.getByRole('heading', { name: 'À venir' })).toBeVisible();
+	await expect(page.getByText('Demain')).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'File d’attente' })).toBeVisible();
+	await expect(page.getByText('En cours')).toBeVisible();
+});

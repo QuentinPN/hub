@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -103,8 +104,8 @@ const (
 )
 
 var (
-	connectors = map[string]Connector{"emby": emby{}}
-	planned    = map[string]bool{"sonarr": true, "radarr": true, "prowlarr": true, "qbittorrent": true, "seerr": true, "jellyseerr": true, "beszel": true}
+	connectors = map[string]Connector{"emby": emby{}, "sonarr": sonarr, "radarr": radarr}
+	planned    = map[string]bool{"prowlarr": true, "qbittorrent": true, "seerr": true, "jellyseerr": true, "beszel": true}
 	linkOnly   = map[string]bool{"dockhand": true}
 )
 
@@ -167,11 +168,20 @@ func (c *Conn) Option(id string) string { return c.options[id] }
 
 // GetJSON requests a path under the service's address and decodes its answer.
 func (c *Conn) GetJSON(ctx context.Context, path string, query url.Values, out any) error {
+	return c.requestJSON(ctx, http.MethodGet, path, query, out)
+}
+
+// postJSON only serves to open a live connection: a connector's reads stay GET.
+func (c *Conn) postJSON(ctx context.Context, path string, query url.Values, out any) error {
+	return c.requestJSON(ctx, http.MethodPost, path, query, out)
+}
+
+func (c *Conn) requestJSON(ctx context.Context, method, path string, query url.Values, out any) error {
 	target := strings.TrimRight(c.base, "/") + path
 	if len(query) > 0 {
 		target += "?" + query.Encode()
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	req, err := http.NewRequestWithContext(ctx, method, target, nil)
 	if err != nil {
 		return &Failure{StateUnexpected}
 	}
@@ -314,10 +324,56 @@ type Keys interface {
 type Listener interface {
 	// Listen stays connected until ctx ends, and calls wake when something changed.
 	Listen(ctx context.Context, c *Conn, wake func())
+	// WakeSpacing keeps a chatty service from turning its signals into constant reads.
+	WakeSpacing() time.Duration
 }
 
-// wakeSpacing keeps a chatty service from turning its signals into constant reads.
-const wakeSpacing = 3 * time.Second
+const (
+	liveRetryMin     = 5 * time.Second
+	liveRetryMax     = 5 * time.Minute
+	liveWriteTimeout = 10 * time.Second
+	liveMaxTypes     = 32
+)
+
+// LiveFirstMessage is how long a live connection may stay silent before its next way is tried.
+var LiveFirstMessage = 15 * time.Second
+
+var liveTypeName = regexp.MustCompile(`^[A-Za-z/]{1,40}$`)
+
+// listenLoop tries each of the ways to connect until one answers, and holds it. attempt tells
+// whether that way answered. Once none does, it waits longer and longer before starting over.
+func listenLoop(ctx context.Context, ways int, attempt func(way int) bool) {
+	way, delay := 0, liveRetryMin
+	for ctx.Err() == nil {
+		heard := attempt(way)
+		switch {
+		case ctx.Err() != nil:
+			return
+		case heard:
+			delay = liveRetryMin
+		case way < ways-1:
+			way++
+			continue // no wait: the next way may simply be the right one
+		default:
+			way = 0
+			delay = min(delay*2, liveRetryMax)
+		}
+		select {
+		case <-ctx.Done():
+		case <-time.After(delay):
+		}
+	}
+}
+
+// logLiveType notes each kind of message once, its name only: production tells what a service
+// really sends, and nothing of what it says.
+func logLiveType(c *Conn, seen map[string]bool, name string) {
+	if seen[name] || len(seen) >= liveMaxTypes || !liveTypeName.MatchString(name) {
+		return
+	}
+	seen[name] = true
+	slog.Info("widgets: live message type", "service", c.name, "type", name)
+}
 
 type engine struct {
 	src       Source
@@ -413,7 +469,7 @@ func (e *engine) listen(ctx context.Context, d Due, c *Conn) {
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(wakeSpacing):
+			case <-time.After(c.connector.(Listener).WakeSpacing()):
 			}
 		}
 	}()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -17,6 +18,9 @@ var (
 	_ api.WidgetEditor = (*Store)(nil)
 	_ widgets.Source   = (*Store)(nil)
 )
+
+// maxUpcoming bounds the home page's row: beyond it, the fiches have the rest.
+const maxUpcoming = 20
 
 // connection is a row of widget_connections.
 type connection struct {
@@ -146,26 +150,53 @@ func stateLabel(state string) string {
 	return state
 }
 
-// realSessions replaces the live source's sessions with those a connection last read. Stale
-// playbacks would say something false: only a connection that answers counts.
-func (s *Store) realSessions(ctx context.Context, home *api.Home, all []entry) error {
+// realWidgets lays over the live source what the connections last read.
+func (s *Store) realWidgets(ctx context.Context, home *api.Home, all []entry) error {
 	conns, err := s.connections(ctx)
 	if err != nil {
 		return err
 	}
+	var upcoming []api.UpcomingItem
+	sessionsFound := false
 	for _, e := range all {
 		c, ok := conns[e.Slug]
-		if !ok || c.stateFor(e) != string(widgets.StateOK) || !slices.Contains(c.enabled, widgets.EmbySessions) {
+		if !ok {
 			continue
 		}
-		sessions := []api.Session{}
-		if raw, ok := c.data[widgets.EmbySessions]; ok {
-			if err := json.Unmarshal(raw, &sessions); err != nil {
+		state := c.stateFor(e)
+		// Stale playbacks would say something false: only a connection that answers counts.
+		if !sessionsFound && state == string(widgets.StateOK) && slices.Contains(c.enabled, widgets.EmbySessions) {
+			sessions := []api.Session{}
+			if raw, ok := c.data[widgets.EmbySessions]; ok {
+				if err := json.Unmarshal(raw, &sessions); err != nil {
+					return err
+				}
+			}
+			home.Sessions, home.SessionsSlug, sessionsFound = sessions, e.Slug, true
+		}
+		if !keepsData(state) {
+			continue
+		}
+		if raw, ok := c.data[widgets.WidgetCalendar]; ok && slices.Contains(c.enabled, widgets.WidgetCalendar) {
+			var list []api.UpcomingItem
+			if err := json.Unmarshal(raw, &list); err != nil {
 				return err
 			}
+			upcoming = append(upcoming, list...)
 		}
-		home.Sessions, home.SessionsSlug = sessions, e.Slug
-		return nil
+		if raw, ok := c.data[widgets.WidgetQueue]; ok && slices.Contains(c.enabled, widgets.WidgetQueue) {
+			var q widgets.Queue
+			if err := json.Unmarshal(raw, &q); err != nil {
+				return err
+			}
+			headline, note := widgets.QueueText(c.kind, q)
+			home.Downloads = append(home.Downloads, api.DownloadCard{Slug: e.Slug, Label: e.Name + " · file d’attente",
+				Headline: headline, Note: note, State: state, DataAt: c.dataAt})
+		}
+	}
+	if upcoming != nil {
+		slices.SortStableFunc(upcoming, func(a, b api.UpcomingItem) int { return strings.Compare(a.At, b.At) })
+		home.Upcoming = upcoming[:min(len(upcoming), maxUpcoming)]
 	}
 	return nil
 }

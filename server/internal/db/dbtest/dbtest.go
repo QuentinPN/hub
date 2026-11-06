@@ -5,6 +5,7 @@ package dbtest
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"os"
 	"testing"
 	"time"
@@ -26,7 +27,8 @@ func Pool(t *testing.T) *pgxpool.Pool {
 	if err != nil {
 		t.Fatal(err)
 	}
-	schema := fmt.Sprintf("test_%d", time.Now().UnixNano())
+	// The clock alone repeats itself between test packages running side by side.
+	schema := fmt.Sprintf("test_%d_%d", time.Now().UnixNano(), rand.Uint64())
 	if _, err := admin.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
 		t.Fatal(err)
 	}

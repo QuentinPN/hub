@@ -35,6 +35,17 @@ export interface UpcomingItem {
 	when: string;
 	kind: 'episode' | 'movie';
 	tone: string;
+	/** Lu par une connexion : la page écrit la date elle-même, à l'heure de celui qui regarde. */
+	at?: string;
+}
+
+export interface DownloadCard {
+	slug: string;
+	label: string;
+	headline: string;
+	note: string;
+	state: WidgetState;
+	dataAt: string | null;
 }
 
 export interface HostMetric {
@@ -61,6 +72,7 @@ export interface Home {
 	/** Tous les services tant qu'aucun favori n'est choisi, sinon vide. */
 	services: ServiceSummary[];
 	upcoming: UpcomingItem[];
+	downloads?: DownloadCard[];
 	hosts: Host[];
 }
 
@@ -125,6 +137,8 @@ export interface WidgetConnection {
 		sessions?: Session[];
 		latest?: MediaItem[];
 		library?: { movies: number; series: number; episodes: number };
+		calendar?: UpcomingItem[];
+		queue?: { total: number; downloading: number; problems: number };
 	};
 }
 

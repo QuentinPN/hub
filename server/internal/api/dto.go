@@ -43,6 +43,19 @@ type UpcomingItem struct {
 	When   string `json:"when"`
 	Kind   string `json:"kind"`
 	Tone   string `json:"tone"`
+	// At replaces When and Tone for what a connection read: the page words the date itself,
+	// in the viewer's time zone.
+	At string `json:"at,omitempty"`
+}
+
+// DownloadCard is a card of the home page's "Téléchargements".
+type DownloadCard struct {
+	Slug     string     `json:"slug"`
+	Label    string     `json:"label"`
+	Headline string     `json:"headline"`
+	Note     string     `json:"note"`
+	State    string     `json:"state"`
+	DataAt   *time.Time `json:"dataAt"`
 }
 
 type HostMetric struct {
@@ -74,7 +87,9 @@ type Home struct {
 	// Services is every service while no favorite is chosen, empty otherwise.
 	Services []ServiceSummary `json:"services"`
 	Upcoming []UpcomingItem   `json:"upcoming"`
-	Hosts    []Host           `json:"hosts"`
+	// Downloads holds the cards of the connections that read a queue.
+	Downloads []DownloadCard `json:"downloads,omitempty"`
+	Hosts     []Host         `json:"hosts"`
 }
 
 type KeyValue struct {

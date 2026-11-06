@@ -95,6 +95,25 @@ function toneOf(title: string): string {
 	return TONES[sum] ?? '#22303d';
 }
 
+const weekday = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric' });
+const DAY_MS = 86_400_000;
+
+/** « Aujourd’hui », « Demain », puis « lun. 9 », à l'heure de celui qui regarde. */
+export function whenLabel(iso: string, now: Date): string {
+	const at = new Date(iso);
+	const start = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+	const days = Math.round((start(at) - start(now)) / DAY_MS);
+	if (days === 0) return 'Aujourd’hui';
+	if (days === 1) return 'Demain';
+	return weekday.format(at);
+}
+
+/** Ce qu'une connexion a lu reçoit sa date et sa teinte ici ; le reste passe tel quel. */
+export const upcomingPoster = (item: UpcomingItem, now: Date): UpcomingItem =>
+	item.at
+		? { ...item, when: whenLabel(item.at, now), tone: item.tone || toneOf(item.title) }
+		: item;
+
 /** Un média ajouté, sous la forme des affiches de l'accueil. */
 export const mediaPoster = (item: MediaItem): UpcomingItem => ({
 	title: item.title,

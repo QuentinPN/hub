@@ -145,6 +145,7 @@ func TestRowsListWhatHubKnowsFirstTheActionable(t *testing.T) {
 	e := newDiscoveryEnv(t, "mini")
 	e.snapshot(t, "mini",
 		e.container("dockhand", "dockhand", "fnsys/dockhand", "running", 3000),
+		e.container("prowlarr", "prowlarr", "linuxserver/prowlarr", "running", 9696),
 		e.container("sonarr", "sonarr", "linuxserver/sonarr", "running", 8989),
 		e.container("emby", "emby", "linuxserver/emby", "running", 8096),
 		e.container("autre", "autre", "exemple/autre", "running", 80))
@@ -156,7 +157,77 @@ func TestRowsListWhatHubKnowsFirstTheActionable(t *testing.T) {
 	for _, r := range rows {
 		got = append(got, r.Slug+":"+string(r.Support))
 	}
-	if want := []string{"emby:ready", "sonarr:planned", "dockhand:link"}; !slices.Equal(got, want) {
+	if want := []string{"emby:ready", "sonarr:ready", "prowlarr:planned", "dockhand:link"}; !slices.Equal(got, want) {
 		t.Errorf("%v, want %v", got, want)
+	}
+}
+
+func TestHomeGathersUpcomingAndQueues(t *testing.T) {
+	e := newDiscoveryEnv(t, "mini")
+	e.snapshot(t, "mini",
+		e.container("sonarr", "sonarr", "linuxserver/sonarr", "running", 8989),
+		e.container("radarr", "radarr", "linuxserver/radarr", "running", 7878),
+		e.container("emby", "emby", "linuxserver/emby", "running", 8096))
+	now := time.Now()
+	connect := func(slug, kind, calendar, queue string) {
+		t.Helper()
+		address := "http://" + slug
+		if err := e.store.SaveServiceURL(e.ctx, slug, address, "", urlcheck.Result{Kind: urlcheck.KindOK, Status: 200}); err != nil {
+			t.Fatal(err)
+		}
+		err := e.store.SaveWidgetConnection(e.ctx, slug, api.NewConnection{Kind: kind, URL: address, KeyHint: "abcd", Options: map[string]string{},
+			Enabled: []string{"calendar", "queue"}, RefreshSeconds: 30, State: widgets.StateOK, At: now,
+			Data: map[string]json.RawMessage{"calendar": json.RawMessage(calendar), "queue": json.RawMessage(queue)}})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	connect("sonarr", "sonarr", `[{"title":"Une série","detail":"S02E06 · Sonarr","kind":"episode","at":"2030-01-09T20:00:00Z"}]`, `{"total":2,"downloading":1,"problems":0}`)
+	connect("radarr", "radarr", `[{"title":"Un film","detail":"En salle · Radarr","kind":"movie","at":"2030-01-08T00:00:00Z"}]`, `{"total":0,"downloading":0,"problems":0}`)
+
+	home, err := e.store.Home(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(home.Upcoming) != 2 || home.Upcoming[0].Title != "Un film" || home.Upcoming[1].At == "" {
+		t.Errorf("upcoming: %+v", home.Upcoming)
+	}
+	if len(home.Downloads) != 2 {
+		t.Fatalf("downloads: %+v", home.Downloads)
+	}
+	byName := map[string]api.DownloadCard{}
+	for _, c := range home.Downloads {
+		byName[c.Slug] = c
+	}
+	if c := byName["sonarr"]; c.Headline != "2 épisodes" || c.Note != "1 en cours · 1 en attente" || c.State != "ok" {
+		t.Errorf("%+v", c)
+	}
+	if c := byName["radarr"]; c.Headline != "File vide" {
+		t.Errorf("%+v", c)
+	}
+
+	// A refused key shows nothing on the home page; an outage keeps the last read, dated.
+	list, err := e.store.DueConnections(e.ctx, now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range list {
+		state := widgets.StateUnreachable
+		if d.Slug == "radarr" {
+			state = widgets.StateAuth
+		}
+		if err := e.store.RecordRead(e.ctx, d, nil, state, now.Add(time.Minute)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	home, err = e.store.Home(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(home.Downloads) != 1 || home.Downloads[0].Slug != "sonarr" || home.Downloads[0].State != "unreachable" || home.Downloads[0].DataAt == nil {
+		t.Errorf("downloads: %+v", home.Downloads)
+	}
+	if len(home.Upcoming) != 1 || home.Upcoming[0].Title != "Une série" {
+		t.Errorf("upcoming: %+v", home.Upcoming)
 	}
 }

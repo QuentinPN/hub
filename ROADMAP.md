@@ -22,7 +22,7 @@
 [ ] États loading/empty/error/offline, live updates (widgets : signal immédiat vers le navigateur et écoute d'Emby déployés et confirmés sur le vrai Emby le 2026-11-06)
 
 ## Phase 4 — Integrations
-[ ] Emby, Sonarr, Radarr, qBittorrent (socle et Emby faits le 2026-11-06, maquette validée, testés contre un faux Emby, déployés sur le mini-PC et confirmés sur le vrai Emby le même jour ; restent les trois autres)
+[ ] Emby, Sonarr, Radarr, qBittorrent (socle et Emby faits le 2026-11-06, maquette validée, testés contre un faux Emby, déployés sur le mini-PC et confirmés sur le vrai Emby le même jour ; Sonarr et Radarr codés le même jour d'après leurs specs officielles, avec réaction immédiate par SignalR, à essayer sur les vrais ; reste qBittorrent)
 [ ] Autres connecteurs priorisés après inventaire réel
 
 ## Phase 5 — Hardening & release

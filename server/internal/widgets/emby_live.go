@@ -6,12 +6,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/coder/websocket"
 )
 
 // Emby's WebSocket only ever wakes a read: what it says is not shown. Its page documents the
@@ -30,45 +27,20 @@ var embyRoutes = []struct {
 }
 
 const (
-	embyDeviceID       = "hub"
-	embyKeepAlive      = 30 * time.Second
-	embySessionsEvery  = "0,2000" // first answer at once, then every 2 s at most
-	embyRetryMin       = 5 * time.Second
-	embyRetryMax       = 5 * time.Minute
-	embyWriteTimeout   = 10 * time.Second
-	embyMaxMessage     = maxBody
-	embyMaxLoggedTypes = 32
+	embyDeviceID      = "hub"
+	embyKeepAlive     = 30 * time.Second
+	embySessionsEvery = "0,2000" // first answer at once, then every 2 s at most
+	embyWakeSpacing   = 3 * time.Second
 )
 
-// EmbyFirstMessage is how long a route may stay silent before the next one is tried. The
-// last route stays connected: it has nowhere to go.
-var EmbyFirstMessage = 15 * time.Second
-
-var embyTypeName = regexp.MustCompile(`^[A-Za-z]{1,40}$`)
+func (emby) WakeSpacing() time.Duration { return embyWakeSpacing }
 
 // Listen stays connected until ctx ends, and calls wake when something changed.
 func (e emby) Listen(ctx context.Context, c *Conn, wake func()) {
-	route, delay := 0, embyRetryMin
 	seen := map[string]bool{}
-	for ctx.Err() == nil {
-		heard := e.listenOnce(ctx, c, route, seen, wake)
-		switch {
-		case ctx.Err() != nil:
-			return
-		case heard:
-			delay = embyRetryMin
-		case route < len(embyRoutes)-1:
-			route++
-			continue // no wait: the next route may simply be the right one
-		default:
-			route = 0
-			delay = min(delay*2, embyRetryMax)
-		}
-		select {
-		case <-ctx.Done():
-		case <-time.After(delay):
-		}
-	}
+	listenLoop(ctx, len(embyRoutes), func(route int) bool {
+		return e.listenOnce(ctx, c, route, seen, wake)
+	})
 }
 
 // listenOnce holds one connection and tells whether it heard anything. Errors are not
@@ -89,12 +61,12 @@ func (e emby) listenOnce(ctx context.Context, c *Conn, route int, seen map[strin
 		return false
 	}
 	defer func() { _ = conn.CloseNow() }()
-	conn.SetReadLimit(embyMaxMessage)
+	conn.SetReadLimit(maxBody)
 	slog.Info("widgets: live connection open", "service", c.name, "path", r.path, "auth", auth)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	if !embySend(ctx, conn, `{"MessageType":"SessionsStart","Data":"`+embySessionsEvery+`"}`) {
+	if !sendText(ctx, conn, `{"MessageType":"SessionsStart","Data":"`+embySessionsEvery+`"}`) {
 		return false
 	}
 	go func() {
@@ -105,7 +77,7 @@ func (e emby) listenOnce(ctx context.Context, c *Conn, route int, seen map[strin
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				if !embySend(ctx, conn, `{"MessageType":"KeepAlive"}`) {
+				if !sendText(ctx, conn, `{"MessageType":"KeepAlive"}`) {
 					cancel()
 					return
 				}
@@ -119,7 +91,7 @@ func (e emby) listenOnce(ctx context.Context, c *Conn, route int, seen map[strin
 		readCtx := ctx
 		stop := func() {}
 		if !heard && route < len(embyRoutes)-1 {
-			readCtx, stop = context.WithTimeout(ctx, EmbyFirstMessage)
+			readCtx, stop = context.WithTimeout(ctx, LiveFirstMessage)
 		}
 		_, raw, err := conn.Read(readCtx)
 		stop()
@@ -137,10 +109,7 @@ func (e emby) listenOnce(ctx context.Context, c *Conn, route int, seen map[strin
 		if err := json.Unmarshal(raw, &msg); err != nil {
 			continue
 		}
-		if !seen[msg.MessageType] && len(seen) < embyMaxLoggedTypes && embyTypeName.MatchString(msg.MessageType) {
-			seen[msg.MessageType] = true
-			slog.Info("widgets: live message type", "service", c.name, "type", msg.MessageType)
-		}
+		logLiveType(c, seen, msg.MessageType)
 		switch msg.MessageType {
 		case "Sessions":
 			if sig := embyPlaybacks(msg.Data); sig != last {
@@ -151,12 +120,6 @@ func (e emby) listenOnce(ctx context.Context, c *Conn, route int, seen map[strin
 			wake()
 		}
 	}
-}
-
-func embySend(ctx context.Context, conn *websocket.Conn, text string) bool {
-	ctx, cancel := context.WithTimeout(ctx, embyWriteTimeout)
-	defer cancel()
-	return conn.Write(ctx, websocket.MessageText, []byte(text)) == nil
 }
 
 // embyPlaybacks sums up what plays: who, what and whether it is paused. The position moves

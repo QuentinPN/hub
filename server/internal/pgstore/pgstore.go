@@ -241,7 +241,7 @@ func (s *Store) Home(ctx context.Context) (api.Home, error) {
 			home.Services = append(home.Services, e.ServiceSummary)
 		}
 	}
-	if err := s.realSessions(ctx, &home, all); err != nil {
+	if err := s.realWidgets(ctx, &home, all); err != nil {
 		return home, err
 	}
 	return home, s.realHosts(ctx, &home)

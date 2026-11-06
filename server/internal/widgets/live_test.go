@@ -15,6 +15,12 @@ import (
 	"hub/server/internal/widgets"
 )
 
+// Set once: engines of earlier tests may still be reading them as they stop.
+func init() {
+	widgets.LiveFirstMessage = 500 * time.Millisecond
+	widgets.ArrWakeSpacing = 20 * time.Millisecond
+}
+
 const sessionsMsg = `{"MessageType":"Sessions","Data":[{"Id":"s1","NowPlayingItem":{"Id":"film"},"PlayState":{"IsPaused":%PAUSED%,"PositionTicks":%POS%}}]}`
 
 func sessions(paused, pos string) string {
@@ -186,9 +192,6 @@ func TestListenTriesTheOtherRoutes(t *testing.T) {
 }
 
 func TestSilentRouteIsLeftForTheNext(t *testing.T) {
-	old := widgets.EmbyFirstMessage
-	widgets.EmbyFirstMessage = 50 * time.Millisecond
-	defer func() { widgets.EmbyFirstMessage = old }()
 	l := &liveEmby{acceptAt: "/embywebsocket", silent: map[string]bool{"/": true}}
 	srv := newLive(t, l)
 	src, _ := runLive(t, srv)
