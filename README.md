@@ -74,6 +74,10 @@ hub-server -revoke-host rpi5
 
 Sur l'hôte : `scripts/build-agent.sh` (préfixer `GOARCH=arm64` pour le Pi), placer le code dans `deploy/agent/enroll-code`, puis lancer `deploy/agent/compose.yml` avec `HUB_SERVER_URL`, `HUB_CA_PIN` (affiché par `-enroll-host`) et `DOCKER_GID` (`stat -c %g /var/run/docker.sock`), tous trois donnés par l'écran d'enrôlement. `scripts/check-agent-proxy.sh` vérifie ensuite que le proxy refuse tout le reste.
 
+## Déployer
+
+Le serveur et sa base se déploient avec Docker Compose : procédure, pare-feu, sauvegarde, restauration et retrait dans [deploy/server/README.md](deploy/server/README.md).
+
 ## Vérifier
 
 ```bash

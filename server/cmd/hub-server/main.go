@@ -35,7 +35,15 @@ func main() {
 	reset := flag.Bool("reset-password", false, "set a new account password, end every session, then exit")
 	enrollHost := flag.String("enroll-host", "", "print a one-time code to enroll the agent of this host (created if new), then exit")
 	revokeHost := flag.String("revoke-host", "", "revoke every certificate of this host's agent, then exit")
+	health := flag.Bool("healthcheck", false, "exit 0 if the server listening on this machine answers, for the image's health check")
 	flag.Parse()
+	if *health {
+		if err := checkHealth(*addr); err != nil {
+			slog.Error("health check", "err", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if *newKey {
 		line, err := secrets.NewKeyLine(time.Now())
 		if err != nil {
@@ -201,6 +209,25 @@ func main() {
 			slog.Error("shutdown", "err", err)
 		}
 	}
+}
+
+// checkHealth asks /healthz on loopback, at the port of the listen address: the image has
+// no shell or curl for its health check to use.
+func checkHealth(addr string) error {
+	_, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return err
+	}
+	client := http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get("http://" + net.JoinHostPort("127.0.0.1", port) + "/healthz")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // openStore connects, migrates and returns the PostgreSQL store. The database is required:

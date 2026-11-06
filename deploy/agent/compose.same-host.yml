@@ -1,0 +1,11 @@
+# À ajouter pour l'agent de l'hôte qui porte aussi le serveur : il le joint par le réseau
+# Docker du serveur, sans passer par le port publié et son filtrage (HUB_SERVER_URL=https://hub:8443).
+#
+#   docker compose -f deploy/agent/compose.yml -f deploy/agent/compose.same-host.yml up -d
+services:
+  agent:
+    networks: [hub-edge]
+
+networks:
+  hub-edge:
+    external: true

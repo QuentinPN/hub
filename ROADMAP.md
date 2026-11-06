@@ -27,7 +27,7 @@
 
 ## Phase 5 — Hardening & release
 [ ] Tests E2E, sécurité, accessibilité, performance et panne d’agents
-[ ] Déploiement Compose/Caddy, sauvegardes/restauration, observabilité
+[ ] Déploiement Compose/Caddy, sauvegardes/restauration, observabilité (fichiers et procédure prêts et testés sur le poste de dev le 2026-11-06, `deploy/server/` ; reste le déploiement réel et l'observabilité)
 [ ] Documentation d’exploitation et procédure de rollback
 
 À chaque phase : critères d’acceptation, démonstration, tests et accord avant modifications risquées.

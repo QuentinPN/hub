@@ -17,3 +17,7 @@ deploy/agent/hub-agent
 deploy/agent/enroll-code
 # AC des agents (HUB_AGENT_CA_FILE)
 *agent-ca.pem
+
+# Serveur : binaire compilé et configuration de déploiement
+deploy/server/hub-server
+.env
