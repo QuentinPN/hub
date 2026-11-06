@@ -54,6 +54,8 @@ export interface Home {
 	summary: { online: number; total: number };
 	sessions: Session[];
 	favorites: ServiceSummary[];
+	/** Tous les services tant qu'aucun favori n'est choisi, sinon vide. */
+	services: ServiceSummary[];
 	upcoming: UpcomingItem[];
 	hosts: Host[];
 }

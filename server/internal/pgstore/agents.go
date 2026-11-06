@@ -79,9 +79,11 @@ func (s *Store) ReplaceContainers(ctx context.Context, hostID string, snap agent
 			}
 			ids = append(ids, c.ID)
 		}
-		_, err := tx.Exec(ctx, `UPDATE containers SET removed_at = $3
-			WHERE host_id = $1 AND removed_at IS NULL AND NOT (id = ANY($2))`, hostID, ids, now)
-		return err
+		if _, err := tx.Exec(ctx, `UPDATE containers SET removed_at = $3
+			WHERE host_id = $1 AND removed_at IS NULL AND NOT (id = ANY($2))`, hostID, ids, now); err != nil {
+			return err
+		}
+		return syncServices(ctx, tx, hostID, now)
 	})
 }
 
@@ -98,8 +100,10 @@ func (s *Store) ApplyContainerChanges(ctx context.Context, hostID string, c agen
 				return err
 			}
 		}
-		_, err := tx.Exec(ctx, "UPDATE hosts SET last_seen_at = $2 WHERE id = $1", hostID, now)
-		return err
+		if _, err := tx.Exec(ctx, "UPDATE hosts SET last_seen_at = $2 WHERE id = $1", hostID, now); err != nil {
+			return err
+		}
+		return syncServices(ctx, tx, hostID, now)
 	})
 }
 

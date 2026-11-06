@@ -155,6 +155,51 @@ test.describe('sans session', () => {
 	});
 });
 
+test('sans favori, l’accueil liste les services découverts', async ({ page }) => {
+	await mockApi(page);
+	const service = {
+		slug: 'radarr',
+		name: 'Radarr',
+		monogram: 'R',
+		icon: null,
+		color: '#b8860b',
+		category: 'Téléchargements',
+		hostId: 'mini-pc',
+		status: 'config_required',
+		latencyMs: null,
+		note: 'port 7878',
+		favorite: false
+	};
+	const host = {
+		id: 'mini-pc',
+		name: 'mini-PC',
+		os: '',
+		containers: 36,
+		reachable: true,
+		lastSeenLabel: 'il y a 3 s',
+		metrics: []
+	};
+	const home = {
+		summary: { online: 1, total: 1 },
+		sessions: [],
+		favorites: [],
+		services: [service],
+		upcoming: [],
+		hosts: [host]
+	};
+	await page.route('**/api/v1/home', (route) => route.fulfill({ json: home }));
+
+	await page.goto('/');
+	await expect(page.getByRole('heading', { level: 2, name: 'Favoris' })).toHaveCount(0);
+	await expect(page.getByRole('heading', { level: 2, name: 'Services' })).toBeVisible();
+	// En mobile, la carte et la barre du haut masquent ces détails.
+	const card = page.getByRole('link', { name: /Radarr/ });
+	await expect(card).toBeVisible();
+	await expect(card).toContainText('mini-pc · port 7878');
+	await expect(page.getByText('36 conteneurs', { exact: true })).toBeVisible();
+	await expect(page.getByText('1 sur 1 en ligne')).toHaveCount(1);
+});
+
 test.describe('sans aucun service', () => {
 	test.beforeEach(async ({ page }) => {
 		await mockApi(page);
@@ -162,6 +207,7 @@ test.describe('sans aucun service', () => {
 			summary: { online: 0, total: 0 },
 			sessions: [],
 			favorites: [],
+			services: [],
 			upcoming: [],
 			hosts: []
 		};

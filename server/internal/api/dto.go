@@ -65,8 +65,10 @@ type Home struct {
 	Summary   Summary          `json:"summary"`
 	Sessions  []Session        `json:"sessions"`
 	Favorites []ServiceSummary `json:"favorites"`
-	Upcoming  []UpcomingItem   `json:"upcoming"`
-	Hosts     []Host           `json:"hosts"`
+	// Services is every service while no favorite is chosen, empty otherwise.
+	Services []ServiceSummary `json:"services"`
+	Upcoming []UpcomingItem   `json:"upcoming"`
+	Hosts    []Host           `json:"hosts"`
 }
 
 type KeyValue struct {

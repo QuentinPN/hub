@@ -108,6 +108,12 @@
 					<AppCard {service} />
 				{/each}
 			</Shelf>
+		{:else if home.services.length > 0}
+			<Shelf title="Services" id="services">
+				{#each home.services as service (service.slug)}
+					<AppCard {service} />
+				{/each}
+			</Shelf>
 		{/if}
 		{#if home.upcoming.length > 0}
 			<Shelf title="À venir · Sonarr et Radarr" id="soon" focusable>

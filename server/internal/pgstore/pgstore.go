@@ -1,13 +1,14 @@
 // Package pgstore keeps the inventory and the settings in PostgreSQL. What a service is
-// (name, category, host, favorite, order) lives in the database and survives restarts;
-// its live state (status, latency, widget data) still comes from the fixture until the
-// agents report it.
+// (name, category, host, favorite, order) lives in the database and survives restarts. A
+// discovered service reads its state from its containers; the example inventory still
+// borrows its own from the fixture.
 package pgstore
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,6 +16,7 @@ import (
 	"hub/server/internal/api"
 	"hub/server/internal/domain"
 	"hub/server/internal/fixture"
+	"hub/server/internal/reconcile"
 )
 
 type Store struct {
@@ -60,9 +62,20 @@ func (s *Store) seed(ctx context.Context) error {
 	})
 }
 
-// services reads the inventory and lays the live state over it. A service the live source
-// has never seen reads "unknown", never "online".
-func (s *Store) services(ctx context.Context) ([]api.ServiceSummary, error) {
+// entry is a service with what the summary does not say.
+type entry struct {
+	api.ServiceSummary
+	discoveryKey *string
+	recognizedBy string
+	group        *reconcile.Group
+	// up counts it as running: "configuration required" only says no URL is known yet.
+	up bool
+}
+
+// entries reads the inventory and lays the live state over it: from the containers for a
+// discovered service, from the live source otherwise. A service the live source has never
+// seen reads "unknown", never "online".
+func (s *Store) entries(ctx context.Context) ([]entry, error) {
 	live, err := s.live.Services(ctx)
 	if err != nil {
 		return nil, err
@@ -71,28 +84,71 @@ func (s *Store) services(ctx context.Context) ([]api.ServiceSummary, error) {
 	for _, l := range live {
 		bySlug[l.Slug] = l
 	}
-
-	rows, err := s.pool.Query(ctx, `SELECT slug, name, monogram, icon, color, category, host_id, favorite
-		FROM services ORDER BY position, slug`)
+	hosts, err := s.AgentHosts(ctx, time.Now())
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (api.ServiceSummary, error) {
-		var r api.ServiceSummary
-		if err := row.Scan(&r.Slug, &r.Name, &r.Monogram, &r.Icon, &r.Color, &r.Category, &r.HostID, &r.Favorite); err != nil {
-			return r, err
+	reachable := make(map[string]bool, len(hosts))
+	for _, h := range hosts {
+		reachable[h.ID] = h.State == api.AgentConnected
+	}
+	containers, err := liveContainers(ctx, s.pool, "")
+	if err != nil {
+		return nil, err
+	}
+	groups := map[[2]string]reconcile.Group{}
+	for host, list := range containers {
+		for _, g := range reconcile.Groups(list) {
+			groups[[2]string{host, g.Key}] = g
 		}
-		l, ok := bySlug[r.Slug]
-		if !ok {
-			l = api.ServiceSummary{Status: domain.StatusUnknown, Note: "jamais observé"}
+	}
+
+	rows, err := s.pool.Query(ctx, `SELECT slug, name, monogram, icon, color, category, host_id, favorite,
+			discovery_key, recognized_by, absent_since
+		FROM services WHERE archived_at IS NULL ORDER BY position, slug`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (entry, error) {
+		var e entry
+		var absent *time.Time
+		if err := row.Scan(&e.Slug, &e.Name, &e.Monogram, &e.Icon, &e.Color, &e.Category, &e.HostID, &e.Favorite,
+			&e.discoveryKey, &e.recognizedBy, &absent); err != nil {
+			return e, err
 		}
-		r.Status, r.LatencyMs, r.Note = l.Status, l.LatencyMs, l.Note
-		return r, nil
+		if e.discoveryKey == nil {
+			l, ok := bySlug[e.Slug]
+			if !ok {
+				l = api.ServiceSummary{Status: domain.StatusUnknown, Note: "jamais observé"}
+			}
+			e.Status, e.LatencyMs, e.Note = l.Status, l.LatencyMs, l.Note
+			e.up = e.Status == domain.StatusOnline
+			return e, nil
+		}
+		if g, ok := groups[[2]string{e.HostID, *e.discoveryKey}]; ok && absent == nil {
+			e.group = &g
+			e.Status, e.Note = g.Status()
+		} else {
+			e.Status, e.Note = domain.StatusDown, "conteneurs absents"
+		}
+		if !reachable[e.HostID] {
+			e.Status, e.Note = domain.EffectiveStatus(e.Status, false), "hôte injoignable"
+		}
+		e.up = e.Status == domain.StatusOnline || e.Status == domain.StatusConfigRequired
+		return e, nil
 	})
 }
 
 func (s *Store) Services(ctx context.Context) ([]api.ServiceSummary, error) {
-	return s.services(ctx)
+	all, err := s.entries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	list := make([]api.ServiceSummary, len(all))
+	for i, e := range all {
+		list[i] = e.ServiceSummary
+	}
+	return list, nil
 }
 
 func (s *Store) Home(ctx context.Context) (api.Home, error) {
@@ -100,31 +156,61 @@ func (s *Store) Home(ctx context.Context) (api.Home, error) {
 	if err != nil {
 		return home, err
 	}
-	all, err := s.services(ctx)
+	all, err := s.entries(ctx)
 	if err != nil {
 		return home, err
 	}
 	home.Favorites = []api.ServiceSummary{}
+	home.Services = []api.ServiceSummary{}
 	home.Summary = api.Summary{Total: len(all)}
-	for _, svc := range all {
-		if svc.Favorite {
-			home.Favorites = append(home.Favorites, svc)
+	for _, e := range all {
+		if e.Favorite {
+			home.Favorites = append(home.Favorites, e.ServiceSummary)
 		}
-		if svc.Status == domain.StatusOnline {
+		if e.up {
 			home.Summary.Online++
 		}
 	}
-	return home, nil
+	// Until a favorite is chosen, the home page still has something to open.
+	if len(home.Favorites) == 0 {
+		for _, e := range all {
+			home.Services = append(home.Services, e.ServiceSummary)
+		}
+	}
+	return home, s.realHosts(ctx, &home)
+}
+
+// realHosts replaces the live source's hosts as soon as an agent has reported.
+func (s *Store) realHosts(ctx context.Context, home *api.Home) error {
+	now := time.Now()
+	hosts, err := s.AgentHosts(ctx, now)
+	if err != nil {
+		return err
+	}
+	real := []api.Host{}
+	for _, h := range hosts {
+		if h.LastSeenAt != nil {
+			real = append(real, api.Host{ID: h.ID, Name: h.Name, OS: h.OS, Containers: h.Containers,
+				Reachable: h.State == api.AgentConnected, LastSeenLabel: lastSeenLabel(h.LastSeenAt, now), Metrics: []api.HostMetric{}})
+		}
+	}
+	if len(real) > 0 {
+		home.Hosts = real
+	}
+	return nil
 }
 
 func (s *Store) Service(ctx context.Context, slug string) (api.ServiceDetail, error) {
-	all, err := s.services(ctx)
+	all, err := s.entries(ctx)
 	if err != nil {
 		return api.ServiceDetail{}, err
 	}
-	for _, sum := range all {
-		if sum.Slug != slug {
+	for _, e := range all {
+		if e.Slug != slug {
 			continue
+		}
+		if e.discoveryKey != nil {
+			return discoveredDetail(e.ServiceSummary, *e.discoveryKey, e.recognizedBy, e.group), nil
 		}
 		detail, err := s.live.Service(ctx, slug)
 		if errors.Is(err, api.ErrNotFound) {
@@ -132,14 +218,14 @@ func (s *Store) Service(ctx context.Context, slug string) (api.ServiceDetail, er
 				Tint:           "#1f2a36",
 				Stats:          []api.Stat{},
 				Upcoming:       []api.UpcomingItem{},
-				Identification: []api.KeyValue{{Label: "Catégorie", Value: sum.Category}},
-				Access:         []api.KeyValue{{Label: "Hôte", Value: sum.HostID}},
+				Identification: []api.KeyValue{{Label: "Catégorie", Value: e.Category}},
+				Access:         []api.KeyValue{{Label: "Hôte", Value: e.HostID}},
 				Connection:     []api.KeyValue{{Label: "Widget", Value: "non configuré"}},
 			}
 		} else if err != nil {
 			return api.ServiceDetail{}, err
 		}
-		detail.ServiceSummary = sum
+		detail.ServiceSummary = e.ServiceSummary
 		return detail, nil
 	}
 	return api.ServiceDetail{}, api.ErrNotFound

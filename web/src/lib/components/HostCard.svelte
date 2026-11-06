@@ -8,7 +8,7 @@
 	<div class="head">
 		<div>
 			<div class="name">{host.name}</div>
-			<div class="muted small">{host.os} · {host.containers} conteneurs</div>
+			<div class="muted small">{host.os ? `${host.os} · ` : ''}{host.containers} conteneurs</div>
 		</div>
 		<span class="small" class:ok={host.reachable}>
 			{host.reachable ? 'Agent connecté' : 'Agent injoignable'}

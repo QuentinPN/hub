@@ -1,0 +1,46 @@
+mini-pc | animeschedule | anime-admin | animeschedule-anime-admin-1 | ghcr.io/quentinpn/animeschedule-admin:1.2.0 | running | 5178
+mini-pc | animeschedule | anime-web | animeschedule-anime-web-1 | ghcr.io/quentinpn/animeschedule-web:1.2.0 | running |
+mini-pc | animethemes-postgres | postgres | animethemes-postgres | postgres:18 | running |
+mini-pc | beszel | beszel | beszel | henrygd/beszel:latest | running | 8090
+mini-pc | beszel | beszel-agent | beszel-agent | henrygd/beszel-agent:latest | running |
+mini-pc | caddy | caddy | caddy | caddy:2 | running | 443,443,80,80,443,443
+mini-pc | dockhand | dockhand | dockhand | fnsys/dockhand:v1.0.56 | running | 3000,3000
+mini-pc | emby | emby | emby | lscr.io/linuxserver/emby:latest | running | 8096,8096,8920,8920
+mini-pc | flaresolverr | flaresolverr | flaresolverr | ghcr.io/flaresolverr/flaresolverr:latest | running |
+mini-pc | hasura | data-connector-agent | hasura-data-connector | hasura/graphql-data-connector:v2.46.0 | running |
+mini-pc | hasura | graphql-engine | hasura | hasura/graphql-engine:v2.46.0 | running | 8080
+mini-pc | hasura | postgres | hasura-postgres | postgres:18 | running |
+mini-pc | hub | caddy | hub-caddy-1 | hub-caddy:local | running | 8444
+mini-pc | hub | db | hub-db-1 | postgres:18.6@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81 | running |
+mini-pc | hub | hub | hub-hub-1 | hub-server:local | running | 8443
+mini-pc | hub-agent | agent | hub-agent-agent-1 | hub-agent:local | running |
+mini-pc | hub-agent | docker-proxy | hub-agent-docker-proxy-1 | wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848 | running |
+mini-pc | prowlarr | gluetun | prowlarr-gluetun | qmcgaw/gluetun:latest | running |
+mini-pc | prowlarr | prowlarr | prowlarr | lscr.io/linuxserver/prowlarr:latest | running | 9696
+mini-pc | radarr | radarr | radarr | lscr.io/linuxserver/radarr:latest | running | 7878
+mini-pc | seer | seerr | seerr | ghcr.io/seerr-team/seerr:latest | running | 5055
+mini-pc | sonarr | sonarr | sonarr | lscr.io/linuxserver/sonarr:latest | running | 8989
+mini-pc | suwayomi | postgres | suwayomi-postgres | postgres:18.6 | running |
+mini-pc | suwayomi | suwayomi | suwayomi | ghcr.io/suwayomi/suwayomi-server:stable | running | 5567
+mini-pc | timescaledb | timescaledb | timescaledb | timescale/timescaledb:latest-pg17 | running |
+mini-pc | tzmasters-db-dev | postgres | postgres-dev | postgres:18.6-bookworm@sha256:afc7e2d441324c0388fa80c3d24f733b4194a4eb7f47dd8ee2b08eb1a24a647c | running |
+mini-pc | tzmasters-db-prod | postgres | postgres-prod | postgres:18.6-bookworm@sha256:afc7e2d441324c0388fa80c3d24f733b4194a4eb7f47dd8ee2b08eb1a24a647c | running |
+mini-pc | tzmasters-dev | init-db | tzmasters-dev-init-db-1 | ghcr.io/quentinpn/tzmasters:dev | exited |
+mini-pc | tzmasters-dev | tzmasters-dev | tzmasters-dev | ghcr.io/quentinpn/tzmasters:dev | running |
+mini-pc | tzmasters-prod | anilist-worker | tzmasters-prod-anilist-worker-1 | ghcr.io/quentinpn/tzmasters:v1.6.0 | running |
+mini-pc | tzmasters-prod | init-db | tzmasters-prod-init-db-1 | ghcr.io/quentinpn/tzmasters:v1.6.0 | exited |
+mini-pc | tzmasters-prod | notifications-worker | tzmasters-prod-notifications-worker-1 | ghcr.io/quentinpn/tzmasters:v1.6.0 | running |
+mini-pc | tzmasters-prod | pokemon-worker | tzmasters-prod-pokemon-worker-1 | ghcr.io/quentinpn/tzmasters:v1.6.0 | running |
+mini-pc | tzmasters-prod | tzmasters | tzmasters | ghcr.io/quentinpn/tzmasters:v1.6.0 | running |
+mini-pc | downloader | backend | downloader_back | ghcr.io/quentinpn/downloader_back:2.0.1 | running |
+mini-pc | downloader | discord-bot | downloader_bot | ghcr.io/quentinpn/downloader_bot:1.1.3 | running |
+qnap | beszel-agent | beszel-agent | beszel-agent | henrygd/beszel-agent:latest | running |
+qnap | hawser | hawser | hawser | ghcr.io/finsys/hawser:latest | running | 2377
+qnap | hub-agent | agent | hub-agent-agent-1 | hub-agent:local | running |
+qnap | hub-agent | docker-proxy | hub-agent-docker-proxy-1 | wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848 | running |
+qnap | qbitglue | gluetun | gluetun | ghcr.io/qdm12/gluetun:latest | running | 8181
+qnap | qbitglue | qbittorrent | qbittorrent | lscr.io/linuxserver/qbittorrent:latest | running |
+raspberry-pi | beszel-agent | beszel-agent | beszel-agent | henrygd/beszel-agent:latest | running |
+raspberry-pi | hawser | hawser | hawser | ghcr.io/finsys/hawser:latest | running | 2376
+raspberry-pi | hub-agent | agent | hub-agent-agent-1 | hub-agent:local | running |
+raspberry-pi | hub-agent | docker-proxy | hub-agent-docker-proxy-1 | wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848 | running |

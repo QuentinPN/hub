@@ -14,7 +14,7 @@
 
 ## Phase 2 — Discovery multi-host
 [ ] Agent minimal sûr, connexion d’hôtes, snapshot initial (étape 1 faite sur le poste de dev le 2026-11-02 : AC, enrôlement, mTLS, agent derrière le proxy, instantané et événements ; écran Réglages → Hôtes et agents fait le même jour : enrôlement, annulation, révocation, conteneurs par hôte ; mini-PC, Pi et QNAP connectés le 2026-11-06)
-[ ] Events + rescan, réconciliation, matching, inventaire persistant
+[ ] Events + rescan, réconciliation, matching, inventaire persistant (réconciliation et catalogue de signatures codés le 2026-11-06, à déployer sur le mini-PC)
 [ ] Catalogue et overrides manuels, URLs vérifiées
 
 ## Phase 3 — Dashboard

@@ -241,6 +241,7 @@ func (s *Store) Home(context.Context) (api.Home, error) {
 		Summary:   api.Summary{Online: online, Total: len(s.services)},
 		Sessions:  s.sessions,
 		Favorites: favorites,
+		Services:  []api.ServiceSummary{},
 		Upcoming:  s.upcoming,
 		Hosts:     s.hosts,
 	}, nil
