@@ -19,7 +19,7 @@
 
 ## Phase 3 — Dashboard
 [ ] Widgets génériques, grille personnalisable, recherche, favoris (recherche et favoris faits ; rangées personnalisables validées en maquette, pas encore codées)
-[ ] Pages Médias, Téléchargements et Infra (codées le 2026-11-06, maquette validée, à essayer sur le vrai) ; états loading/empty/error/offline, live updates (widgets : signal immédiat vers le navigateur et écoute d'Emby déployés et confirmés sur le vrai Emby le 2026-11-06)
+[ ] Pages Médias, Téléchargements et Infra (déployées et confirmées sur le vrai le 2026-11-06, maquette validée) ; états loading/empty/error/offline, live updates (widgets : signal immédiat vers le navigateur et écoute d'Emby déployés et confirmés sur le vrai Emby le 2026-11-06)
 
 ## Phase 4 — Integrations
 [x] Emby, Sonarr, Radarr, qBittorrent (socle et Emby faits le 2026-11-06, maquette validée, testés contre un faux Emby, déployés sur le mini-PC et confirmés sur le vrai Emby le même jour ; Sonarr et Radarr codés le même jour d'après leurs specs officielles, avec réaction immédiate par SignalR, déployés, connectés aux vrais et flux SignalR confirmé dans les journaux le même jour ; qBittorrent déployé et confirmé sur le vrai le même jour)
