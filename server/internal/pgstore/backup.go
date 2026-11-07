@@ -13,12 +13,18 @@ import (
 
 var _ backup.Store = (*Store)(nil)
 
-// BackupSettings reads the settings; without a row, the defaults and no key.
+// BackupSettings reads the settings; without a row, the defaults and no key. The slots
+// fall in the time zone of « Général ».
 func (s *Store) BackupSettings(ctx context.Context) (backup.Settings, error) {
 	out := backup.Settings{Enabled: true, Frequency: backup.Daily, Retention: backup.Keep7d4w}
+	loc, err := s.TimeZone(ctx)
+	if err != nil {
+		return out, err
+	}
+	out.Location = loc
 	var recipient *string
 	var sealed []byte
-	err := s.pool.QueryRow(ctx, `SELECT enabled, frequency, retention, recipient, sealed_key, key_set_at, updated_at
+	err = s.pool.QueryRow(ctx, `SELECT enabled, frequency, retention, recipient, sealed_key, key_set_at, updated_at
 		FROM backup_settings`).Scan(&out.Enabled, &out.Frequency, &out.Retention, &recipient, &sealed, &out.KeySetAt, &out.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return out, nil

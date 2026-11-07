@@ -15,6 +15,7 @@
 	import UrlCard from '#lib/components/UrlCard.svelte';
 	import WidgetsTab from '#lib/components/WidgetsTab.svelte';
 	import { statusStyle } from '#lib/status.ts';
+	import { tabTitle } from '#lib/shell.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -52,7 +53,7 @@
 	});
 </script>
 
-<svelte:head><title>{name} · Hub</title></svelte:head>
+<svelte:head><title>{tabTitle(name)}</title></svelte:head>
 
 {#await data.service}
 	<section class="hero">

@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { ApiError, getAuthState, login, loginWithPasskey, setup } from '#lib/api/client.ts';
 	import { isCancelled, passkeysSupported } from '#lib/api/webauthn.ts';
+	import { shell, tabTitle } from '#lib/shell.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -105,7 +106,7 @@
 	}
 </script>
 
-<svelte:head><title>{setupMode ? 'Premier démarrage' : 'Connexion'} · Hub</title></svelte:head>
+<svelte:head><title>{tabTitle(setupMode ? 'Premier démarrage' : 'Connexion')}</title></svelte:head>
 
 <main class="page">
 	<div class="card">
@@ -117,6 +118,7 @@
 				au premier démarrage.
 			</p>
 		{:else}
+			<p class="name">{shell.displayName}</p>
 			<h1>Connexion</h1>
 			<p class="muted lead">Ton dashboard est privé : identifie-toi pour continuer.</p>
 		{/if}
@@ -241,6 +243,13 @@
 		color: var(--text-inverse);
 		font-size: 24px;
 		font-weight: 700;
+	}
+	.name {
+		margin: 0 0 4px;
+		color: var(--text-2);
+		font-size: 15px;
+		font-weight: 600;
+		overflow-wrap: anywhere;
 	}
 	h1 {
 		margin: 0;

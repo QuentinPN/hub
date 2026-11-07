@@ -15,7 +15,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	// The image has no zone files: TZ (Europe/Paris) needs them for the 03:00 backups.
+	// The image has no zone files: TZ (Europe/Paris) and the zone of « Général » need them
+	// for the 03:00 backups.
 	_ "time/tzdata"
 
 	"hub/server/internal/agentsrv"
@@ -178,6 +179,8 @@ func main() {
 	agentAddr := envOr("HUB_AGENT_ADDR", "127.0.0.1:8443")
 	agentNames := strings.Split(envOr("HUB_AGENT_NAMES", "localhost,127.0.0.1"), ",")
 	var agentsUI *api.Agents
+	// What « Général » shows of the .env: only what this process was really given.
+	about := api.About{Origin: os.Getenv("HUB_ORIGIN"), Host: os.Getenv("HUB_HOST_NAME"), ServerTimeZone: os.Getenv("TZ")}
 	if agents != nil {
 		_, port, err := net.SplitHostPort(agentAddr)
 		if err != nil {
@@ -185,6 +188,7 @@ func main() {
 			os.Exit(1)
 		}
 		agentsUI = &api.Agents{Admin: agents, ServerURL: "https://" + net.JoinHostPort(agentNames[0], port)}
+		about.AgentURL = agentsUI.ServerURL
 	}
 
 	// Each address is requested once a minute, from here, to tell whether it still answers.
@@ -211,7 +215,7 @@ func main() {
 	srv := &http.Server{
 		Addr: *addr,
 		Handler: api.NewHandler(store, authSvc, iconSvc, agentsUI, &api.Widgets{Keys: secretStore, Bus: bus},
-			&api.Runtime{Version: version, StartedAt: started, Secrets: secretStore, Streams: widgets.OpenStreams, Backups: backups}, ui.Handler, ui.ScriptHashes),
+			&api.Runtime{Version: version, StartedAt: started, Secrets: secretStore, Streams: widgets.OpenStreams, Backups: backups, About: about}, ui.Handler, ui.ScriptHashes),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

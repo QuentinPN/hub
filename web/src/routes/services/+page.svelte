@@ -13,6 +13,7 @@
 		type StatusFilter
 	} from '#lib/catalogue.ts';
 	import { statusStyle } from '#lib/status.ts';
+	import { tabTitle } from '#lib/shell.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -78,7 +79,7 @@
 	const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
 </script>
 
-<svelte:head><title>Tous les services · Hub</title></svelte:head>
+<svelte:head><title>{tabTitle('Tous les services')}</title></svelte:head>
 
 <div class="page">
 	<div class="head">

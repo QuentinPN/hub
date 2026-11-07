@@ -17,6 +17,7 @@ test('le menu des sections reste accessible et mène à la section', async ({ pa
 	const links = nav.getByRole('link');
 	await expect(links).toHaveText([
 		'État de Hub',
+		'Général',
 		'Hôtes et agents',
 		'Découverte',
 		'Widgets et connexions',
@@ -25,7 +26,7 @@ test('le menu des sections reste accessible et mène à la section', async ({ pa
 		'Sauvegarde'
 	]);
 	if (testInfo.project.name === 'mobile') {
-		await expect(nav.getByText('Général')).toBeHidden();
+		await expect(nav.getByText('Notifications')).toBeHidden();
 	}
 	await links.filter({ hasText: 'Sécurité et accès' }).click();
 	await expect(page).toHaveURL(/#security$/);

@@ -55,6 +55,8 @@ type Runtime struct {
 	Streams func() map[string]time.Time
 	// Backups is nil when no backup service runs: the section and its check stay off.
 	Backups Backups
+	// About is what « Général » shows of the .env; its Version is filled from Version.
+	About About
 }
 
 // HubStatus answers GET /api/v1/status.

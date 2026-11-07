@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import DiscoveryForm from '#lib/components/DiscoveryForm.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
+	import GeneralPanel from '#lib/components/GeneralPanel.svelte';
 	import PasskeysList from '#lib/components/PasskeysList.svelte';
 	import PasswordForm from '#lib/components/PasswordForm.svelte';
 	import AppearancePanel from '#lib/components/AppearancePanel.svelte';
@@ -11,6 +12,7 @@
 	import StatusPanel from '#lib/components/StatusPanel.svelte';
 	import WidgetRowsPanel from '#lib/components/WidgetRowsPanel.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
+	import { tabTitle } from '#lib/shell.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -21,7 +23,7 @@
 	// Les sections sans identifiant n'ont pas encore de contenu : elles arrivent par jalons.
 	const sections = [
 		{ label: 'État de Hub', id: 'status' },
-		{ label: 'Général', id: null },
+		{ label: 'Général', id: 'general' },
 		{ label: 'Hôtes et agents', id: 'hosts' },
 		{ label: 'Découverte', id: 'discovery' },
 		{ label: 'Widgets et connexions', id: 'widgets' },
@@ -32,7 +34,7 @@
 	] as const;
 </script>
 
-<svelte:head><title>Réglages · Hub</title></svelte:head>
+<svelte:head><title>{tabTitle('Réglages')}</title></svelte:head>
 
 <div class="page">
 	<h1>Réglages</h1>
@@ -58,6 +60,8 @@
 			<section class="card" id="status" aria-labelledby="status-title">
 				<StatusPanel onproblems={(n) => (problems = n)} />
 			</section>
+
+			<GeneralPanel />
 
 			<!-- Chargée à part et relue en continu : l'état des agents change sans recharger la page. -->
 			<section class="card" id="hosts" aria-labelledby="hosts-title">

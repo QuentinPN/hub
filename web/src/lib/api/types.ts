@@ -434,6 +434,36 @@ export interface AuthState {
 	username?: string;
 	/** Les passkeys sont configurées côté serveur (HUB_ORIGIN) : la connexion les propose. */
 	passkeys: boolean;
+	/** Public : l'écran de connexion l'affiche. */
+	displayName: string;
+	/** Seulement une fois connecté. */
+	startPage?: StartPage;
+	widgetRefresh?: WidgetRefresh;
+}
+
+export type StartPage = 'home' | 'medias' | 'downloads' | 'infra';
+export type WidgetRefresh = 'normal' | 'economy';
+
+/** Section « Général », telle qu'enregistrée. */
+export interface General {
+	displayName: string;
+	startPage: StartPage;
+	/** Nom IANA ; vide pour celui du serveur (TZ). */
+	timeZone: string;
+	widgetRefresh: WidgetRefresh;
+}
+
+/** Ce que le serveur a reçu de son .env, en lecture seule. Vide : il ne le sait pas. */
+export interface About {
+	version: string;
+	origin: string;
+	agentUrl: string;
+	host: string;
+	serverTimeZone: string;
+}
+
+export interface GeneralSettings extends General {
+	about: About;
 }
 
 export interface PasskeyInfo {

@@ -27,7 +27,7 @@ const (
 	KeepLast3 = "last3"
 )
 
-// slotHour is when scheduled backups run, in the server's time zone (TZ).
+// slotHour is when scheduled backups run, in the time zone of « Général » (Settings.Location).
 const slotHour = 3
 
 // Settings are the backup settings as stored.
@@ -38,6 +38,9 @@ type Settings struct {
 	Key       *Key
 	KeySetAt  *time.Time
 	UpdatedAt time.Time
+	// Location is where the slots fall and the files' names are read: the zone chosen in
+	// « Général », else the server's (TZ). nil for the clock's own.
+	Location *time.Location
 }
 
 // Run is one backup, done or under way.
@@ -151,14 +154,22 @@ type kept struct {
 	size int64
 }
 
-func (s *Service) files() ([]kept, error) {
+// zone is where set's slots fall.
+func (s *Service) zone(set Settings) *time.Location {
+	if set.Location != nil {
+		return set.Location
+	}
+	return s.now().Location()
+}
+
+func (s *Service) files(loc *time.Location) ([]kept, error) {
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
 		return nil, err
 	}
 	var out []kept
 	for _, e := range entries {
-		at, ok := parseName(e.Name(), s.now().Location())
+		at, ok := parseName(e.Name(), loc)
 		if !ok || !e.Type().IsRegular() {
 			continue
 		}
@@ -195,7 +206,7 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 	out := Status{Enabled: set.Enabled, Frequency: set.Frequency, Retention: set.Retention, Dir: s.dir,
 		DirError: checkDir(s.dir), Configured: set.Key != nil, KeySetAt: set.KeySetAt, Running: running, Runs: runs}
 	if out.DirError == "" {
-		if files, err := s.files(); err == nil {
+		if files, err := s.files(s.zone(set)); err == nil {
 			out.Kept = len(files)
 			for _, f := range files {
 				out.KeptBytes += f.size
@@ -231,7 +242,7 @@ func (s *Service) due(set Settings, runs []Run) time.Time {
 	if from.IsZero() {
 		from = s.now()
 	}
-	return NextSlot(from.In(s.now().Location()), set.Frequency)
+	return NextSlot(from.In(s.zone(set)), set.Frequency)
 }
 
 // NextSlot is the first slot strictly after t: 03:00 every day, or on Sundays.
@@ -324,7 +335,7 @@ func (s *Service) once(ctx context.Context, set Settings, manual bool) {
 	run := Run{ID: id, StartedAt: start, Manual: manual}
 	run.File, run.Size, err = s.write(ctx, set, start)
 	if err == nil {
-		err = s.prune(set.Retention, run.File)
+		err = s.prune(set, run.File)
 		if err != nil {
 			// The backup itself is done: say so, and why older ones stayed.
 			slog.Error("backup retention", "err", err)
@@ -402,7 +413,7 @@ func (s *Service) write(ctx context.Context, set Settings, at time.Time) (string
 		return "", 0, fmt.Errorf("relecture : %w", err)
 	}
 
-	name := filePrefix + at.Format(nameLayout) + fileExt
+	name := filePrefix + at.In(s.zone(set)).Format(nameLayout) + fileExt
 	if err := os.Rename(tmp.Name(), filepath.Join(s.dir, name)); err != nil {
 		return "", 0, fmt.Errorf("renommage : %w", err)
 	}
@@ -410,14 +421,15 @@ func (s *Service) write(ctx context.Context, set Settings, at time.Time) (string
 }
 
 // prune deletes the backups the retention no longer keeps. The one just written always stays.
-func (s *Service) prune(retention, latest string) error {
-	files, err := s.files()
+func (s *Service) prune(set Settings, latest string) error {
+	loc := s.zone(set)
+	files, err := s.files(loc)
 	if err != nil {
 		return err
 	}
 	var errs []error
-	for _, f := range Expired(files2times(files), retention, s.now()) {
-		name := filePrefix + f.Format(nameLayout) + fileExt
+	for _, f := range Expired(files2times(files), set.Retention, s.now()) {
+		name := filePrefix + f.In(loc).Format(nameLayout) + fileExt
 		if name == latest {
 			continue
 		}

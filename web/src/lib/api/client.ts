@@ -4,6 +4,8 @@ import type {
 	Discovery,
 	DownloadsPage,
 	Enrollment,
+	General,
+	GeneralSettings,
 	HiddenGroup,
 	Home,
 	HomeLayout,
@@ -269,6 +271,12 @@ export async function addPasskey(
 
 export const deletePasskey = (fetchFn: Fetch, id: number) =>
 	sendNoContent(fetchFn, 'DELETE', `/api/v1/auth/passkeys/${id}`);
+
+export const getGeneral = (fetchFn: Fetch) =>
+	getJson<GeneralSettings>(fetchFn, '/api/v1/settings/general');
+
+export const saveGeneral = (fetchFn: Fetch, body: General) =>
+	putJson<GeneralSettings>(fetchFn, '/api/v1/settings/general', body);
 
 export const getBackup = (fetchFn: Fetch) => getJson<BackupStatus>(fetchFn, '/api/v1/backup');
 
