@@ -46,17 +46,21 @@
 
 <header class="top">
 	<a class="brand" href={resolve('/')}>
-		<svg
-			width="26"
-			height="26"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="1.8"
-			stroke-linecap="round"
-			aria-hidden="true"
-			><rect x="3" y="4" width="18" height="12" rx="2.5"></rect><path d="M8 20h8M12 16v4"
-			></path></svg
+		<!-- Le logo de Hub (static/favicon.svg), sans son carré de fond. -->
+		<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
+			><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="2" fill="var(--accent-play)"></rect><rect
+				x="13"
+				y="3.5"
+				width="7.5"
+				height="7.5"
+				rx="2"
+			></rect><rect x="3.5" y="13" width="7.5" height="7.5" rx="2"></rect><rect
+				x="13"
+				y="13"
+				width="7.5"
+				height="7.5"
+				rx="2"
+			></rect></svg
 		>
 		Hub
 	</a>
