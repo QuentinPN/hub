@@ -4,7 +4,8 @@ import { defineConfig, devices } from '@playwright/test';
 // serveur Go. Les parcours de bout en bout avec la base et les agents viendront en phase 5.
 // PLAYWRIGHT_CHANNEL=chrome utilise le Chrome installé au lieu du Chromium de Playwright.
 const channel = process.env.PLAYWRIGHT_CHANNEL || undefined;
-const port = 4173;
+// PLAYWRIGHT_PORT sépare les worktrees qui testent en même temps (reuseExistingServer).
+const port = Number(process.env.PLAYWRIGHT_PORT) || 4173;
 
 export default defineConfig({
 	testDir: 'e2e',

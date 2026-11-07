@@ -4,6 +4,7 @@
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import PasskeysList from '#lib/components/PasskeysList.svelte';
 	import PasswordForm from '#lib/components/PasswordForm.svelte';
+	import AppearancePanel from '#lib/components/AppearancePanel.svelte';
 	import BackupPanel from '#lib/components/BackupPanel.svelte';
 	import HostsPanel from '#lib/components/HostsPanel.svelte';
 	import SessionsList from '#lib/components/SessionsList.svelte';
@@ -25,7 +26,7 @@
 		{ label: 'Découverte', id: 'discovery' },
 		{ label: 'Widgets et connexions', id: 'widgets' },
 		{ label: 'Notifications', id: null },
-		{ label: 'Apparence', id: null },
+		{ label: 'Apparence', id: 'appearance' },
 		{ label: 'Sécurité et accès', id: 'security' },
 		{ label: 'Sauvegarde', id: 'backup' }
 	] as const;
@@ -91,6 +92,10 @@
 
 			<section class="card" id="widgets" aria-labelledby="widgets-title">
 				<WidgetRowsPanel />
+			</section>
+
+			<section class="card" id="appearance" aria-labelledby="appearance-title">
+				<AppearancePanel />
 			</section>
 
 			<section class="card" id="security" aria-labelledby="security-title">

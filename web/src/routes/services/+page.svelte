@@ -446,7 +446,7 @@
 	}
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(var(--app-w), 1fr));
 		gap: 22px;
 		padding: 16px 4px 8px;
 	}
@@ -522,7 +522,7 @@
 			flex: none;
 		}
 		.grid {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
+			grid-template-columns: repeat(var(--grid-cols-mobile), minmax(0, 1fr));
 			gap: 12px;
 			padding: 12px 0 4px;
 		}

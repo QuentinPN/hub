@@ -71,11 +71,11 @@
 		padding: 24px;
 		border: 1px solid var(--border-2);
 		border-radius: 24px;
-		background: rgba(28, 30, 36, 0.94);
+		background: var(--glass-dialog);
 		color: var(--text);
 		box-shadow: var(--shadow-lift);
-		-webkit-backdrop-filter: blur(24px);
-		backdrop-filter: blur(24px);
+		-webkit-backdrop-filter: var(--blur-strong);
+		backdrop-filter: var(--blur-strong);
 	}
 	dialog::backdrop {
 		background: rgba(0, 0, 0, 0.55);

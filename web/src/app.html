@@ -3,12 +3,29 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta name="color-scheme" content="dark" />
 		<meta name="theme-color" content="#07080A" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.ico" sizes="32x32" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
 		<title>Hub</title>
+		<!-- Apparence choisie dans Réglages, posée avant le premier rendu (pas de flash). Même logique
+		     que src/lib/appearance.ts ; la CSP l'autorise par son hash, calculé au démarrage. -->
+		<script>
+			(function () {
+				var a = {};
+				try {
+					a = JSON.parse(localStorage.getItem('hub.appearance')) || {};
+				} catch (e) {}
+				var d = document.documentElement;
+				var light =
+					a.theme === 'light' ||
+					(a.theme === 'system' && matchMedia('(prefers-color-scheme: light)').matches);
+				d.setAttribute('data-theme', light ? 'light' : 'dark');
+				if (a.density === 'compact') d.setAttribute('data-density', 'compact');
+				if (a.lessTransparency === true) d.setAttribute('data-transparency', 'reduce');
+				if (a.reduceMotion === true) d.setAttribute('data-motion', 'reduce');
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

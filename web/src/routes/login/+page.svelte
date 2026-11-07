@@ -228,7 +228,7 @@
 		border-radius: var(--r-card);
 		background: var(--surface-1);
 		box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
-		backdrop-filter: blur(24px) saturate(1.2);
+		backdrop-filter: var(--blur-strong) saturate(1.2);
 	}
 	.brand {
 		display: grid;

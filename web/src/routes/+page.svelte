@@ -369,7 +369,7 @@
 		padding: 14px 16px;
 		border: 1px solid var(--border-1);
 		border-radius: 16px;
-		background: rgba(0, 0, 0, 0.35);
+		background: var(--glass-scrim);
 		backdrop-filter: var(--blur);
 	}
 	.small {
@@ -391,7 +391,7 @@
 	}
 	.downloads {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
 		gap: 18px;
 	}
 	.download {

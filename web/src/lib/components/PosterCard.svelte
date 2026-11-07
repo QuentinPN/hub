@@ -23,10 +23,10 @@
 	.poster {
 		position: relative;
 		display: flex;
-		flex: 0 0 168px;
+		flex: 0 0 var(--poster-w);
 		flex-direction: column;
 		justify-content: space-between;
-		height: 252px;
+		height: var(--poster-h);
 		box-sizing: border-box;
 		overflow: hidden;
 		padding: 14px;
@@ -83,8 +83,6 @@
 	}
 	@media (max-width: 720px) {
 		.poster {
-			flex-basis: 118px;
-			height: 176px;
 			padding: 10px;
 		}
 		.chip {

@@ -10,6 +10,8 @@
 	--text: #f5f5f7;
 	--text-2: #a1a1a6;
 	--text-inverse: #0a0a0c;
+	/* Fond d'un élément choisi ou au focus (menu, pilule active), sous --text-inverse. */
+	--fill-selected: rgba(255, 255, 255, 0.92);
 	--accent-play: #e8c9a6;
 
 	--status-online: #30d158;
@@ -36,6 +38,22 @@
 
 	--space-page: clamp(16px, 4.5vw, 64px);
 	--blur: blur(20px);
+	--blur-strong: blur(24px);
+	--blur-backdrop: blur(8px);
+	/* Verre des barres et des fenêtres ; plein quand la transparence est réduite. */
+	--glass: rgba(28, 28, 32, 0.72);
+	--glass-dialog: rgba(28, 30, 36, 0.94);
+	--glass-pill: rgba(255, 255, 255, 0.08);
+	--glass-scrim: rgba(0, 0, 0, 0.35);
+
+	/* Tuiles : services (app), affiches (poster). Réglages > Apparence > Densité. */
+	--app-w: 232px;
+	--app-h: 148px;
+	--app-pad: 18px;
+	--poster-w: 168px;
+	--poster-h: 252px;
+	--card-min: 260px;
+	--grid-cols-mobile: 2;
 	--shadow-lift: 0 26px 50px rgba(0, 0, 0, 0.55);
 
 	--ease: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -43,9 +61,66 @@
 	--focus-scale: 1.06;
 }
 
+@media (max-width: 720px) {
+	:root {
+		--app-w: 148px;
+		--app-h: 104px;
+		--app-pad: 12px;
+		--poster-w: 118px;
+		--poster-h: 176px;
+	}
+}
+
+/* Compacte : environ un quart de tuiles en plus par rangée. */
+:root[data-density='compact'] {
+	--app-w: 184px;
+	--app-h: 120px;
+	--app-pad: 14px;
+	--poster-w: 132px;
+	--poster-h: 198px;
+	--card-min: 210px;
+}
+@media (max-width: 720px) {
+	:root[data-density='compact'] {
+		--app-w: 112px;
+		--app-h: 88px;
+		--app-pad: 10px;
+		--poster-w: 92px;
+		--poster-h: 138px;
+		--grid-cols-mobile: 3;
+	}
+}
+
+/* Moins de transparence : réglage de l'appareil, ou forcé pour Hub. */
+@media (prefers-reduced-transparency: reduce) {
+	:root {
+		--blur: none;
+		--blur-strong: none;
+		--blur-backdrop: none;
+		--glass: #1c1c20;
+		--glass-dialog: #1c1e24;
+		--glass-pill: #1d1e21;
+		--glass-scrim: #0d0e10;
+	}
+}
+:root[data-transparency='reduce'] {
+	--blur: none;
+	--blur-strong: none;
+	--blur-backdrop: none;
+	--glass: #1c1c20;
+	--glass-dialog: #1c1e24;
+	--glass-pill: #1d1e21;
+	--glass-scrim: #0d0e10;
+}
+
+/* Réduire les animations : réglage de l'appareil, ou forcé pour Hub. */
 @media (prefers-reduced-motion: reduce) {
 	:root {
 		--dur: 0ms;
 		--focus-scale: 1;
 	}
+}
+:root[data-motion='reduce'] {
+	--dur: 0ms;
+	--focus-scale: 1;
 }

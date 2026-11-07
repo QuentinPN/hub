@@ -153,7 +153,7 @@
 		padding: 5px;
 		border: 1px solid var(--border-1);
 		border-radius: var(--r-pill);
-		background: var(--surface-2);
+		background: var(--glass-pill);
 		backdrop-filter: var(--blur);
 		-webkit-backdrop-filter: var(--blur);
 	}
@@ -239,7 +239,7 @@
 			padding: 8px 6px;
 			border: 1px solid rgba(255, 255, 255, 0.1);
 			border-radius: 26px;
-			background: rgba(28, 28, 32, 0.72);
+			background: var(--glass);
 			backdrop-filter: var(--blur);
 			-webkit-backdrop-filter: var(--blur);
 		}

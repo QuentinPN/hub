@@ -7,6 +7,7 @@
 }
 
 html {
+	color-scheme: dark;
 	background: var(--bg);
 	color: var(--text);
 	font-family: var(--font);
@@ -55,4 +56,13 @@ button {
 	overflow: hidden;
 	clip: rect(0 0 0 0);
 	white-space: nowrap;
+}
+
+/* Forcé dans Réglages : les animations en boucle (squelettes, attente) s'arrêtent aussi, comme
+   avec le réglage de l'appareil que chaque composant suit déjà. */
+:root[data-motion='reduce'] *,
+:root[data-motion='reduce'] *::before,
+:root[data-motion='reduce'] *::after {
+	animation: none !important;
+	scroll-behavior: auto !important;
 }
