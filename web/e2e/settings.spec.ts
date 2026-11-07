@@ -20,6 +20,7 @@ test('le menu des sections reste accessible et mène à la section', async ({ pa
 		'Hôtes et agents',
 		'Découverte',
 		'Widgets et connexions',
+		'Notifications',
 		'Sécurité et accès',
 		'Sauvegarde'
 	]);

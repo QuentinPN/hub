@@ -101,6 +101,9 @@ func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *
 	if rt != nil && rt.Backups != nil {
 		registerBackups(mux, rt.Backups, authSvc)
 	}
+	if rt != nil && rt.Notifications != nil {
+		registerNotifications(mux, rt.Notifications, authSvc)
+	}
 	if editor, ok := store.(LayoutEditor); ok {
 		registerLayout(mux, editor)
 	}

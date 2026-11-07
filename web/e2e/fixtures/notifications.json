@@ -1,0 +1,28 @@
+{
+	"ntfy": {
+		"configured": true,
+		"url": "https://ntfy.sh",
+		"topicHint": "hub-",
+		"last": { "at": "2026-11-06T18:02:00Z", "ok": true, "test": true, "error": "" }
+	},
+	"smtp": {
+		"configured": false,
+		"host": "",
+		"port": 587,
+		"username": "",
+		"passwordSet": false,
+		"from": "",
+		"to": "",
+		"last": null
+	},
+	"alerts": [
+		{ "id": "service", "enabled": true, "delaySeconds": 300 },
+		{ "id": "host", "enabled": true, "delaySeconds": 180 },
+		{ "id": "widget", "enabled": true, "delaySeconds": 900 },
+		{ "id": "backup", "enabled": true, "delaySeconds": 0 },
+		{ "id": "disk", "enabled": false, "delaySeconds": 1800 },
+		{ "id": "login", "enabled": false, "delaySeconds": 0 }
+	],
+	"quietHours": { "enabled": true, "from": "23:00", "to": "08:00" },
+	"pending": 0
+}

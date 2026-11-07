@@ -55,6 +55,8 @@ type Runtime struct {
 	Streams func() map[string]time.Time
 	// Backups is nil when no backup service runs: the section and its check stay off.
 	Backups Backups
+	// Notifications is nil when no alert engine runs: its section and check stay off.
+	Notifications Notifications
 }
 
 // HubStatus answers GET /api/v1/status.
@@ -102,6 +104,9 @@ func registerStatus(mux *http.ServeMux, src StatusSource, rt *Runtime, live *Wid
 			if rt.Backups != nil {
 				out.Checks = append(out.Checks, backupCheck(r.Context(), rt.Backups, time.Now()))
 			}
+			if rt.Notifications != nil {
+				out.Checks = append(out.Checks, notifyCheck(r.Context(), rt.Notifications))
+			}
 		}
 		if live != nil {
 			out.Pages = live.Bus.Subscribers()
@@ -116,7 +121,7 @@ func registerStatus(mux *http.ServeMux, src StatusSource, rt *Runtime, live *Wid
 	})
 }
 
-var checkOrder = []string{"db", "secrets", "backup", "agents", "widgets", "streams", "urls"}
+var checkOrder = []string{"db", "secrets", "backup", "notify", "agents", "widgets", "streams", "urls"}
 
 func orderChecks(list []StatusCheck) []StatusCheck {
 	out := make([]StatusCheck, 0, len(list))
