@@ -47,7 +47,7 @@ func (s *Store) HomeLayout(ctx context.Context) (api.HomeLayout, error) {
 		return api.HomeLayout{}, err
 	}
 	choices := map[string][]api.LayoutChoice{
-		api.RowPlaying: {}, api.RowFavorites: {}, api.RowUpcoming: {}, api.RowDownloads: {}, api.RowHosts: {},
+		api.RowPlaying: {}, api.RowFavorites: {}, api.RowLatest: {}, api.RowUpcoming: {}, api.RowDownloads: {}, api.RowHosts: {},
 	}
 	for _, e := range p.all {
 		c, ok := p.conns[e.Slug]
@@ -57,6 +57,9 @@ func (s *Store) HomeLayout(ctx context.Context) (api.HomeLayout, error) {
 		choice := api.LayoutChoice{ID: e.Slug, Label: e.Name}
 		if slices.Contains(c.enabled, widgets.EmbySessions) {
 			choices[api.RowPlaying] = append(choices[api.RowPlaying], choice)
+		}
+		if slices.Contains(c.enabled, widgets.EmbyLatest) {
+			choices[api.RowLatest] = append(choices[api.RowLatest], choice)
 		}
 		if slices.Contains(c.enabled, widgets.WidgetCalendar) {
 			choices[api.RowUpcoming] = append(choices[api.RowUpcoming], choice)

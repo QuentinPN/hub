@@ -20,6 +20,11 @@
 			note: 'Tes services étoilés',
 			emptyChoices: 'Géré par les étoiles.'
 		},
+		latest: {
+			name: 'Ajoutés récemment',
+			note: 'Dernières entrées de la bibliothèque',
+			emptyChoices: 'Aucune bibliothèque connectée.'
+		},
 		upcoming: {
 			name: 'À venir',
 			note: 'Calendrier commun',

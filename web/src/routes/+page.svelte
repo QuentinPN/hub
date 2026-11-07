@@ -5,7 +5,7 @@
 	import type { Home } from '#lib/api/types.ts';
 	import { ago } from '#lib/agents.ts';
 	import { onWidgetNews } from '#lib/live.ts';
-	import { upcomingPoster, widgetStateView } from '#lib/widgets.ts';
+	import { mediaPoster, upcomingPoster, widgetStateView } from '#lib/widgets.ts';
 	import AppCard from '#lib/components/AppCard.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import HostCard from '#lib/components/HostCard.svelte';
@@ -17,7 +17,8 @@
 
 	let { data }: PageProps = $props();
 
-	const DEFAULT_ROWS = ['playing', 'favorites', 'upcoming', 'downloads', 'hosts'];
+	const DEFAULT_ROWS = ['playing', 'favorites', 'latest', 'upcoming', 'downloads', 'hosts'];
+	const count = (n: number) => n.toLocaleString('fr-FR');
 
 	// Relu sans repasser par le squelette : la lecture en cours change sous les yeux, dès que
 	// le serveur le signale. La relecture régulière rattrape un signal perdu.
@@ -129,6 +130,49 @@
 						</div>
 					</div>
 				</div>
+			{:else if home.sessionsSlug}
+				<div class="hero-body">
+					<div class="hero-text">
+						<span class="eyebrow idle">
+							<svg
+								width="14"
+								height="14"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.2"
+								stroke-linejoin="round"
+								aria-hidden="true"
+								><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect
+									x="14"
+									y="5"
+									width="4"
+									height="14"
+									rx="1"
+								></rect></svg
+							>
+							Emby · aucune session
+						</span>
+						<h1>Rien en lecture</h1>
+						{#if home.lastAdded}
+							<p class="muted lead">
+								Dernier ajout : {home.lastAdded.title}{home.lastAdded.addedAt
+									? `, ${ago(home.lastAdded.addedAt, Date.now())}`
+									: ''}
+							</p>
+						{/if}
+						<div class="actions">
+							<a class="btn primary" href={resolve('/services/[slug]', { slug: home.sessionsSlug })}
+								>Ouvrir la fiche Emby</a
+							>
+							{#if home.library}
+								<span class="muted sessions"
+									>{count(home.library.movies)} films · {count(home.library.series)} séries</span
+								>
+							{/if}
+						</div>
+					</div>
+				</div>
 			{:else}
 				<div class="hero-body">
 					<h1>Rien en lecture</h1>
@@ -151,6 +195,14 @@
 					<Shelf title="Services" id="services">
 						{#each home.services as service (service.slug)}
 							<AppCard {service} />
+						{/each}
+					</Shelf>
+				{/if}
+			{:else if row === 'latest'}
+				{#if home.latest?.length}
+					<Shelf title="Ajoutés récemment · Emby" id="latest" focusable>
+						{#each home.latest as item, i (item.title + item.detail + i)}
+							<PosterCard item={mediaPoster(item, home.latestSlug)} />
 						{/each}
 					</Shelf>
 				{/if}
@@ -251,6 +303,9 @@
 		color: var(--accent-play);
 		font-size: 15px;
 		font-weight: 500;
+	}
+	.eyebrow.idle {
+		color: var(--text-2);
 	}
 	h1 {
 		margin: 0;

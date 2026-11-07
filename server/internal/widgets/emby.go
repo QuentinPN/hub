@@ -34,8 +34,8 @@ func (emby) Manifest() Manifest {
 		Reads:   []string{"GET /emby/Sessions", "GET /emby/Users/Query", "GET /emby/Users/…/Items/Latest", "GET /emby/Items/Counts", "GET /emby/Items/…/Images/Primary : affiches", "WebSocket : signaux de changement"},
 		Widgets: []Widget{
 			{ID: EmbySessions, Label: "Sessions en cours", Where: "accueil et fiche"},
-			{ID: EmbyLatest, Label: "Ajoutés récemment", Where: "fiche"},
-			{ID: EmbyLibrary, Label: "Bibliothèque", Where: "fiche"},
+			{ID: EmbyLatest, Label: "Ajoutés récemment", Where: "accueil et fiche"},
+			{ID: EmbyLibrary, Label: "Bibliothèque", Where: "accueil et fiche"},
 		},
 	}
 }
