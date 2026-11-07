@@ -113,3 +113,26 @@ test('l’accueil suit l’ordre et masque le bandeau', async ({ page }) => {
 	await expect(page.getByRole('heading', { level: 1, name: 'Accueil' })).toBeAttached();
 	await expect(page.getByRole('link', { name: 'Ouvrir la fiche Emby' })).toHaveCount(0);
 });
+
+test('les flèches font défiler une rangée trop longue', async ({ page, hasTouch }) => {
+	test.skip(hasTouch, 'au doigt, la rangée se glisse ; les flèches sont masquées');
+	await mockApi(page);
+	const home = fixture('home') as { favorites: { slug: string; name: string }[] };
+	const favorites = Array.from({ length: 20 }, (_, i) => ({
+		...home.favorites[i % home.favorites.length],
+		slug: `app-${i}`,
+		name: `App ${i}`
+	}));
+	await page.route('**/api/v1/home', (route) => route.fulfill({ json: { ...home, favorites } }));
+	await page.goto('/');
+	const shelf = page.getByRole('region', { name: 'Favoris' });
+	const previous = shelf.getByRole('button', { name: 'Précédents' });
+	const next = shelf.getByRole('button', { name: 'Suivants' });
+	await expect(previous).toBeDisabled();
+	await next.click();
+	await expect(previous).toBeEnabled();
+	await expect(shelf.getByRole('link', { name: /App 19/ })).not.toBeInViewport();
+	for (let i = 0; i < 6 && (await next.isEnabled()); i++) await next.click();
+	await expect(next).toBeDisabled();
+	await expect(shelf.getByRole('link', { name: /App 19/ })).toBeInViewport();
+});
