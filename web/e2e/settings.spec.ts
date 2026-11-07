@@ -10,10 +10,9 @@ test.beforeEach(async ({ page }) => {
 	await expect(page.getByRole('heading', { level: 1, name: 'Réglages' })).toBeVisible();
 });
 
-test('le menu des sections reste accessible et mène à la section', async ({ page }, testInfo) => {
+test('le menu des sections reste accessible et mène à la section', async ({ page }) => {
 	const nav = page.getByRole('navigation', { name: 'Sections des réglages' });
 	await expect(nav).toBeVisible();
-	// En mobile, seules les sections qui ont du contenu figurent dans la rangée de pilules.
 	const links = nav.getByRole('link');
 	await expect(links).toHaveText([
 		'État de Hub',

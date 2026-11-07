@@ -225,7 +225,7 @@
 		outline-offset: 1px;
 	}
 	input[aria-invalid='true'] {
-		border-color: #ff8a80;
+		border-color: var(--text-danger);
 	}
 	small {
 		color: var(--text-2);
@@ -233,7 +233,7 @@
 		font-weight: 400;
 	}
 	.error {
-		color: #ff8a80;
+		color: var(--text-danger);
 	}
 	.status {
 		min-height: 1.4em;
@@ -245,7 +245,7 @@
 		display: none;
 	}
 	.status.error {
-		color: #ff8a80;
+		color: var(--text-danger);
 	}
 	.about {
 		gap: 4px;

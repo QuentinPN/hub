@@ -21,7 +21,6 @@
 	let sessionsVersion = $state(0);
 	let problems = $state(0);
 
-	// Les sections sans identifiant n'ont pas encore de contenu : elles arrivent par jalons.
 	const sections = [
 		{ label: 'État de Hub', id: 'status' },
 		{ label: 'Général', id: 'general' },
@@ -43,17 +42,13 @@
 	<div class="layout">
 		<nav class="sections" aria-label="Sections des réglages">
 			{#each sections as s (s.label)}
-				{#if s.id}
-					<a class="sec" href="#{s.id}"
-						>{s.label}{#if s.id === 'status' && problems > 0}<span class="badge"
-								><span class="visually-hidden"> : </span>{problems}<span class="visually-hidden">
-									{problems > 1 ? 'problèmes' : 'problème'}</span
-								></span
-							>{/if}</a
-					>
-				{:else}
-					<span class="sec" aria-disabled="true" title="Prochain jalon">{s.label}</span>
-				{/if}
+				<a class="sec" href="#{s.id}"
+					>{s.label}{#if s.id === 'status' && problems > 0}<span class="badge"
+							><span class="visually-hidden"> : </span>{problems}<span class="visually-hidden">
+								{problems > 1 ? 'problèmes' : 'problème'}</span
+							></span
+						>{/if}</a
+				>
 			{/each}
 		</nav>
 
@@ -198,10 +193,6 @@
 		font-size: 13px;
 		font-weight: 700;
 	}
-	.sec[aria-disabled='true'] {
-		color: var(--text-2);
-		opacity: 0.55;
-	}
 	.panels {
 		display: flex;
 		flex: 999 1 560px;
@@ -277,9 +268,6 @@
 			border-radius: var(--r-pill);
 			background: var(--surface-1);
 			font-size: 14px;
-		}
-		.sec[aria-disabled='true'] {
-			display: none;
 		}
 		.layout {
 			gap: 20px;

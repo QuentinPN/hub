@@ -521,17 +521,17 @@
 		background: var(--surface-1);
 	}
 	.channel.on {
-		border-color: rgba(48, 209, 88, 0.3);
-		background: rgba(48, 209, 88, 0.06);
+		border-color: var(--tint-ok-border);
+		background: var(--tint-ok-bg);
 	}
 	.channel.fail {
-		border-color: rgba(255, 69, 58, 0.35);
-		background: rgba(255, 69, 58, 0.06);
+		border-color: var(--tint-danger-border);
+		background: var(--tint-danger-bg);
 	}
 	.channel.empty {
 		border-style: dashed;
-		border-color: rgba(255, 255, 255, 0.18);
-		background: rgba(0, 0, 0, 0.2);
+		border-color: var(--border-dashed);
+		background: var(--surface-inset);
 	}
 	.ch-head {
 		display: flex;
@@ -549,7 +549,7 @@
 	}
 	.channel.on .state,
 	.channel.fail .state {
-		color: #c7c7cc;
+		color: var(--text-2);
 	}
 	.dot {
 		flex: none;
@@ -562,14 +562,14 @@
 		background: var(--status-down);
 	}
 	.where {
-		color: #c7c7cc;
+		color: var(--text-2);
 		overflow-wrap: anywhere;
 	}
 	.where strong {
 		font-weight: 600;
 	}
 	.last-error {
-		color: #ff8a80;
+		color: var(--text-danger);
 		font-size: 14px;
 	}
 	.hint {
@@ -589,9 +589,9 @@
 	.btn {
 		min-height: 44px;
 		padding: 0 16px;
-		border: 1px solid rgba(255, 255, 255, 0.14);
+		border: 1px solid var(--border-2);
 		border-radius: 12px;
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--surface-1);
 		color: var(--text);
 		font: inherit;
 		font-weight: 600;
@@ -603,7 +603,7 @@
 	}
 	.btn.danger {
 		margin-right: auto;
-		color: #ff8a80;
+		color: var(--text-danger);
 	}
 	.btn.primary {
 		border-color: transparent;
@@ -662,9 +662,9 @@
 	.error {
 		margin: 0;
 		padding: 10px 12px;
-		border: 1px solid rgba(255, 69, 58, 0.35);
+		border: 1px solid var(--tint-danger-border);
 		border-radius: 12px;
-		background: rgba(255, 69, 58, 0.08);
+		background: var(--tint-danger-bg);
 		font-size: 14px;
 	}
 	.status-line {
@@ -677,7 +677,7 @@
 		margin-top: -16px;
 	}
 	.status-line.error {
-		color: #ff8a80;
+		color: var(--text-danger);
 	}
 	.alerts {
 		margin: -10px 0 0;
@@ -691,7 +691,7 @@
 		gap: 14px;
 		min-height: 58px;
 		padding: 8px 0;
-		border-top: 1px solid rgba(255, 255, 255, 0.06);
+		border-top: 1px solid var(--border-1);
 		cursor: pointer;
 	}
 	.what {
@@ -704,7 +704,7 @@
 		font-weight: 600;
 	}
 	.delay {
-		color: #c7c7cc;
+		color: var(--text-2);
 		font-size: 14px;
 		text-align: right;
 	}
