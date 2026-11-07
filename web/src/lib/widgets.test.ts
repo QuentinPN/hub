@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	accountStateView,
 	connectionLabel,
 	etaLabel,
 	mediaPoster,
@@ -24,6 +25,11 @@ describe('widgets', () => {
 	it('explique un test de clé raté', () => {
 		expect(testFailure('auth').title).toBe('Clé refusée');
 		expect(testFailure('unreachable').title).toBe('Injoignable depuis le serveur');
+		expect(testFailure('auth', true).title).toBe('Compte refusé');
+		expect(testFailure('auth', true).detail).toContain('vérifié');
+		expect(testFailure('unreachable', true).title).toBe('Injoignable depuis le serveur');
+		expect(accountStateView('auth').label).toBe('Compte refusé');
+		expect(accountStateView('ok').label).toBe('Connecté');
 	});
 
 	it('écrit la date à venir et garde ce qui n’a pas de date', () => {

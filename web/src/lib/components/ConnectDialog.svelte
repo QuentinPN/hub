@@ -196,7 +196,7 @@
 						</p>
 					</div>
 				{:else if test}
-					{@const failure = testFailure(test.result)}
+					{@const failure = testFailure(test.result, needsAccount())}
 					<div class="result bad">
 						<span class="dot"></span>
 						<p><strong>{failure.title}</strong><span class="muted">{failure.detail}</span></p>

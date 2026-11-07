@@ -4,6 +4,7 @@
 	import { ago } from '#lib/agents.ts';
 	import { onWidgetNews } from '#lib/live.ts';
 	import {
+		accountStateView,
 		connectionLabel,
 		mediaPoster,
 		refreshLabel,
@@ -23,7 +24,13 @@
 
 	const widget = $derived(service.widget);
 	const conn = $derived(widget?.connection);
-	const view = $derived(conn ? widgetStateView(conn.state) : null);
+	const view = $derived(
+		conn
+			? widget?.manifest?.auth === 'password'
+				? accountStateView(conn.state)
+				: widgetStateView(conn.state)
+			: null
+	);
 	const age = $derived.by(() =>
 		conn?.dataAt ? `${conn.state === 'ok' ? 'à jour' : 'données'} ${ago(conn.dataAt, now)}` : ''
 	);

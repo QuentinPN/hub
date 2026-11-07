@@ -526,3 +526,34 @@ test('Beszel demande un compte, et chaque hôte retrouve son système', async ({
 	await expect(page.getByText('hub@local')).toBeVisible();
 	await expect(page.getByText('un mot de passe')).toHaveCount(0);
 });
+
+test('un compte refusé le dit comme un compte, et suggère sa vérification', async ({ page }) => {
+	const manifestBeszel = {
+		kind: 'beszel',
+		name: 'Beszel',
+		auth: 'password',
+		keyHelp: 'Crée un compte au rôle readonly.',
+		reads: [],
+		widgets: [{ id: 'systems', label: 'CPU, mémoire et disque', where: 'Infra' }]
+	};
+	const service = {
+		...base,
+		slug: 'beszel',
+		name: 'Beszel',
+		widget: { support: 'ready', manifest: manifestBeszel, refreshChoices: [30] }
+	};
+	await mockApi(page);
+	await page.route('**/api/v1/services/beszel', (route) => route.fulfill({ json: service }));
+	await page.route('**/api/v1/services/beszel/connection/test', (route) =>
+		route.fulfill({ json: { result: 'auth', latencyMs: 5 } })
+	);
+	await page.goto('/services/beszel#widgets');
+	await page.getByRole('button', { name: 'Connecter Beszel' }).click();
+	const dialog = page.getByRole('dialog');
+	await dialog.getByLabel('E-mail du compte').fill('hub@local');
+	await dialog.getByLabel('Mot de passe').fill('x');
+	await dialog.getByRole('button', { name: 'Tester le compte' }).click();
+	await expect(dialog.getByText('Compte refusé')).toBeVisible();
+	await expect(dialog.getByText(/vérifié/)).toBeVisible();
+	await expect(dialog.getByText('Clé refusée')).toHaveCount(0);
+});

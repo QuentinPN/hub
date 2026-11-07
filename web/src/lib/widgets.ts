@@ -55,7 +55,29 @@ const views: Record<WidgetState, WidgetStateView> = {
 export const widgetStateView = (state: WidgetState): WidgetStateView => views[state];
 
 /** Ce que le test d'une clé répond, côté panneau de connexion. */
-export function testFailure(result: WidgetState): { title: string; detail: string } {
+// Un compte peut être refusé avec le bon mot de passe : Beszel n'admet que les comptes vérifiés.
+const accountRefused = {
+	title: 'Compte refusé',
+	detail:
+		'Mot de passe faux, ou compte pas autorisé à se connecter : dans Beszel, il doit être vérifié (champ verified).'
+};
+
+/** Pour un compte, sa propre façon de dire le refus ; le reste ne change pas. */
+export function accountStateView(state: WidgetState): WidgetStateView {
+	const view = widgetStateView(state);
+	if (state !== 'auth') return view;
+	return {
+		...view,
+		label: accountRefused.title,
+		detail: `${accountRefused.detail} Hub ne réessaie plus tant que le mot de passe n’a pas changé.`
+	};
+}
+
+export function testFailure(
+	result: WidgetState,
+	account = false
+): { title: string; detail: string } {
+	if (account && result === 'auth') return accountRefused;
 	switch (result) {
 		case 'auth':
 			return {
