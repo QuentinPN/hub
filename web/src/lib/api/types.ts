@@ -351,6 +351,13 @@ export interface ServiceEdit {
 	links: string[];
 }
 
+/** Ce que devient un service Compose mis à part de son projet. */
+export interface ServiceSplit {
+	service: string;
+	name: string;
+	category: string;
+}
+
 export interface HiddenGroup {
 	hostId: string;
 	key: string;
@@ -603,6 +610,17 @@ export interface ServiceContainers {
 	/** Les derniers disparus, du plus récent au plus ancien ; `removedTotal` les compte tous. */
 	removed: ServiceContainer[];
 	removedTotal: number;
+	/** Présent pour un service mis à part de son projet. */
+	split: ContainerSplit | null;
+}
+
+/** D'où vient un service mis à part ; `parentSlug` vide si le projet n'a plus de service. */
+export interface ContainerSplit {
+	project: string;
+	service: string;
+	since: string;
+	parentSlug: string;
+	parentName: string;
 }
 
 /** Durées de conservation proposées dans Réglages › Général. */

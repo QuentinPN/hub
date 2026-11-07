@@ -33,6 +33,9 @@ func (s *Store) ServiceContainers(ctx context.Context, slug string, now time.Tim
 		return api.ServiceContainers{}, err
 	}
 	res.HostState, res.LastSeenAt = f.State(now), f.LastSeenAt
+	if res.Split, err = s.splitInfo(ctx, scope.HostID, scope.Keys[0]); err != nil {
+		return api.ServiceContainers{}, err
+	}
 
 	roles, err := s.roles(ctx, scope)
 	if err != nil {

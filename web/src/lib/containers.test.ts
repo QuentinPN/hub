@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
-import { labelsLabel, portLabel, splitImage } from './containers';
+import type { ServiceContainer, ServiceContainers } from './api/types';
+import { labelsLabel, portLabel, splitImage, splitName, splittable } from './containers';
 
 it('sépare l’image de son tag', () => {
 	expect(splitImage('ghcr.io/immich-app/immich-server:v1.120.2')).toEqual({
@@ -25,4 +26,35 @@ it('dit les ports et les labels sans valeur', () => {
 	expect(labelsLabel(13, 1)).toBe('13, dont 1 masqué');
 	expect(labelsLabel(9, 0)).toBe('9, aucun masqué');
 	expect(labelsLabel(0, 0)).toBe('Aucun');
+});
+
+it('propose un nom au service mis à part', () => {
+	expect(splitName('AnimeSchedule', 'anime-web')).toBe('AnimeSchedule Web');
+	expect(splitName('Immich', 'machine_learning')).toBe('Immich Machine Learning');
+	expect(splitName('Web', 'web')).toBe('Web Web');
+});
+
+it('ne propose la séparation que si le projet garde un service', () => {
+	const c = (composeService: string, extra: Partial<ServiceContainer> = {}) =>
+		({
+			composeProject: 'anime',
+			composeService,
+			linked: false,
+			role: 'support',
+			...extra
+		}) as ServiceContainer;
+	const data = (containers: ServiceContainer[], split: ServiceContainers['split'] = null) =>
+		({ containers, split }) as ServiceContainers;
+	expect([...splittable(data([c('admin', { role: 'main' }), c('web')]))]).toEqual(['admin', 'web']);
+	expect(splittable(data([c('admin'), c('admin')])).size).toBe(0);
+	expect(splittable(data([c('admin'), c('migrate', { role: 'oneshot' })])).size).toBe(0);
+	expect(splittable(data([c('admin'), c('db', { linked: true })])).size).toBe(0);
+	const from = {
+		project: 'anime',
+		service: 'web',
+		since: '',
+		parentSlug: 'anime',
+		parentName: 'A'
+	};
+	expect(splittable(data([c('admin'), c('web')], from)).size).toBe(0);
 });

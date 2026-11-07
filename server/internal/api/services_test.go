@@ -32,6 +32,18 @@ func (e *env) sendJSON(t *testing.T, method, path, body string, out any) (int, [
 
 func discoveredEnv(t *testing.T) *env {
 	t.Helper()
+	return newEnv(t, discoveredStore(t, []agentproto.Container{{
+		ID: strings.Repeat("a", 64), Name: "emby", Image: "linuxserver/emby", State: "running",
+		Labels: map[string]string{agentproto.LabelComposeProject: "emby", agentproto.LabelComposeService: "emby"},
+	}, {
+		ID: strings.Repeat("b", 64), Name: "hawser", Image: "finsys/hawser", State: "running",
+		Labels: map[string]string{agentproto.LabelComposeProject: "hawser", agentproto.LabelComposeService: "hawser"},
+	}}))
+}
+
+// discoveredStore is a store whose agent on host "mini" reported containers.
+func discoveredStore(t *testing.T, containers []agentproto.Container) *pgstore.Store {
+	t.Helper()
 	ctx := context.Background()
 	store, err := pgstore.New(ctx, dbtest.Pool(t), fixture.Empty())
 	if err != nil {
@@ -45,17 +57,10 @@ func discoveredEnv(t *testing.T) *env {
 		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour)}); err != nil {
 		t.Fatal(err)
 	}
-	snap := agentproto.Snapshot{Containers: []agentproto.Container{{
-		ID: strings.Repeat("a", 64), Name: "emby", Image: "linuxserver/emby", State: "running",
-		Labels: map[string]string{agentproto.LabelComposeProject: "emby", agentproto.LabelComposeService: "emby"},
-	}, {
-		ID: strings.Repeat("b", 64), Name: "hawser", Image: "finsys/hawser", State: "running",
-		Labels: map[string]string{agentproto.LabelComposeProject: "hawser", agentproto.LabelComposeService: "hawser"},
-	}}}
-	if err := store.ReplaceContainers(ctx, "mini", snap, time.Now()); err != nil {
+	if err := store.ReplaceContainers(ctx, "mini", agentproto.Snapshot{Containers: containers}, time.Now()); err != nil {
 		t.Fatal(err)
 	}
-	return newEnv(t, store)
+	return store
 }
 
 func TestSetURLSavesWhatAnswers(t *testing.T) {
@@ -193,5 +198,42 @@ func TestWritesAbsentWithoutEditor(t *testing.T) {
 	e := newEnv(t, fixture.New())
 	if status, _ := e.do(t, e.user, http.MethodPut, "/api/v1/services/emby/favorite", `{"favorite":true}`, nil); status != http.StatusNotFound && status != http.StatusMethodNotAllowed {
 		t.Fatalf("status %d", status)
+	}
+}
+
+func TestSplitAndJoinRoutes(t *testing.T) {
+	e := newEnv(t, discoveredStore(t, []agentproto.Container{{
+		ID: strings.Repeat("c", 64), Name: "anime-admin-1", Image: "org/anime-admin:1.2.0", State: "running",
+		Labels: map[string]string{agentproto.LabelComposeProject: "anime", agentproto.LabelComposeService: "admin"},
+		Ports:  []agentproto.Port{{PublicPort: 5178, PrivatePort: 5178, Type: "tcp"}},
+	}, {
+		ID: strings.Repeat("d", 64), Name: "anime-web-1", Image: "org/anime-web:1.2.0", State: "running",
+		Labels: map[string]string{agentproto.LabelComposeProject: "anime", agentproto.LabelComposeService: "web"},
+	}}))
+
+	for _, c := range []struct {
+		path, body string
+		want       int
+	}{
+		{"/api/v1/services/anime/split", `{"service":"web","name":" ","category":"X"}`, http.StatusBadRequest},
+		{"/api/v1/services/anime/split", `{"service":" ","name":"W","category":"X"}`, http.StatusBadRequest},
+		{"/api/v1/services/anime/split", `{"service":"nope","name":"W","category":"X"}`, http.StatusBadRequest},
+		{"/api/v1/services/nope/split", `{"service":"web","name":"W","category":"X"}`, http.StatusNotFound},
+		{"/api/v1/services/anime/join", "", http.StatusBadRequest},
+	} {
+		if status, _ := e.do(t, e.user, http.MethodPost, c.path, c.body, nil); status != c.want {
+			t.Errorf("%s %s: status %d, want %d", c.path, c.body, status, c.want)
+		}
+	}
+	if status, _ := e.do(t, e.anon, http.MethodPost, "/api/v1/services/anime/split", `{"service":"web","name":"W","category":"X"}`, nil); status != http.StatusUnauthorized {
+		t.Fatalf("split without a session: status %d", status)
+	}
+
+	var svc api.ServiceDetail
+	if status, _ := e.sendJSON(t, http.MethodPost, "/api/v1/services/anime/split", `{"service":"web","name":"Anime Web","category":"Mes applications"}`, &svc); status != http.StatusOK || svc.Slug != "anime-web" || svc.Name != "Anime Web" {
+		t.Fatalf("split: status %d, %+v", status, svc.ServiceSummary)
+	}
+	if status, _ := e.sendJSON(t, http.MethodPost, "/api/v1/services/anime-web/join", "", &svc); status != http.StatusOK || svc.Slug != "anime" {
+		t.Fatalf("join: status %d, %+v", status, svc.ServiceSummary)
 	}
 }

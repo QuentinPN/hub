@@ -1,4 +1,9 @@
-import type { ContainerRole, PublishedPort, ServiceContainer } from './api/types';
+import type {
+	ContainerRole,
+	PublishedPort,
+	ServiceContainer,
+	ServiceContainers
+} from './api/types';
 
 /** Sépare l'image de son tag : `ghcr.io:443/org/app:v1` → `ghcr.io:443/org/app` et `v1`. */
 export function splitImage(image: string): { name: string; tag: string } {
@@ -69,4 +74,30 @@ export function byProject(list: ServiceContainer[]): ProjectGroup[] {
 		g.containers.push(c);
 	}
 	return groups;
+}
+
+/**
+ * Services Compose du projet du service qu'on peut mettre à part : il en faut au moins deux,
+ * hors tâches uniques, pour que le projet en garde un. Aucun pour un service déjà séparé.
+ */
+export function splittable(data: ServiceContainers): Set<string> {
+	if (data.split) return new Set();
+	const own = new Set(
+		data.containers
+			.filter((c) => !c.linked && c.composeProject && c.composeService && c.role !== 'oneshot')
+			.map((c) => c.composeService)
+	);
+	return own.size >= 2 ? own : new Set();
+}
+
+/** « AnimeSchedule Web » pour anime-web d'AnimeSchedule : le nom proposé à la séparation. */
+export function splitName(parent: string, composeService: string): string {
+	const words = composeService.split(/[-_.]+/).filter(Boolean);
+	// Les mots déjà dans le nom du service ne se répètent pas : anime dans AnimeSchedule.
+	const flat = parent.toLowerCase().replace(/\s+/g, '');
+	const rest = words.filter((w) => !flat.includes(w.toLowerCase()));
+	const tail = (rest.length ? rest : words)
+		.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+		.join(' ');
+	return `${parent} ${tail}`.slice(0, 80);
 }

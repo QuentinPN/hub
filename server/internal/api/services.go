@@ -29,6 +29,30 @@ type ServiceEditor interface {
 // ErrInvalidLink refuses a link to a project that cannot be linked.
 var ErrInvalidLink = errors.New("invalid link")
 
+// ServiceSplitter is implemented by stores that can split a Compose service from its
+// project. Without it, the split routes are not registered.
+type ServiceSplitter interface {
+	// SplitService returns the new service's slug, or ErrInvalidSplit when the project
+	// would be left with no service of its own or split is not one of its Compose services.
+	SplitService(ctx context.Context, slug string, split ServiceSplit) (string, error)
+	// JoinService returns the project's service slug, "" if it has none; ErrInvalidSplit
+	// when slug was not split.
+	JoinService(ctx context.Context, slug string) (string, error)
+}
+
+// ErrInvalidSplit refuses a split, or a join, that the containers do not allow.
+var ErrInvalidSplit = errors.New("invalid split")
+
+func (s *ServiceSplit) validate() string {
+	edit := ServiceEdit{Name: s.Name, Category: s.Category}
+	msg := edit.validate()
+	s.Name, s.Category, s.Service = edit.Name, edit.Category, strings.TrimSpace(s.Service)
+	if msg == "" && s.Service == "" {
+		return "service Compose manquant"
+	}
+	return msg
+}
+
 // URLChecker verifies an address; the tests replace it.
 type URLChecker func(ctx context.Context, url, pinned string) urlcheck.Result
 
@@ -155,6 +179,50 @@ func registerServices(mux *http.ServeMux, store Store, editor ServiceEditor, aut
 		}
 		finish(w, r, slug, err)
 	})
+
+	if splitter, ok := editor.(ServiceSplitter); ok {
+		mux.HandleFunc("POST /api/v1/services/{slug}/split", func(w http.ResponseWriter, r *http.Request) {
+			var body ServiceSplit
+			if !decodeJSON(w, r, &body) {
+				return
+			}
+			if msg := body.validate(); msg != "" {
+				writeError(w, http.StatusBadRequest, msg)
+				return
+			}
+			slug := r.PathValue("slug")
+			created, err := splitter.SplitService(r.Context(), slug, body)
+			if errors.Is(err, ErrInvalidSplit) {
+				writeError(w, http.StatusBadRequest, "ce conteneur ne peut pas devenir un service à part")
+				return
+			}
+			if err == nil {
+				audit(r, "service_split", slug)
+				audit(r, "service_split", created)
+			}
+			finish(w, r, created, err)
+		})
+
+		mux.HandleFunc("POST /api/v1/services/{slug}/join", func(w http.ResponseWriter, r *http.Request) {
+			slug := r.PathValue("slug")
+			parent, err := splitter.JoinService(r.Context(), slug)
+			if errors.Is(err, ErrInvalidSplit) {
+				writeError(w, http.StatusBadRequest, "ce service n'a pas été séparé de son projet")
+				return
+			}
+			if err != nil {
+				respond(w, r)(nil, err)
+				return
+			}
+			audit(r, "service_joined", slug)
+			if parent == "" {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			audit(r, "service_joined", parent)
+			respond(w, r)(store.Service(r.Context(), parent))
+		})
+	}
 
 	mux.HandleFunc("GET /api/v1/hidden", func(w http.ResponseWriter, r *http.Request) {
 		respond(w, r)(editor.HiddenGroups(r.Context()))

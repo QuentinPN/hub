@@ -4,6 +4,8 @@
 </script>
 
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { ApiError, getServiceContainers } from '#lib/api/client.ts';
 	import type { ServiceContainer, ServiceContainers, ServiceDetail } from '#lib/api/types.ts';
 	import { agentStateView, ago } from '#lib/agents.ts';
@@ -15,11 +17,14 @@
 		portLabel,
 		roleLabels,
 		splitImage,
+		splittable,
 		stateColor
 	} from '#lib/containers.ts';
 	import { widgetPollMs } from '#lib/shell.svelte.ts';
 	import ErrorPanel from './ErrorPanel.svelte';
+	import JoinDialog from './JoinDialog.svelte';
 	import Skeleton from './Skeleton.svelte';
+	import SplitDialog from './SplitDialog.svelte';
 
 	let { service }: { service: ServiceDetail } = $props();
 
@@ -62,6 +67,18 @@
 	const groups = $derived(data ? byProject(data.containers) : []);
 	const running = $derived(data?.containers.filter((c) => c.state === 'running').length ?? 0);
 	const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
+
+	// Mettre à part un service Compose, ou rattacher celui-ci à son projet.
+	const canSplit = $derived(data ? splittable(data) : new Set<string>());
+	const splitKey = $derived(data?.split ? `${data.split.project}/${data.split.service}` : '');
+	let splitting = $state<ServiceContainer | null>(null);
+	let joining = $state(false);
+
+	/** Ouvre un onglet d'une fiche. */
+	function openTab(slug: string, tab: 'apercu' | 'conteneurs') {
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- chemin déjà résolu, seule l'ancre s'ajoute
+		void goto(`${resolve('/services/[slug]', { slug })}#${tab}`);
+	}
 
 	function compose(c: ServiceContainer): string {
 		if (!c.composeProject) return 'Hors Compose';
@@ -149,16 +166,46 @@
 
 		{#each groups as g (g.key)}
 			<section class="project" aria-labelledby="project-{g.key}">
-				<div class="head">
-					<h2 id="project-{g.key}">{g.key}</h2>
-					<span class="muted"
-						>{g.linked ? 'projet relié' : 'projet du service'} · {plural(
-							g.containers.length,
-							'conteneur',
-							'conteneurs'
-						)}</span
-					>
-				</div>
+				{#if data.split && g.key === splitKey}
+					{@const sp = data.split}
+					<div class="head">
+						<h2 id="project-{g.key}">{sp.project}</h2>
+						<span class="muted"
+							>séparé du projet le {formatDate(sp.since)}{#if sp.parentSlug}&nbsp;· le reste du
+								projet est sur
+								<a href="{resolve('/services/[slug]', { slug: sp.parentSlug })}#conteneurs"
+									>{sp.parentName}</a
+								>{/if}</span
+						>
+						<button type="button" class="action join" onclick={() => (joining = true)}>
+							<svg
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+								><path d="M8 3 4 7l4 4"></path><path d="M4 7h16"></path><path d="m16 21 4-4-4-4"
+								></path><path d="M20 17H4"></path></svg
+							>
+							Rattacher à {sp.parentName || sp.project}…
+						</button>
+					</div>
+				{:else}
+					<div class="head">
+						<h2 id="project-{g.key}">{g.key}</h2>
+						<span class="muted"
+							>{g.linked ? 'projet relié' : 'projet du service'} · {plural(
+								g.containers.length,
+								'conteneur',
+								'conteneurs'
+							)}</span
+						>
+					</div>
+				{/if}
 				<div class="grid">
 					{#each g.containers as c (c.id)}
 						{@const img = splitImage(c.image)}
@@ -204,6 +251,27 @@
 								<dt class="muted">ID</dt>
 								<dd class="mono muted">{c.id}</dd>
 							</dl>
+							{#if !g.linked && canSplit.has(c.composeService)}
+								<div class="foot">
+									<button type="button" class="action" onclick={() => (splitting = c)}>
+										<svg
+											width="16"
+											height="16"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											aria-hidden="true"
+											><path d="M16 3h5v5"></path><path d="M8 3H3v5"></path><path
+												d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"
+											></path><path d="m15 9 6-6"></path></svg
+										>
+										En faire un service à part…
+									</button>
+								</div>
+							{/if}
 						</article>
 					{/each}
 				</div>
@@ -242,6 +310,24 @@
 			</section>
 		{/if}
 	</div>
+{/if}
+
+{#if splitting}
+	<SplitDialog
+		{service}
+		container={splitting}
+		others={[...canSplit].filter((x) => x !== splitting?.composeService)}
+		onclose={() => (splitting = null)}
+		ondone={(created, urlSaved) => openTab(created.slug, urlSaved ? 'conteneurs' : 'apercu')}
+	/>
+{/if}
+{#if joining && data?.split}
+	<JoinDialog
+		{service}
+		split={data.split}
+		onclose={() => (joining = false)}
+		ondone={(parent) => (parent ? openTab(parent.slug, 'conteneurs') : void goto(resolve('/')))}
+	/>
 {/if}
 
 <style>
@@ -313,6 +399,39 @@
 	}
 	.head span {
 		font-size: 14px;
+	}
+	.head a {
+		color: var(--text);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+	.action {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 44px;
+		padding: 0 16px;
+		border: 1px solid var(--border-2);
+		border-radius: var(--r-pill);
+		background: transparent;
+		color: var(--text);
+		font: inherit;
+		font-size: 14px;
+		font-weight: 500;
+		cursor: pointer;
+	}
+	.action:hover {
+		background: var(--surface-2);
+	}
+	.join {
+		margin-left: auto;
+		align-self: center;
+	}
+	.foot {
+		display: flex;
+		margin-top: auto;
+		padding-top: 14px;
+		border-top: 1px solid var(--border-1);
 	}
 	.grid {
 		display: grid;
@@ -475,6 +594,10 @@
 	@media (max-width: 720px) {
 		.card {
 			padding: 18px;
+		}
+		.foot .action {
+			flex: 1;
+			justify-content: center;
 		}
 		dl {
 			grid-template-columns: 84px minmax(0, 1fr);

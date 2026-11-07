@@ -338,6 +338,23 @@ type ServiceEdit struct {
 	Links    []string `json:"links"`
 }
 
+// ServiceSplit names the service a Compose service of a project becomes.
+type ServiceSplit struct {
+	Service  string `json:"service"`
+	Name     string `json:"name"`
+	Category string `json:"category"`
+}
+
+// ContainerSplit says where a split service comes from. ParentSlug is "" when its project
+// has no service any more.
+type ContainerSplit struct {
+	Project    string    `json:"project"`
+	Service    string    `json:"service"`
+	Since      time.Time `json:"since"`
+	ParentSlug string    `json:"parentSlug"`
+	ParentName string    `json:"parentName"`
+}
+
 // HiddenGroup is a project the catalogue leaves out. Reason: agent, database, self or user.
 type HiddenGroup struct {
 	HostID     string `json:"hostId"`
@@ -358,6 +375,8 @@ type ServiceContainers struct {
 	// counts them all.
 	Removed      []ServiceContainer `json:"removed"`
 	RemovedTotal int                `json:"removedTotal"`
+	// Split is set for a service split from its project.
+	Split *ContainerSplit `json:"split"`
 }
 
 type ServiceContainer struct {

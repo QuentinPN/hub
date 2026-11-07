@@ -23,7 +23,8 @@ type querier interface {
 
 // liveContainers returns the containers present, per host; every host for hostID "".
 func liveContainers(ctx context.Context, q querier, hostID string) (map[string][]reconcile.Container, error) {
-	rows, err := q.Query(ctx, `SELECT host_id, name, image, state, compose_project, compose_service, labels, ports
+	rows, err := q.Query(ctx, `SELECT host_id, name, image, state, compose_project, compose_service, labels, ports,
+			`+containerSplit+`
 		FROM containers WHERE removed_at IS NULL AND ($1 = '' OR host_id = $1)`, hostID)
 	if err != nil {
 		return nil, err
@@ -34,7 +35,7 @@ func liveContainers(ctx context.Context, q querier, hostID string) (map[string][
 		var host string
 		var c reconcile.Container
 		var labels, ports []byte
-		if err := rows.Scan(&host, &c.Name, &c.Image, &c.State, &c.ComposeProject, &c.ComposeService, &labels, &ports); err != nil {
+		if err := rows.Scan(&host, &c.Name, &c.Image, &c.State, &c.ComposeProject, &c.ComposeService, &labels, &ports, &c.Split); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(labels, &c.Labels); err != nil {

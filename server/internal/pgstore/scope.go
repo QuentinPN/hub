@@ -8,9 +8,14 @@ import (
 	"hub/server/internal/api"
 )
 
-// containerKey is a container row's group key, as reconcile.Groups computes it: its Compose
-// project, or its name outside Compose.
-const containerKey = "coalesce(nullif(compose_project, ''), name)"
+// containerSplit says whether a container row's Compose service is split from its project.
+const containerSplit = `EXISTS (SELECT 1 FROM container_splits sp WHERE sp.host_id = containers.host_id
+	AND sp.project = containers.compose_project AND sp.service = containers.compose_service)`
+
+// containerKey is a container row's group key, as reconcile.KeyOf computes it: its Compose
+// project, "project/service" once split, or its name outside Compose.
+const containerKey = `CASE WHEN compose_project <> '' AND compose_service <> '' AND ` + containerSplit + `
+	THEN compose_project || '/' || compose_service ELSE coalesce(nullif(compose_project, ''), name) END`
 
 // ServiceScope is what a discovered service is made of on its host: its own project first,
 // then the projects linked to it.

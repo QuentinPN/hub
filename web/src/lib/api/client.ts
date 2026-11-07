@@ -23,6 +23,7 @@ import type {
 	PasskeyInfo,
 	ServiceDetail,
 	ServiceEdit,
+	ServiceSplit,
 	ServiceContainers,
 	ServiceHistory,
 	HistoryKind,
@@ -164,6 +165,16 @@ export const saveServiceUrl = (
 
 export const clearServiceUrl = (fetchFn: Fetch, slug: string) =>
 	sendService(fetchFn, 'DELETE', `${servicePath(slug)}/url`);
+
+/** Met un service Compose à part de son projet ; renvoie le nouveau service. */
+export const splitService = (fetchFn: Fetch, slug: string, split: ServiceSplit) =>
+	sendService(fetchFn, 'POST', `${servicePath(slug)}/split`, split);
+
+/** Rend ses conteneurs au projet ; renvoie le service du projet, null s'il n'en a plus. */
+export async function joinService(fetchFn: Fetch, slug: string): Promise<ServiceDetail | null> {
+	const res = await send(fetchFn, 'POST', `${servicePath(slug)}/join`);
+	return res.status === 204 ? null : ((await res.json()) as ServiceDetail);
+}
 
 export const getStatus = (fetchFn: Fetch) => getJson<HubStatus>(fetchFn, '/api/v1/status');
 

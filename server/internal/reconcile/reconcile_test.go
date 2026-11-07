@@ -184,3 +184,26 @@ func TestGroupsAreStable(t *testing.T) {
 		}
 	}
 }
+
+func TestSplitServiceIsAGroupOfItsOwn(t *testing.T) {
+	admin := reconcile.Container{Name: "anime-admin-1", Image: "org/anime-admin:1", State: "running", ComposeProject: "anime", ComposeService: "admin", PublicPorts: []int{5178}}
+	web := reconcile.Container{Name: "anime-web-1", Image: "org/anime-web:1", State: "running", ComposeProject: "anime", ComposeService: "web", Split: true}
+	lone := reconcile.Container{Name: "solo", Image: "org/solo:1", State: "running", Split: true}
+	groups := reconcile.Groups([]reconcile.Container{admin, web, lone})
+	keys := []string{}
+	for _, g := range groups {
+		keys = append(keys, g.Key)
+	}
+	if strings.Join(keys, ",") != "anime,anime/web,solo" {
+		t.Fatalf("keys %v", keys)
+	}
+	if g := groups[1]; len(g.Members) != 1 || g.Members[0].Role != reconcile.RoleMain || g.Name != "Anime Web" || g.Slug != "anime-web" {
+		t.Fatalf("split group %+v", g)
+	}
+	if p, s, ok := reconcile.SplitOf("anime/web"); !ok || p != "anime" || s != "web" {
+		t.Fatalf("SplitOf: %q %q %v", p, s, ok)
+	}
+	if _, _, ok := reconcile.SplitOf("anime"); ok {
+		t.Fatal("a project's key read as a split")
+	}
+}

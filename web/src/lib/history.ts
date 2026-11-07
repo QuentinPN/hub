@@ -108,6 +108,8 @@ const EDITS: Record<string, string> = {
 	service_url_set: 'Adresse enregistrée',
 	service_url_cleared: 'Adresse retirée',
 	service_shown: 'Service affiché',
+	service_split: 'Conteneur mis à part',
+	service_joined: 'Conteneur rattaché au projet',
 	widget_connected: 'Widget connecté',
 	widget_disconnected: 'Widget retiré'
 };

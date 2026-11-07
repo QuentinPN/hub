@@ -62,8 +62,10 @@ test('l’onglet montre les conteneurs du service et de ses projets reliés', as
 	await expect(page.getByRole('heading', { level: 2, name: 'Disparus' })).toBeVisible();
 	await expect(card(page, 'gone-51d0c2e9aa47')).toContainText('disparu le 2 nov. 2026');
 	await expect(card(page, 'gone-51d0c2e9aa47')).toContainText('4.8.10.0');
-	// Aucune action : l'onglet ne fait que lire.
-	await expect(page.locator('article button')).toHaveCount(0);
+	// Seule action : mettre à part un service Compose du projet du service, jamais d'un projet relié.
+	await expect(emby.getByRole('button', { name: 'En faire un service à part…' })).toBeVisible();
+	await expect(card(page, 'ctr-9e83b2c6f017').getByRole('button')).toHaveCount(0);
+	await expect(card(page, 'gone-51d0c2e9aa47').getByRole('button')).toHaveCount(0);
 	await noViolations(page);
 });
 
@@ -124,4 +126,83 @@ test('le chargement montre des squelettes', async ({ page }) => {
 	release();
 	await expect(page.getByLabel('Chargement des conteneurs')).toBeHidden();
 	await expect(page.getByRole('heading', { level: 2, name: 'media', exact: true })).toBeVisible();
+});
+
+test('un service Compose se met à part, puis se rattache à son projet', async ({ page }) => {
+	const emby = fixture('services-emby') as Record<string, unknown>;
+	const cache = { ...emby, slug: 'emby-cache', name: 'Emby Cache', url: null };
+	const base = containers();
+	const own = (base.containers as Record<string, unknown>[]).find((c) => c.id === 'a07e55c19d3b');
+	let sent: unknown = null;
+	await page.route(ROUTE, (route) => route.fulfill({ json: base }));
+	await page.route('**/api/v1/services/emby/split', async (route) => {
+		sent = route.request().postDataJSON();
+		await route.fulfill({ json: cache });
+	});
+	await page.route('**/api/v1/services/emby-cache', (route) => route.fulfill({ json: cache }));
+	await page.route('**/api/v1/services/emby-cache/containers', (route) =>
+		route.fulfill({
+			json: containers({
+				containers: [{ ...own, project: 'media/cache', role: 'main' }],
+				removed: [],
+				removedTotal: 0,
+				split: {
+					project: 'media',
+					service: 'cache',
+					since: '2026-11-07T15:00:00+01:00',
+					parentSlug: 'emby',
+					parentName: 'Emby'
+				}
+			})
+		})
+	);
+	await page.route('**/api/v1/services/emby-cache/join', (route) => route.fulfill({ json: emby }));
+
+	await page.goto('/services/emby#conteneurs');
+	await card(page, 'ctr-a07e55c19d3b')
+		.getByRole('button', { name: 'En faire un service à part…' })
+		.click();
+	const dialog = page.getByRole('dialog', { name: 'Faire de cache un service à part' });
+	await expect(dialog).toContainText('Emby garde emby. Rien ne change dans la stack Docker.');
+	await expect(dialog.getByLabel('Nom')).toHaveValue('Emby Cache');
+	await expect(dialog.getByLabel('Catégorie')).toHaveValue('Médias');
+	await expect(dialog).toContainText('Aucun port publié');
+	await noViolations(page);
+
+	await dialog.getByRole('button', { name: 'Créer le service' }).click();
+	await expect(page).toHaveURL(/\/services\/emby-cache#conteneurs$/);
+	expect(sent).toEqual({ service: 'cache', name: 'Emby Cache', category: 'Médias' });
+	await expect(page.getByRole('heading', { level: 2, name: 'media', exact: true })).toBeVisible();
+	await expect(page.getByText('séparé du projet le 7 nov. 2026')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Emby', exact: true })).toHaveAttribute(
+		'href',
+		'/services/emby#conteneurs'
+	);
+	await expect(page.getByRole('button', { name: 'En faire un service à part…' })).toHaveCount(0);
+	await noViolations(page);
+
+	await page.getByRole('button', { name: 'Rattacher à Emby…' }).click();
+	const confirm = page.getByRole('alertdialog', { name: 'Rattacher cache à Emby ?' });
+	await expect(confirm).toContainText('Son historique est gardé.');
+	await confirm.getByRole('button', { name: 'Rattacher' }).click();
+	await expect(page).toHaveURL(/\/services\/emby#conteneurs$/);
+});
+
+test('une séparation refusée le dit dans le dialogue', async ({ page }) => {
+	await page.route(ROUTE, (route) => route.fulfill({ json: containers() }));
+	await page.route('**/api/v1/services/emby/split', (route) =>
+		route.fulfill({
+			status: 400,
+			json: { error: 'ce conteneur ne peut pas devenir un service à part' }
+		})
+	);
+	await page.goto('/services/emby#conteneurs');
+	await card(page, 'ctr-3f9c1a7be204')
+		.getByRole('button', { name: 'En faire un service à part…' })
+		.click();
+	const dialog = page.getByRole('dialog', { name: 'Faire de emby un service à part' });
+	await dialog.getByLabel('Nom').fill('Serveur');
+	await dialog.getByRole('button', { name: 'Créer le service' }).click();
+	await expect(dialog.getByRole('alert')).toContainText('ne peut pas devenir un service à part');
+	await expect(page).toHaveURL(/\/services\/emby#conteneurs$/);
 });

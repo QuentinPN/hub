@@ -1,5 +1,6 @@
 // Package reconcile turns the containers an agent reports into logical services: one per
-// Compose project on a host, or per container outside Compose. It only reads what it is
+// Compose project on a host, per Compose service the user split from its project, or per
+// container outside Compose. It only reads what it is
 // given, so the same containers always give the same result.
 package reconcile
 
@@ -24,6 +25,29 @@ type Container struct {
 	Labels         map[string]string
 	// PublicPorts are the published host ports, duplicates included.
 	PublicPorts []int
+	// Split puts the container's Compose service in a group of its own, apart from its project.
+	Split bool
+}
+
+// KeyOf is the group a container belongs to: its Compose project, "project/service" once
+// that service is split from it, or its name outside Compose.
+func KeyOf(c Container) string {
+	switch {
+	case c.ComposeProject == "":
+		return c.Name
+	case c.Split && c.ComposeService != "":
+		return SplitKey(c.ComposeProject, c.ComposeService)
+	}
+	return c.ComposeProject
+}
+
+// SplitKey is the key of a Compose service split from its project. A project name never
+// holds a slash, so the key cannot be taken by a project.
+func SplitKey(project, service string) string { return project + "/" + service }
+
+// SplitOf reads a split key back; ok is false for a project's or a lone container's key.
+func SplitOf(key string) (project, service string, ok bool) {
+	return strings.Cut(key, "/")
 }
 
 type Kind string
@@ -49,7 +73,8 @@ type Member struct {
 	Role Role
 }
 
-// Group is one Compose project, or one container outside Compose.
+// Group is one Compose project, one Compose service split from it, or one container outside
+// Compose.
 type Group struct {
 	// Key identifies the group on its host and survives container recreations.
 	Key      string
@@ -70,10 +95,7 @@ type Group struct {
 func Groups(containers []Container) []Group {
 	byKey := map[string][]Container{}
 	for _, c := range containers {
-		key := c.ComposeProject
-		if key == "" {
-			key = c.Name
-		}
+		key := KeyOf(c)
 		byKey[key] = append(byKey[key], c)
 	}
 	groups := make([]Group, 0, len(byKey))
@@ -300,7 +322,7 @@ func Slugify(s string) string {
 }
 
 func displayName(key string) string {
-	words := strings.FieldsFunc(key, func(r rune) bool { return r == '-' || r == '_' || r == '.' })
+	words := strings.FieldsFunc(key, func(r rune) bool { return r == '-' || r == '_' || r == '.' || r == '/' })
 	for i, w := range words {
 		r := []rune(w)
 		r[0] = unicode.ToUpper(r[0])
