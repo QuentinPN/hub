@@ -2,6 +2,7 @@
 	"rows": [
 		{ "id": "playing", "visible": true, "excluded": [] },
 		{ "id": "favorites", "visible": true, "excluded": [] },
+		{ "id": "latest", "visible": true, "excluded": [] },
 		{ "id": "upcoming", "visible": true, "excluded": [] },
 		{ "id": "downloads", "visible": true, "excluded": [] },
 		{ "id": "hosts", "visible": true, "excluded": [] }
@@ -9,6 +10,7 @@
 	"choices": {
 		"playing": [{ "id": "emby", "label": "Emby" }],
 		"favorites": [],
+		"latest": [{ "id": "emby", "label": "Emby" }],
 		"upcoming": [
 			{ "id": "sonarr", "label": "Sonarr" },
 			{ "id": "radarr", "label": "Radarr" }

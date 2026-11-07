@@ -87,11 +87,18 @@ type Home struct {
 	Summary  Summary   `json:"summary"`
 	Sessions []Session `json:"sessions"`
 	// SessionsSlug is the service they come from, once a real connection reads them.
-	SessionsSlug string           `json:"sessionsSlug,omitempty"`
-	Favorites    []ServiceSummary `json:"favorites"`
+	SessionsSlug string `json:"sessionsSlug,omitempty"`
+	// LastAdded and Library come from the same connection: the band still has something to
+	// say when nothing plays.
+	LastAdded *widgets.MediaItem `json:"lastAdded,omitempty"`
+	Library   *widgets.Library   `json:"library,omitempty"`
+	Favorites []ServiceSummary   `json:"favorites"`
 	// Services is every service while no favorite is chosen, empty otherwise.
 	Services []ServiceSummary `json:"services"`
 	Upcoming []UpcomingItem   `json:"upcoming"`
+	// Latest is what a library received last, from the first connection that reads it.
+	Latest     []widgets.MediaItem `json:"latest,omitempty"`
+	LatestSlug string              `json:"latestSlug,omitempty"`
 	// Downloads holds the cards of the connections that read a queue.
 	Downloads []DownloadCard `json:"downloads,omitempty"`
 	Hosts     []Host         `json:"hosts"`

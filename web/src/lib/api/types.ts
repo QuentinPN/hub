@@ -85,10 +85,16 @@ export interface Home {
 	sessions: Session[];
 	/** Le service qui les fournit, dès qu'une vraie connexion les lit. */
 	sessionsSlug?: string;
+	/** Du même service : le bandeau a encore quelque chose à dire quand rien ne joue. */
+	lastAdded?: MediaItem;
+	library?: { movies: number; series: number; episodes: number };
 	favorites: ServiceSummary[];
 	/** Tous les services tant qu'aucun favori n'est choisi, sinon vide. */
 	services: ServiceSummary[];
 	upcoming: UpcomingItem[];
+	/** Les derniers ajouts d'une bibliothèque, de la première connexion qui les lit. */
+	latest?: MediaItem[];
+	latestSlug?: string;
 	downloads?: DownloadCard[];
 	hosts: Host[];
 }

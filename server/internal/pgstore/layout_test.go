@@ -36,7 +36,7 @@ func TestLayoutStartsInTheDefaultOrderAndSurvivesASave(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The band stays first, the rows left unsaid come after.
-	want := []string{api.RowPlaying, api.RowHosts, api.RowDownloads, api.RowFavorites, api.RowUpcoming}
+	want := []string{api.RowPlaying, api.RowHosts, api.RowDownloads, api.RowFavorites, api.RowLatest, api.RowUpcoming}
 	if !slices.Equal(rowIDs(l.Rows), want) {
 		t.Errorf("%v", rowIDs(l.Rows))
 	}
@@ -79,6 +79,49 @@ func TestChoicesNameWhatEachRowCouldShow(t *testing.T) {
 	}
 }
 
+func TestHomeShowsEmbyWithNothingPlaying(t *testing.T) {
+	e := sectionsEnv(t)
+	e.connect(t, "emby", "emby", []string{"sessions", "latest", "library"}, map[string]string{
+		"sessions": `[]`,
+		"latest":   `[{"title":"Un film","detail":"Film","kind":"movie","addedAt":"2030-01-08T00:00:00Z"},{"title":"Une série","detail":"S02E06","kind":"episode","addedAt":"2030-01-07T00:00:00Z"}]`,
+		"library":  `{"movies":120,"series":30,"episodes":900}`,
+	})
+	home, err := e.store.Home(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if home.SessionsSlug != "emby" || len(home.Sessions) != 0 {
+		t.Errorf("band: %q %+v", home.SessionsSlug, home.Sessions)
+	}
+	if home.LastAdded == nil || home.LastAdded.Title != "Un film" || home.Library == nil || home.Library.Movies != 120 {
+		t.Errorf("idle band: %+v %+v", home.LastAdded, home.Library)
+	}
+	if home.LatestSlug != "emby" || len(home.Latest) != 2 || !slices.Contains(home.Rows, api.RowLatest) {
+		t.Errorf("latest: %q %+v %v", home.LatestSlug, home.Latest, home.Rows)
+	}
+	l, err := e.store.HomeLayout(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(l.Choices[api.RowLatest]) != 1 || l.Choices[api.RowLatest][0].ID != "emby" {
+		t.Errorf("choices: %+v", l.Choices[api.RowLatest])
+	}
+
+	// Left out of its row, the shelf goes; the band keeps its own source.
+	if err := e.store.SaveHomeLayout(e.ctx, api.NormalizeLayout([]api.LayoutRow{
+		{ID: api.RowLatest, Visible: true, Excluded: []string{"emby"}},
+	})); err != nil {
+		t.Fatal(err)
+	}
+	home, err = e.store.Home(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(home.Latest) != 0 || home.LatestSlug != "" || home.LastAdded == nil {
+		t.Errorf("excluded: %+v %q %+v", home.Latest, home.LatestSlug, home.LastAdded)
+	}
+}
+
 func TestHomeFollowsTheLayout(t *testing.T) {
 	e := sectionsEnv(t)
 	e.connect(t, "sonarr", "sonarr", []string{"calendar", "queue"}, map[string]string{
@@ -112,7 +155,8 @@ func TestHomeFollowsTheLayout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{api.RowPlaying, api.RowDownloads, api.RowUpcoming, api.RowHosts}
+	// A row the stored layout does not name yet comes at the end.
+	want := []string{api.RowPlaying, api.RowDownloads, api.RowUpcoming, api.RowHosts, api.RowLatest}
 	if !slices.Equal(home.Rows, want) {
 		t.Errorf("rows: %v", home.Rows)
 	}

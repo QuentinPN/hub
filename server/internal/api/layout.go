@@ -10,13 +10,14 @@ import (
 const (
 	RowPlaying   = "playing"
 	RowFavorites = "favorites"
+	RowLatest    = "latest"
 	RowUpcoming  = "upcoming"
 	RowDownloads = "downloads"
 	RowHosts     = "hosts"
 )
 
 // DefaultRows is the order of a home page nobody has arranged.
-var DefaultRows = []string{RowPlaying, RowFavorites, RowUpcoming, RowDownloads, RowHosts}
+var DefaultRows = []string{RowPlaying, RowFavorites, RowLatest, RowUpcoming, RowDownloads, RowHosts}
 
 const (
 	maxExcluded = 64

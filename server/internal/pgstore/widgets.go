@@ -184,9 +184,26 @@ func (s *Store) realWidgets(ctx context.Context, home *api.Home, all []entry, ex
 				}
 			}
 			home.Sessions, home.SessionsSlug, sessionsFound = sessions, e.Slug, true
+			if list, ok, err := decode[[]widgets.MediaItem](c, widgets.EmbyLatest, widgets.EmbyLatest); err != nil {
+				return err
+			} else if ok && len(list) > 0 {
+				home.LastAdded = &list[0]
+			}
+			if lib, ok, err := decode[widgets.Library](c, widgets.EmbyLibrary, widgets.EmbyLibrary); err != nil {
+				return err
+			} else if ok {
+				home.Library = &lib
+			}
 		}
 		if !keepsData(state) {
 			continue
+		}
+		if home.LatestSlug == "" && !slices.Contains(excluded[api.RowLatest], e.Slug) {
+			if list, ok, err := decode[[]widgets.MediaItem](c, widgets.EmbyLatest, widgets.EmbyLatest); err != nil {
+				return err
+			} else if ok && len(list) > 0 {
+				home.Latest, home.LatestSlug = list, e.Slug
+			}
 		}
 		if raw, ok := c.data[widgets.WidgetCalendar]; ok && slices.Contains(c.enabled, widgets.WidgetCalendar) &&
 			!slices.Contains(excluded[api.RowUpcoming], e.Slug) {

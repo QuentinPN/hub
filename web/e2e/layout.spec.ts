@@ -45,13 +45,14 @@ test('monter, descendre et masquer une rangée s’enregistre aussitôt', async 
 	expect(sent[0]?.map((r) => r.id)).toEqual([
 		'playing',
 		'favorites',
+		'latest',
 		'upcoming',
 		'hosts',
 		'downloads'
 	]);
 	await expect(page.getByRole('button', { name: 'Descendre Infrastructure' })).toBeEnabled();
 	await expect(page.getByRole('button', { name: 'Descendre Téléchargements' })).toBeDisabled();
-	await expect(page.getByText('Infrastructure déplacé en position 4.')).toBeAttached();
+	await expect(page.getByText('Infrastructure déplacé en position 5.')).toBeAttached();
 
 	await page.getByRole('checkbox', { name: 'Visible : Favoris' }).uncheck();
 	await expect.poll(() => sent.length).toBe(2);
@@ -83,9 +84,9 @@ test('rétablir l’ordre revient au défaut', async ({ page }) => {
 	await trackLayout(page);
 	await page.goto('/personnaliser');
 	await page.getByRole('button', { name: 'Monter Infrastructure' }).click();
-	await expect(page.getByRole('listitem').nth(3)).toContainText('Infrastructure');
-	await page.getByRole('button', { name: 'Rétablir l’ordre' }).click();
 	await expect(page.getByRole('listitem').nth(4)).toContainText('Infrastructure');
+	await page.getByRole('button', { name: 'Rétablir l’ordre' }).click();
+	await expect(page.getByRole('listitem').nth(5)).toContainText('Infrastructure');
 });
 
 test('un enregistrement refusé le dit et revient en arrière', async ({ page }) => {
@@ -98,7 +99,61 @@ test('un enregistrement refusé le dit et revient en arrière', async ({ page })
 	await page.goto('/personnaliser');
 	await page.getByRole('button', { name: 'Monter Infrastructure' }).click();
 	await expect(page.getByRole('alert')).toContainText('Non enregistré');
-	await expect(page.getByRole('listitem').nth(4)).toContainText('Infrastructure');
+	await expect(page.getByRole('listitem').nth(5)).toContainText('Infrastructure');
+});
+
+test('sans lecture, Emby reste sur l’accueil et dans Personnaliser', async ({ page }) => {
+	await trackLayout(page);
+	const home = fixture('home') as Record<string, unknown>;
+	await page.route('**/api/v1/home', (route) =>
+		route.fulfill({
+			json: {
+				...home,
+				sessions: [],
+				sessionsSlug: 'emby',
+				lastAdded: {
+					title: 'Un film',
+					detail: 'Film',
+					kind: 'movie',
+					addedAt: new Date().toISOString()
+				},
+				library: { movies: 1240, series: 312, episodes: 8420 },
+				latest: [
+					{ title: 'Un film', detail: 'Film', kind: 'movie', addedAt: new Date().toISOString() },
+					{
+						title: 'Une série',
+						detail: 'S02E06',
+						kind: 'episode',
+						addedAt: new Date().toISOString()
+					}
+				],
+				latestSlug: 'emby',
+				rows: ['playing', 'favorites', 'latest', 'upcoming']
+			}
+		})
+	);
+	await page.goto('/');
+	await expect(page.getByRole('heading', { level: 1, name: 'Rien en lecture' })).toBeVisible();
+	await expect(page.getByText('Emby · aucune session')).toBeVisible();
+	await expect(page.getByText('Dernier ajout : Un film')).toBeVisible();
+	await expect(page.getByText(/1\s240 films · 312 séries/)).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Ouvrir la fiche Emby' })).toHaveAttribute(
+		'href',
+		'/services/emby'
+	);
+	await expect(page.getByRole('heading', { level: 2 })).toHaveText([
+		'Favoris',
+		'Ajoutés récemment · Emby',
+		'À venir · Sonarr et Radarr'
+	]);
+	await expect(page.getByRole('region', { name: 'Ajoutés récemment · Emby' })).toContainText(
+		'Une série'
+	);
+
+	await page.getByRole('link', { name: 'Personnaliser' }).click();
+	const row = page.getByRole('listitem').filter({ hasText: 'Ajoutés récemment' });
+	await expect(row.getByRole('button', { name: 'Emby' })).toHaveAttribute('aria-pressed', 'true');
+	await expect(row.getByRole('checkbox', { name: 'Visible : Ajoutés récemment' })).toBeChecked();
 });
 
 test('l’accueil suit l’ordre et masque le bandeau', async ({ page }) => {
