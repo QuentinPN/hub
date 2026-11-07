@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -72,6 +73,33 @@ func MigrationStatus(ctx context.Context, pool *pgxpool.Pool) (applied, expected
 // Migrate applies, in order and each in its own transaction, the migrations not yet
 // recorded in schema_migrations.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
+	return MigrateTo(ctx, pool, math.MaxInt)
+}
+
+// Latest is the version of the newest migration this binary knows.
+func Latest() (int, error) {
+	all, err := list()
+	if err != nil || len(all) == 0 {
+		return 0, err
+	}
+	return all[len(all)-1].version, nil
+}
+
+// Querier is what Applied needs: a pool, a connection or a transaction.
+type Querier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// Applied is the version of the newest migration the database has, 0 for none.
+func Applied(ctx context.Context, q Querier) (int, error) {
+	var v int
+	err := q.QueryRow(ctx, "SELECT coalesce(max(version), 0) FROM schema_migrations").Scan(&v)
+	return v, err
+}
+
+// MigrateTo is Migrate stopping after version last: a restore rebuilds the schema its backup
+// was made on, loads the data, then migrates the rest of the way.
+func MigrateTo(ctx context.Context, pool *pgxpool.Pool, last int) error {
 	all, err := list()
 	if err != nil {
 		return err
@@ -84,6 +112,9 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("create schema_migrations: %w", err)
 	}
 	for _, m := range all {
+		if m.version > last {
+			break
+		}
 		if err := apply(ctx, pool, m); err != nil {
 			return err
 		}

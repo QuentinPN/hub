@@ -21,6 +21,7 @@ const routes: Record<string, string> = {
 	'auth/sessions': 'auth-sessions',
 	'auth/passkeys': 'auth-passkeys',
 	hosts: 'hosts',
+	backup: 'backup',
 	'hosts/qnap/containers': 'hosts-qnap-containers'
 };
 

@@ -1,0 +1,55 @@
+{
+	"enabled": true,
+	"frequency": "daily",
+	"retention": "7d4w",
+	"dir": "/sauvegardes",
+	"dirError": "",
+	"configured": true,
+	"keySetAt": "2026-11-04T19:12:00Z",
+	"running": false,
+	"next": "2026-11-08T02:00:00Z",
+	"kept": 4,
+	"keptBytes": 9961472,
+	"runs": [
+		{
+			"id": 4,
+			"startedAt": "2026-11-07T02:00:00Z",
+			"finishedAt": "2026-11-07T02:00:41Z",
+			"manual": false,
+			"ok": true,
+			"file": "hub-20261107-030000.hubbackup",
+			"size": 2516582,
+			"error": ""
+		},
+		{
+			"id": 3,
+			"startedAt": "2026-11-06T02:00:00Z",
+			"finishedAt": "2026-11-06T02:00:39Z",
+			"manual": false,
+			"ok": true,
+			"file": "hub-20261106-030000.hubbackup",
+			"size": 2516000,
+			"error": ""
+		},
+		{
+			"id": 2,
+			"startedAt": "2026-11-05T02:00:00Z",
+			"finishedAt": "2026-11-05T02:00:02Z",
+			"manual": false,
+			"ok": false,
+			"file": "",
+			"size": 0,
+			"error": "Dossier /sauvegardes absent : à monter dans le compose"
+		},
+		{
+			"id": 1,
+			"startedAt": "2026-11-04T19:13:00Z",
+			"finishedAt": "2026-11-04T19:13:38Z",
+			"manual": true,
+			"ok": true,
+			"file": "hub-20261104-201300.hubbackup",
+			"size": 2411724,
+			"error": ""
+		}
+	]
+}

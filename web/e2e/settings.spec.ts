@@ -20,7 +20,8 @@ test('le menu des sections reste accessible et mène à la section', async ({ pa
 		'Hôtes et agents',
 		'Découverte',
 		'Widgets et connexions',
-		'Sécurité et accès'
+		'Sécurité et accès',
+		'Sauvegarde'
 	]);
 	if (testInfo.project.name === 'mobile') {
 		await expect(nav.getByText('Général')).toBeHidden();

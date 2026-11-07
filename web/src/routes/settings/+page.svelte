@@ -4,6 +4,7 @@
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import PasskeysList from '#lib/components/PasskeysList.svelte';
 	import PasswordForm from '#lib/components/PasswordForm.svelte';
+	import BackupPanel from '#lib/components/BackupPanel.svelte';
 	import HostsPanel from '#lib/components/HostsPanel.svelte';
 	import SessionsList from '#lib/components/SessionsList.svelte';
 	import StatusPanel from '#lib/components/StatusPanel.svelte';
@@ -26,7 +27,7 @@
 		{ label: 'Notifications', id: null },
 		{ label: 'Apparence', id: null },
 		{ label: 'Sécurité et accès', id: 'security' },
-		{ label: 'Sauvegarde', id: null }
+		{ label: 'Sauvegarde', id: 'backup' }
 	] as const;
 </script>
 
@@ -108,6 +109,10 @@
 					<SessionsList />
 				{/key}
 			</section>
+			<section class="card" id="backup" aria-labelledby="backup-title">
+				<BackupPanel />
+			</section>
+
 			<p class="muted small credits">
 				Icônes des services :
 				<a href="https://selfh.st/icons" rel="noreferrer" target="_blank">selfh.st/icons</a>, sous

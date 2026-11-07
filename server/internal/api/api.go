@@ -98,6 +98,9 @@ func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *
 	if src, ok := store.(StatusSource); ok {
 		registerStatus(mux, src, rt, live)
 	}
+	if rt != nil && rt.Backups != nil {
+		registerBackups(mux, rt.Backups, authSvc)
+	}
 	if editor, ok := store.(LayoutEditor); ok {
 		registerLayout(mux, editor)
 	}

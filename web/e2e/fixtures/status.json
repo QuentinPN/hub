@@ -22,6 +22,14 @@
 			"since": null
 		},
 		{
+			"id": "backup",
+			"name": "Sauvegarde",
+			"level": "ok",
+			"detail": "4 sauvegardes gardées",
+			"since": "2026-11-07T02:00:41Z",
+			"link": "backup"
+		},
+		{
 			"id": "agents",
 			"name": "Agents",
 			"level": "ok",

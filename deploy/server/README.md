@@ -10,6 +10,7 @@ Déployé sur le mini-PC le 2026-11-06 avec cette procédure : vrai certificat, 
 
 - Trois conteneurs, `hub-db-1`, `hub-hub-1` et `hub-caddy-1`, et quatre volumes, `hub_pgdata`, `hub_keys`, `hub_caddy-data` et `hub_caddy-config`.
 - Deux réseaux, `hub_db` (sans sortie) et `hub-edge`.
+- Le dossier des sauvegardes, `HUB_BACKUP_HOST_DIR`, monté dans `hub` sur `/sauvegardes`. Docker ne le crée pas.
 - Les ports 8443 (agents) et 8444 (UI), sur l'IP de `HUB_BIND` seulement. Ne les redirige pas sur ta box : Hub reste en LAN.
 
 Accès depuis le VPN : pas encore en place. Le port n'écoute pas sur l'IP Tailscale, et `home.example.com` pointe vers l'IP LAN.
@@ -116,47 +117,13 @@ docker compose -f compose.yml -f compose.same-host.yml up -d
 
 Le Pi (`GOARCH=arm64 scripts/build-agent.sh`) et le QNAP utilisent `compose.yml` seul, avec l'URL montrée par l'écran d'enrôlement.
 
-## Sauvegarder
+## Sauvegarder et restaurer
 
-Les deux sont nécessaires : sans `keys.tgz`, les secrets sont perdus et chaque agent doit être réenrôlé. `keys.tgz` contient les clés en clair : le garder à part de la base et hors de portée.
-
-```bash
-docker compose exec -T db pg_dump -U hub -d hub > hub.sql
-```
-
-```bash
-docker run --rm -v hub_keys:/k:ro -v "$PWD":/b --entrypoint tar postgres:18.6 czf /b/keys.tgz -C /k .
-```
-
-## Restaurer
-
-Sur des volumes vides, depuis ce dossier :
-
-```bash
-docker compose create
-```
-
-```bash
-docker run --rm -v hub_keys:/k -v "$PWD":/b:ro --entrypoint tar postgres:18.6 xzpf /b/keys.tgz -C /k
-```
-
-```bash
-docker compose start db
-```
-
-Attendre quelques secondes que la base soit prête, puis :
-
-```bash
-docker compose exec -T db psql -q -v ON_ERROR_STOP=1 -U hub -d hub < hub.sql
-```
-
-```bash
-docker compose up -d
-```
+Hub se sauvegarde lui-même, chiffré, dans un partage du QNAP monté sur l'hôte (`HUB_BACKUP_HOST_DIR` du `.env`, obligatoire). Le montage, la vérification et la restauration sont dans [docs/EXPLOITATION.md](../../docs/EXPLOITATION.md).
 
 ## Mettre à jour
 
-Sauvegarder d'abord : les migrations s'appliquent au démarrage et ne se défont pas. Transférer la nouvelle image, puis `docker compose up -d`. Pour revenir en arrière : remettre le tag de l'ancienne image sur `hub-server:local` et restaurer la sauvegarde.
+Sauvegarder d'abord (Réglages → Sauvegarde) : les migrations s'appliquent au démarrage et ne se défont pas. Transférer la nouvelle image, puis `docker compose up -d`. Pour revenir en arrière : remettre le tag de l'ancienne image sur `hub-server:local` et restaurer la sauvegarde.
 
 ## Retirer Hub
 

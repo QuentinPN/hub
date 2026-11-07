@@ -454,3 +454,35 @@ export interface SessionInfo {
 	createdAt: string;
 	lastSeenAt: string;
 }
+
+export type BackupFrequency = 'daily' | 'weekly';
+export type BackupRetention = '7d4w' | '30d' | 'last3';
+
+/** Une sauvegarde, faite ou en cours ; sans fin et hors cours, elle a été interrompue. */
+export interface BackupRun {
+	id: number;
+	startedAt: string;
+	finishedAt: string | null;
+	manual: boolean;
+	ok: boolean;
+	file: string;
+	size: number;
+	error: string;
+}
+
+/** Section « Sauvegarde ». La phrase de passe n'est jamais renvoyée, ni gardée. */
+export interface BackupStatus {
+	enabled: boolean;
+	frequency: BackupFrequency;
+	retention: BackupRetention;
+	dir: string;
+	/** Vide quand le dossier peut recevoir une sauvegarde. */
+	dirError: string;
+	configured: boolean;
+	keySetAt: string | null;
+	running: boolean;
+	next: string | null;
+	kept: number;
+	keptBytes: number;
+	runs: BackupRun[];
+}

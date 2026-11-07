@@ -15,10 +15,13 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	// The image has no zone files: TZ (Europe/Paris) needs them for the 03:00 backups.
+	_ "time/tzdata"
 
 	"hub/server/internal/agentsrv"
 	"hub/server/internal/api"
 	"hub/server/internal/auth"
+	"hub/server/internal/backup"
 	"hub/server/internal/db"
 	"hub/server/internal/fixture"
 	"hub/server/internal/icons"
@@ -43,7 +46,16 @@ func main() {
 	enrollHost := flag.String("enroll-host", "", "print a one-time code to enroll the agent of this host (created if new), then exit")
 	revokeHost := flag.String("revoke-host", "", "revoke every certificate of this host's agent, then exit")
 	health := flag.Bool("healthcheck", false, "exit 0 if the server listening on this machine answers, for the image's health check")
+	restore := flag.String("restore", "", "restore this backup file into an empty database and fresh key files, then exit")
+	verify := flag.String("verify-backup", "", "read this backup file to the end with its passphrase, writing nothing, then exit")
 	flag.Parse()
+	if *verify != "" {
+		if err := verifyBackup(*verify); err != nil {
+			slog.Error("verify backup", "err", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if *health {
 		if err := checkHealth(*addr); err != nil {
 			slog.Error("health check", "err", err)
@@ -65,6 +77,19 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	keyFiles := map[string]string{
+		backup.KeySecrets: os.Getenv("HUB_SECRET_KEY_FILE"),
+		backup.KeyAgentCA: os.Getenv("HUB_AGENT_CA_FILE"),
+	}
+	// Before openStore, which would migrate the empty database and fill it.
+	if *restore != "" {
+		if err := restoreBackup(ctx, *restore, databaseURL, keyFiles); err != nil {
+			slog.Error("restore", "err", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	store, closeStore, err := openStore(ctx, databaseURL)
 	if err != nil {
@@ -167,12 +192,15 @@ func main() {
 	// Each connection is read at its own rate; this only looks for those due.
 	bus := widgets.NewBus()
 	go widgets.Run(ctx, store, secretStore, bus, 5*time.Second)
+	// Backups go to a folder mounted from elsewhere (HUB_BACKUP_DIR), never created here.
+	backups := backup.NewService(ctx, store, store.Pool(), os.Getenv("HUB_BACKUP_DIR"), keyFiles, version)
+	go backups.Watch(ctx, time.Minute)
 
 	ui := webui.New()
 	srv := &http.Server{
 		Addr: *addr,
 		Handler: api.NewHandler(store, authSvc, iconSvc, agentsUI, &api.Widgets{Keys: secretStore, Bus: bus},
-			&api.Runtime{Version: version, StartedAt: started, Secrets: secretStore, Streams: widgets.OpenStreams}, ui.Handler, ui.ScriptHashes),
+			&api.Runtime{Version: version, StartedAt: started, Secrets: secretStore, Streams: widgets.OpenStreams, Backups: backups}, ui.Handler, ui.ScriptHashes),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

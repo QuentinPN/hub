@@ -8,6 +8,9 @@ import type {
 	Home,
 	HomeLayout,
 	HubStatus,
+	BackupFrequency,
+	BackupRetention,
+	BackupStatus,
 	HostsResponse,
 	InfraPage,
 	LayoutRow,
@@ -266,3 +269,17 @@ export async function addPasskey(
 
 export const deletePasskey = (fetchFn: Fetch, id: number) =>
 	sendNoContent(fetchFn, 'DELETE', `/api/v1/auth/passkeys/${id}`);
+
+export const getBackup = (fetchFn: Fetch) => getJson<BackupStatus>(fetchFn, '/api/v1/backup');
+
+export const saveBackupSchedule = (
+	fetchFn: Fetch,
+	body: { enabled: boolean; frequency: BackupFrequency; retention: BackupRetention }
+) => putJson<BackupStatus>(fetchFn, '/api/v1/backup/schedule', body);
+
+/** Le serveur en tire une nouvelle clé, puis l'oublie. */
+export const setBackupPassphrase = (fetchFn: Fetch, passphrase: string) =>
+	putJson<BackupStatus>(fetchFn, '/api/v1/backup/passphrase', { passphrase });
+
+/** Lance la sauvegarde en arrière-plan ; 409 si une autre tourne ou sans phrase de passe. */
+export const runBackup = (fetchFn: Fetch) => postJson<BackupStatus>(fetchFn, '/api/v1/backup/run');

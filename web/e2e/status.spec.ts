@@ -9,7 +9,7 @@ test('quand tout va bien, la section le dit sans compteur', async ({ page }) => 
 	await expect(panel.getByText('Tout fonctionne')).toBeVisible();
 	await expect(panel.getByText('906bb56')).toBeVisible();
 	await expect(panel.getByText('migration 10 sur 10')).toBeVisible();
-	await expect(panel.getByRole('listitem')).toHaveCount(6);
+	await expect(panel.getByRole('listitem')).toHaveCount(7);
 	await expect(panel.getByRole('link', { name: 'Hôtes' })).toHaveCount(0);
 	const nav = page.getByRole('navigation', { name: 'Sections des réglages' });
 	await expect(nav.getByRole('link', { name: 'État de Hub' })).toHaveText('État de Hub');

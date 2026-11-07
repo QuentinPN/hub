@@ -18,6 +18,16 @@ import (
 
 func Pool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
+	pool := Empty(t)
+	if err := db.Migrate(context.Background(), pool); err != nil {
+		t.Fatal(err)
+	}
+	return pool
+}
+
+// Empty is Pool without the migrations: a database as a restore finds it.
+func Empty(t *testing.T) *pgxpool.Pool {
+	t.Helper()
 	url := os.Getenv("HUB_TEST_DATABASE_URL")
 	if url == "" {
 		t.Skip("HUB_TEST_DATABASE_URL not set")
@@ -47,8 +57,5 @@ func Pool(t *testing.T) *pgxpool.Pool {
 		_, _ = admin.Exec(ctx, "DROP SCHEMA "+schema+" CASCADE")
 		_ = admin.Close(ctx)
 	})
-	if err := db.Migrate(ctx, pool); err != nil {
-		t.Fatal(err)
-	}
 	return pool
 }

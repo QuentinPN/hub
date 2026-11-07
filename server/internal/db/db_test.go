@@ -21,7 +21,7 @@ func TestMigrateIsIdempotent(t *testing.T) {
 	if err := pool.QueryRow(ctx, "SELECT count(*) FROM discovery_settings").Scan(&settingsRows); err != nil {
 		t.Fatal(err)
 	}
-	if applied != 10 || settingsRows != 1 {
+	if applied != 11 || settingsRows != 1 {
 		t.Fatalf("applied = %d, discovery_settings rows = %d", applied, settingsRows)
 	}
 }

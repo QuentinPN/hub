@@ -53,6 +53,8 @@ type Runtime struct {
 	Secrets   SecretChecker
 	// Streams lists the live connections open now, by service, with when they opened.
 	Streams func() map[string]time.Time
+	// Backups is nil when no backup service runs: the section and its check stay off.
+	Backups Backups
 }
 
 // HubStatus answers GET /api/v1/status.
@@ -97,6 +99,9 @@ func registerStatus(mux *http.ServeMux, src StatusSource, rt *Runtime, live *Wid
 			if rt.Streams != nil {
 				out.Checks = append(out.Checks, streamsCheck(rt.Streams()))
 			}
+			if rt.Backups != nil {
+				out.Checks = append(out.Checks, backupCheck(r.Context(), rt.Backups, time.Now()))
+			}
 		}
 		if live != nil {
 			out.Pages = live.Bus.Subscribers()
@@ -111,7 +116,7 @@ func registerStatus(mux *http.ServeMux, src StatusSource, rt *Runtime, live *Wid
 	})
 }
 
-var checkOrder = []string{"db", "secrets", "agents", "widgets", "streams", "urls"}
+var checkOrder = []string{"db", "secrets", "backup", "agents", "widgets", "streams", "urls"}
 
 func orderChecks(list []StatusCheck) []StatusCheck {
 	out := make([]StatusCheck, 0, len(list))
