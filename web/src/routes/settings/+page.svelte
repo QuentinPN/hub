@@ -6,6 +6,7 @@
 	import PasswordForm from '#lib/components/PasswordForm.svelte';
 	import HostsPanel from '#lib/components/HostsPanel.svelte';
 	import SessionsList from '#lib/components/SessionsList.svelte';
+	import StatusPanel from '#lib/components/StatusPanel.svelte';
 	import WidgetRowsPanel from '#lib/components/WidgetRowsPanel.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
 	import type { PageProps } from './$types';
@@ -13,9 +14,11 @@
 	let { data }: PageProps = $props();
 
 	let sessionsVersion = $state(0);
+	let problems = $state(0);
 
 	// Les sections sans identifiant n'ont pas encore de contenu : elles arrivent par jalons.
 	const sections = [
+		{ label: 'État de Hub', id: 'status' },
 		{ label: 'Général', id: null },
 		{ label: 'Hôtes et agents', id: 'hosts' },
 		{ label: 'Découverte', id: 'discovery' },
@@ -36,7 +39,13 @@
 		<nav class="sections" aria-label="Sections des réglages">
 			{#each sections as s (s.label)}
 				{#if s.id}
-					<a class="sec" href="#{s.id}">{s.label}</a>
+					<a class="sec" href="#{s.id}"
+						>{s.label}{#if s.id === 'status' && problems > 0}<span class="badge"
+								><span class="visually-hidden"> : </span>{problems}<span class="visually-hidden">
+									{problems > 1 ? 'problèmes' : 'problème'}</span
+								></span
+							>{/if}</a
+					>
 				{:else}
 					<span class="sec" aria-disabled="true" title="Prochain jalon">{s.label}</span>
 				{/if}
@@ -44,6 +53,10 @@
 		</nav>
 
 		<div class="panels">
+			<section class="card" id="status" aria-labelledby="status-title">
+				<StatusPanel onproblems={(n) => (problems = n)} />
+			</section>
+
 			<!-- Chargée à part et relue en continu : l'état des agents change sans recharger la page. -->
 			<section class="card" id="hosts" aria-labelledby="hosts-title">
 				<HostsPanel />
@@ -151,6 +164,21 @@
 		box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
 		/* Moitié de l'agrandissement des cartes, nul en mouvement réduit. */
 		transform: scale(calc(1 + (var(--focus-scale) - 1) / 2));
+	}
+	.badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 26px;
+		height: 26px;
+		margin-left: auto;
+		padding: 0 6px;
+		box-sizing: border-box;
+		border-radius: 99px;
+		background: var(--status-degraded);
+		color: #07080a;
+		font-size: 13px;
+		font-weight: 700;
 	}
 	.sec[aria-disabled='true'] {
 		color: var(--text-2);

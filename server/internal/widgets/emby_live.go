@@ -63,6 +63,7 @@ func (e emby) listenOnce(ctx context.Context, c *Conn, route int, seen map[strin
 	defer func() { _ = conn.CloseNow() }()
 	conn.SetReadLimit(maxBody)
 	slog.Info("widgets: live connection open", "service", c.name, "path", r.path, "auth", auth)
+	defer markOpen(c.name)()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

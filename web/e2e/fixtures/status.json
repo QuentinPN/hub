@@ -1,0 +1,56 @@
+{
+	"version": "906bb56",
+	"startedAt": "2026-11-05T08:00:00Z",
+	"dbLatencyMs": 3,
+	"migrationsApplied": 10,
+	"migrationsExpected": 10,
+	"pages": 2,
+	"problems": 0,
+	"checks": [
+		{
+			"id": "db",
+			"name": "Base de données",
+			"level": "ok",
+			"detail": "Répond, migrations à jour",
+			"since": null
+		},
+		{
+			"id": "secrets",
+			"name": "Clés de chiffrement",
+			"level": "ok",
+			"detail": "7 secrets lisibles",
+			"since": null
+		},
+		{
+			"id": "agents",
+			"name": "Agents",
+			"level": "ok",
+			"detail": "3 sur 3 connectés",
+			"since": null,
+			"link": "hosts"
+		},
+		{
+			"id": "widgets",
+			"name": "Widgets",
+			"level": "ok",
+			"detail": "7 connexions, toutes à jour",
+			"since": null,
+			"link": "widgets"
+		},
+		{
+			"id": "streams",
+			"name": "Écoute en direct",
+			"level": "ok",
+			"detail": "emby, sonarr écoutés",
+			"since": null
+		},
+		{
+			"id": "urls",
+			"name": "Vérification des adresses",
+			"level": "ok",
+			"detail": "13 adresses, toutes répondent",
+			"since": null,
+			"link": "services"
+		}
+	]
+}

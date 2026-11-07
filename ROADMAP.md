@@ -27,7 +27,7 @@
 
 ## Phase 5 — Hardening & release
 [ ] Tests E2E, sécurité, accessibilité, performance et panne d’agents
-[ ] Déploiement Compose/Caddy, sauvegardes/restauration, observabilité (fichiers et procédure prêts et testés sur le poste de dev le 2026-11-06, `deploy/server/` ; serveur déployé sur le mini-PC le 2026-11-06 ; reste l'observabilité)
-[ ] Documentation d’exploitation et procédure de rollback
+[ ] Déploiement Compose/Caddy, sauvegardes/restauration, observabilité (fichiers et procédure prêts et testés sur le poste de dev le 2026-11-06, `deploy/server/` ; serveur déployé sur le mini-PC le 2026-11-06 ; journaux et « État de Hub » codés le 2026-11-07, pas encore vérifiés dans le navigateur ; restent les sauvegardes automatiques)
+[ ] Documentation d’exploitation et procédure de rollback (`docs/EXPLOITATION.md` écrite le 2026-11-07, à relire)
 
 À chaque phase : critères d’acceptation, démonstration, tests et accord avant modifications risquées.

@@ -1,5 +1,7 @@
 # Déployer le serveur Hub
 
+Le quotidien (mettre à jour, revenir en arrière, journaux, pannes connues) est dans [docs/EXPLOITATION.md](../../docs/EXPLOITATION.md).
+
 À lire en entier avant de lancer quoi que ce soit. Rien ici n'arrête un service existant, et le Caddy des sites publics n'est pas touché : Hub a son propre Caddy, sur le port 8444. Seules les règles de pare-feu modifient ce qui est en place, et elles se relisent d'abord.
 
 Déployé sur le mini-PC le 2026-11-06 avec cette procédure : vrai certificat, pare-feu contrôlé depuis ce poste (bloqué) et le Pi (ouvert), compte, passkey et agents du mini-PC, du Pi et du QNAP connectés. Sauvegarde et restauration testées sur Docker Desktop seulement. **Pas encore testé** : le redémarrage de l'hôte, avec le Wi-Fi qui doit avoir son IP pour que les ports se publient.

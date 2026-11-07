@@ -118,6 +118,28 @@ export interface ServiceDetail extends ServiceSummary {
 	widget?: WidgetInfo;
 }
 
+export interface StatusCheck {
+	id: string;
+	name: string;
+	level: 'ok' | 'warn' | 'bad';
+	detail: string;
+	since: string | null;
+	/** La section ou la page qui aide : hosts, widgets, services. */
+	link?: string;
+}
+
+/** « État de Hub » : vu par le serveur. */
+export interface HubStatus {
+	version: string;
+	startedAt: string | null;
+	dbLatencyMs: number;
+	migrationsApplied: number;
+	migrationsExpected: number;
+	pages: number;
+	problems: number;
+	checks: StatusCheck[];
+}
+
 export interface SectionNotice {
 	slug: string;
 	name: string;

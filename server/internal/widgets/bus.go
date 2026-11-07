@@ -44,6 +44,13 @@ func (b *Bus) Subscribe() (<-chan string, func()) {
 	}
 }
 
+// Subscribers counts the pages listening now.
+func (b *Bus) Subscribers() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return len(b.subs)
+}
+
 // Close ends every subscription, so that open streams let the server shut down.
 func (b *Bus) Close() {
 	b.mu.Lock()

@@ -90,6 +90,7 @@ func listenHubOnce(ctx context.Context, c *Conn, inQuery bool, seen, names map[s
 		return false
 	}
 	slog.Info("widgets: live connection open", "service", c.name, "path", arrHubPath, "auth", auth)
+	defer markOpen(c.name)()
 
 	go func() {
 		ticker := time.NewTicker(arrPing)

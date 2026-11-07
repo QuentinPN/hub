@@ -63,6 +63,24 @@ func (s *Store) Delete(ctx context.Context, name string) error { return s.repo.D
 
 func (s *Store) List(ctx context.Context) ([]Info, error) { return s.repo.SecretInfos(ctx) }
 
+// Check opens every secret and counts those the key file cannot open. Nothing it opens leaves
+// this function.
+func (s *Store) Check(ctx context.Context) (total, unreadable int, err error) {
+	infos, err := s.repo.SecretInfos(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, i := range infos {
+		if _, err := s.Get(ctx, i.Name); err != nil {
+			if !errors.Is(err, ErrUnknownKey) && !errors.Is(err, ErrDecrypt) {
+				return 0, 0, err
+			}
+			unreadable++
+		}
+	}
+	return len(infos), unreadable, nil
+}
+
 // Rotate re-seals with the current key every secret sealed with an older one. A secret
 // that cannot be opened (its key left the file, or its data was altered) is left as it is
 // and reported in the returned error; the others are still re-sealed.

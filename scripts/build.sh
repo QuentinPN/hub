@@ -12,5 +12,6 @@ cp -r "$root/web/build/." "$dist/"
 
 ext=""
 [ "$(go env GOOS)" = "windows" ] && ext=".exe"
-(cd "$root/server" && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "$root/bin/hub-server$ext" ./cmd/hub-server)
+version="$(git -C "$root" describe --always --dirty 2>/dev/null || echo dev)"
+(cd "$root/server" && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=$version" -o "$root/bin/hub-server$ext" ./cmd/hub-server)
 echo "built $root/bin/hub-server$ext"

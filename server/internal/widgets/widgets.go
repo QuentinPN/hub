@@ -349,6 +349,24 @@ const (
 	liveMaxTypes     = 32
 )
 
+// open streams, by service, with when they opened: for « État de Hub ».
+var streams sync.Map
+
+func markOpen(name string) func() {
+	streams.Store(name, time.Now())
+	return func() { streams.Delete(name) }
+}
+
+// OpenStreams lists the live connections open now.
+func OpenStreams() map[string]time.Time {
+	out := map[string]time.Time{}
+	streams.Range(func(k, v any) bool {
+		out[k.(string)] = v.(time.Time)
+		return true
+	})
+	return out
+}
+
 // LiveFirstMessage is how long a live connection may stay silent before its next way is tried.
 var LiveFirstMessage = 15 * time.Second
 

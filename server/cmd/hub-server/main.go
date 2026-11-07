@@ -30,7 +30,12 @@ import (
 	"hub/server/internal/widgets"
 )
 
+// version is set at build time (scripts/build.sh).
+var version = "dev"
+
 func main() {
+	setupLogs(os.Getenv("HUB_LOG_FORMAT"), os.Getenv("HUB_LOG_LEVEL"))
+	started := time.Now()
 	// Loopback by default: exposure goes through Caddy (ARCHITECTURE.md), never directly.
 	addr := flag.String("addr", envOr("HUB_ADDR", "127.0.0.1:8080"), "listen address")
 	newKey := flag.Bool("new-secret-key", false, "print a new line to append to the secret key file, then exit")
@@ -165,8 +170,9 @@ func main() {
 
 	ui := webui.New()
 	srv := &http.Server{
-		Addr:              *addr,
-		Handler:           api.NewHandler(store, authSvc, iconSvc, agentsUI, &api.Widgets{Keys: secretStore, Bus: bus}, ui.Handler, ui.ScriptHashes),
+		Addr: *addr,
+		Handler: api.NewHandler(store, authSvc, iconSvc, agentsUI, &api.Widgets{Keys: secretStore, Bus: bus},
+			&api.Runtime{Version: version, StartedAt: started, Secrets: secretStore, Streams: widgets.OpenStreams}, ui.Handler, ui.ScriptHashes),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -222,7 +228,22 @@ func main() {
 	}
 }
 
-// checkHealth asks /healthz on loopback, at the port of the listen address: the image has
+// setupLogs picks text (the default, for a person reading) or JSON (for a collector), and a
+// level: debug, info (default), warn or error.
+func setupLogs(format, level string) {
+	var lvl slog.Level
+	if err := lvl.UnmarshalText([]byte(level)); err != nil || level == "" {
+		lvl = slog.LevelInfo
+	}
+	opts := &slog.HandlerOptions{Level: lvl}
+	var h slog.Handler = slog.NewTextHandler(os.Stderr, opts)
+	if format == "json" {
+		h = slog.NewJSONHandler(os.Stderr, opts)
+	}
+	slog.SetDefault(slog.New(h))
+}
+
+// checkHealth asks /readyz on loopback, at the port of the listen address: the image has
 // no shell or curl for its health check to use.
 func checkHealth(addr string) error {
 	_, port, err := net.SplitHostPort(addr)
@@ -230,7 +251,8 @@ func checkHealth(addr string) error {
 		return err
 	}
 	client := http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get("http://" + net.JoinHostPort("127.0.0.1", port) + "/healthz")
+	// Ready, not only alive: the database answers and its migrations are applied.
+	resp, err := client.Get("http://" + net.JoinHostPort("127.0.0.1", port) + "/readyz")
 	if err != nil {
 		return err
 	}

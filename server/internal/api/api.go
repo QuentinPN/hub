@@ -44,7 +44,8 @@ var ErrNotFound = errors.New("not found")
 // scriptHashes are CSP sources ('sha256-…') for the UI's inline bootstrap scripts.
 // agents is nil while the agent listener is off.
 // live is nil when connections cannot be stored: the widget routes stay off.
-func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *Agents, live *Widgets, ui http.Handler, scriptHashes []string) http.Handler {
+// rt is what only the running process knows, for « État de Hub »; nil in most tests.
+func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *Agents, live *Widgets, rt *Runtime, ui http.Handler, scriptHashes []string) http.Handler {
 	mux := http.NewServeMux()
 	registerAuth(mux, authSvc)
 	if hr, ok := store.(HostReader); ok {
@@ -94,6 +95,9 @@ func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *
 	if editor, ok := store.(WidgetEditor); ok && live != nil {
 		registerWidgets(mux, store, editor, live, authSvc)
 	}
+	if src, ok := store.(StatusSource); ok {
+		registerStatus(mux, src, rt, live)
+	}
 	if editor, ok := store.(LayoutEditor); ok {
 		registerLayout(mux, editor)
 	}
@@ -124,7 +128,7 @@ func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *
 	})
 	mux.Handle("/", ui)
 
-	return securityHeaders(sameOrigin(requireSession(authSvc, mux)), contentSecurityPolicy(scriptHashes))
+	return logRequests(securityHeaders(sameOrigin(requireSession(authSvc, mux)), contentSecurityPolicy(scriptHashes)))
 }
 
 // respond writes v as JSON, or the matching error status.

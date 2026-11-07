@@ -58,6 +58,17 @@ func list() ([]migration, error) {
 	return out, nil
 }
 
+// MigrationStatus counts the migrations applied and those the binary knows. It also proves
+// the database answers.
+func MigrationStatus(ctx context.Context, pool *pgxpool.Pool) (applied, expected int, err error) {
+	all, err := list()
+	if err != nil {
+		return 0, 0, err
+	}
+	err = pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&applied)
+	return applied, len(all), err
+}
+
 // Migrate applies, in order and each in its own transaction, the migrations not yet
 // recorded in schema_migrations.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {

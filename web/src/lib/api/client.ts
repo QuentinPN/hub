@@ -7,6 +7,7 @@ import type {
 	HiddenGroup,
 	Home,
 	HomeLayout,
+	HubStatus,
 	HostsResponse,
 	InfraPage,
 	LayoutRow,
@@ -151,6 +152,8 @@ export const saveServiceUrl = (
 
 export const clearServiceUrl = (fetchFn: Fetch, slug: string) =>
 	sendService(fetchFn, 'DELETE', `${servicePath(slug)}/url`);
+
+export const getStatus = (fetchFn: Fetch) => getJson<HubStatus>(fetchFn, '/api/v1/status');
 
 export const getHomeLayout = (fetchFn: Fetch) =>
 	getJson<HomeLayout>(fetchFn, '/api/v1/home-layout');

@@ -16,6 +16,7 @@ test('le menu des sections reste accessible et mène à la section', async ({ pa
 	// En mobile, seules les sections qui ont du contenu figurent dans la rangée de pilules.
 	const links = nav.getByRole('link');
 	await expect(links).toHaveText([
+		'État de Hub',
 		'Hôtes et agents',
 		'Découverte',
 		'Widgets et connexions',
