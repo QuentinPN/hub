@@ -1,4 +1,5 @@
 {
+	"off": false,
 	"enabled": true,
 	"frequency": "daily",
 	"retention": "7d4w",

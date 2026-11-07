@@ -81,3 +81,16 @@ test('un dossier absent bloque la sauvegarde et dit quoi faire', async ({ page }
 	await expect(panel.getByRole('alert')).toContainText('à monter dans le compose');
 	await expect(panel.getByRole('button', { name: 'Sauvegarder maintenant' })).toBeDisabled();
 });
+
+test('désactivées sur le serveur, la section le dit et ne propose rien', async ({ page }) => {
+	await mockApi(page);
+	await page.route('**/api/v1/backup', (route) =>
+		route.fulfill({ json: { ...(fixture('backup') as Backup), off: true, runs: [] } })
+	);
+	await page.goto('/settings#backup');
+	const panel = page.locator('#backup');
+	await expect(panel.getByText('Sauvegardes désactivées sur ce serveur.')).toBeVisible();
+	await expect(panel.getByRole('button')).toHaveCount(0);
+	await expect(panel.getByRole('switch')).toHaveCount(0);
+	await expect(panel.getByLabel('Phrase de passe')).toHaveCount(0);
+});

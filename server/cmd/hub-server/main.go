@@ -193,8 +193,19 @@ func main() {
 	bus := widgets.NewBus()
 	go widgets.Run(ctx, store, secretStore, bus, 5*time.Second)
 	// Backups go to a folder mounted from elsewhere (HUB_BACKUP_DIR), never created here.
-	backups := backup.NewService(ctx, store, store.Pool(), os.Getenv("HUB_BACKUP_DIR"), keyFiles, version)
-	go backups.Watch(ctx, time.Minute)
+	// HUB_BACKUP=off turns them off: nothing runs, the section says so.
+	var backups api.Backups = backup.Off{}
+	switch os.Getenv("HUB_BACKUP") {
+	case "off":
+		slog.Info("backups turned off (HUB_BACKUP=off)")
+	case "", "on":
+		svc := backup.NewService(ctx, store, store.Pool(), os.Getenv("HUB_BACKUP_DIR"), keyFiles, version)
+		go svc.Watch(ctx, time.Minute)
+		backups = svc
+	default:
+		slog.Error("startup", "err", errors.New("HUB_BACKUP must be on or off"))
+		os.Exit(1)
+	}
 
 	ui := webui.New()
 	srv := &http.Server{

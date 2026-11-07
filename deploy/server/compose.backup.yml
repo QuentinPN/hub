@@ -1,0 +1,14 @@
+# Dossier des sauvegardes de Hub, à ajouter quand elles sont activées (docs/EXPLOITATION.md) :
+#
+#   COMPOSE_FILE=compose.yml:compose.backup.yml   dans le .env, ou -f compose.yml -f compose.backup.yml
+#
+# Sans ce fichier, /sauvegardes n'existe pas dans le conteneur : Hub le dit et ne sauvegarde pas.
+services:
+  hub:
+    volumes:
+      # Jamais créé par Docker : un partage absent fait échouer le démarrage, pas une copie locale.
+      - type: bind
+        source: ${HUB_BACKUP_HOST_DIR:?HUB_BACKUP_HOST_DIR, le partage du QNAP monté sur l'hôte}
+        target: /sauvegardes
+        bind:
+          create_host_path: false

@@ -64,6 +64,8 @@ type Store interface {
 
 // Status is what the « Sauvegarde » section shows.
 type Status struct {
+	// Off: backups are turned off on this server (HUB_BACKUP=off); nothing else is filled.
+	Off        bool       `json:"off"`
 	Enabled    bool       `json:"enabled"`
 	Frequency  string     `json:"frequency"`
 	Retention  string     `json:"retention"`
@@ -82,7 +84,17 @@ type Status struct {
 var (
 	ErrRunning = errors.New("une sauvegarde est déjà en cours")
 	ErrNoKey   = errors.New("choisir d'abord une phrase de passe")
+	ErrOff     = errors.New("sauvegardes désactivées sur ce serveur (HUB_BACKUP=off)")
 )
+
+// Off stands in for the service when HUB_BACKUP=off: nothing runs, every change is refused.
+// A restore from the command line still works.
+type Off struct{}
+
+func (Off) Status(context.Context) (Status, error)                   { return Status{Off: true}, nil }
+func (Off) SaveSchedule(context.Context, bool, string, string) error { return ErrOff }
+func (Off) SetPassphrase(context.Context, string) error              { return ErrOff }
+func (Off) Start(context.Context) error                              { return ErrOff }
 
 // Service runs backups, on schedule or on demand. One at a time.
 type Service struct {

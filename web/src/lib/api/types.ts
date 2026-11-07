@@ -472,6 +472,8 @@ export interface BackupRun {
 
 /** Section « Sauvegarde ». La phrase de passe n'est jamais renvoyée, ni gardée. */
 export interface BackupStatus {
+	/** Désactivées sur ce serveur (HUB_BACKUP=off) : le reste est vide. */
+	off: boolean;
 	enabled: boolean;
 	frequency: BackupFrequency;
 	retention: BackupRetention;

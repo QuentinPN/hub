@@ -29,6 +29,7 @@ func TestBackupCheck(t *testing.T) {
 		st    backup.Status
 		level string
 	}{
+		{"off", backup.Status{Off: true}, LevelOK},
 		{"no passphrase", backup.Status{Enabled: true}, LevelWarn},
 		{"no folder", with(func(s *backup.Status) { s.DirError = "Dossier absent" }), LevelBad},
 		{"never ran", ready, LevelWarn},

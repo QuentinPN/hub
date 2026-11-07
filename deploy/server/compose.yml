@@ -45,7 +45,9 @@ services:
       HUB_AGENT_CA_FILE: /var/lib/hub/agent-ca.pem
       HUB_AGENT_ADDR: :8443
       HUB_AGENT_NAMES: ${HUB_AGENT_NAMES:?HUB_AGENT_NAMES}
-      # Sauvegardes : un partage du QNAP monté sur l'hôte (docs/EXPLOITATION.md), jamais créé ici.
+      # Sauvegardes : off pour les désactiver. Sinon, un partage du QNAP monté par
+      # compose.backup.yml (docs/EXPLOITATION.md), jamais créé ici.
+      HUB_BACKUP: ${HUB_BACKUP:-on}
       HUB_BACKUP_DIR: /sauvegardes
       # Fuseau du créneau de 03:00.
       TZ: ${TZ:-Europe/Paris}
@@ -55,12 +57,6 @@ services:
     networks: [db, edge]
     volumes:
       - keys:/var/lib/hub
-      # Jamais créé par Docker : un partage absent fait échouer le démarrage, pas une copie locale.
-      - type: bind
-        source: ${HUB_BACKUP_HOST_DIR:?HUB_BACKUP_HOST_DIR, le partage du QNAP monté sur l'hôte}
-        target: /sauvegardes
-        bind:
-          create_host_path: false
     healthcheck:
       test: ['CMD', '/hub-server', '-healthcheck']
       interval: 15s

@@ -154,7 +154,7 @@
 		<h2 id="backup-title">Sauvegarde</h2>
 		<p class="muted intro">La base et les clés, ensemble, hors de l’hôte de Hub.</p>
 	</div>
-	{#if status}
+	{#if status && !status.off}
 		<button
 			type="button"
 			class="btn primary"
@@ -172,6 +172,12 @@
 		<Skeleton height="86px" radius="16px" />
 		<Skeleton height="86px" radius="16px" />
 	</div>
+{:else if status.off}
+	<p class="notice off" role="note">
+		<strong>Sauvegardes désactivées sur ce serveur.</strong> Hub ne sauvegarde rien, ni seul ni à la
+		main : <code>HUB_BACKUP=off</code> dans son <code>.env</code>. Pour les activer, retirer cette
+		ligne et monter un dossier du QNAP, comme l’explique <code>docs/EXPLOITATION.md</code>.
+	</p>
 {:else}
 	{#if status.dirError}
 		<p class="notice bad" role="alert">
@@ -381,6 +387,15 @@
 		margin: 20px 0 6px;
 		font-size: 17px;
 		font-weight: 600;
+	}
+	.notice.off {
+		margin: 16px 0 0;
+		padding: 14px 16px;
+		border: 1px solid var(--border-2);
+		border-radius: 14px;
+		background: var(--surface-1);
+		font-size: 14px;
+		line-height: 1.55;
 	}
 	.error,
 	.notice.bad {

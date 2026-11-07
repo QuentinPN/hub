@@ -35,7 +35,10 @@ func registerBackups(mux *http.ServeMux, b Backups, authSvc *auth.Service) {
 		if !decodeJSON(w, r, &body) {
 			return
 		}
-		if err := b.SaveSchedule(r.Context(), body.Enabled, body.Frequency, body.Retention); err != nil {
+		if err := b.SaveSchedule(r.Context(), body.Enabled, body.Frequency, body.Retention); errors.Is(err, backup.ErrOff) {
+			writeError(w, http.StatusConflict, err.Error())
+			return
+		} else if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -58,7 +61,10 @@ func registerBackups(mux *http.ServeMux, b Backups, authSvc *auth.Service) {
 			writeError(w, http.StatusBadRequest, "phrase de passe trop longue")
 			return
 		}
-		if err := b.SetPassphrase(r.Context(), body.Passphrase); err != nil {
+		if err := b.SetPassphrase(r.Context(), body.Passphrase); errors.Is(err, backup.ErrOff) {
+			writeError(w, http.StatusConflict, err.Error())
+			return
+		} else if err != nil {
 			internalError(w, r, err)
 			return
 		}
@@ -71,7 +77,7 @@ func registerBackups(mux *http.ServeMux, b Backups, authSvc *auth.Service) {
 		case errors.Is(err, backup.ErrRunning):
 			writeError(w, http.StatusConflict, err.Error())
 			return
-		case errors.Is(err, backup.ErrNoKey):
+		case errors.Is(err, backup.ErrNoKey), errors.Is(err, backup.ErrOff):
 			writeError(w, http.StatusConflict, err.Error())
 			return
 		case err != nil:
@@ -116,6 +122,9 @@ func backupCheck(ctx context.Context, b Backups, now time.Time) StatusCheck {
 		limit = 8*24*time.Hour + 2*time.Hour
 	}
 	switch {
+	// Chosen when deploying: said, not counted as a problem.
+	case st.Off:
+		c.Detail = "Désactivées sur ce serveur (HUB_BACKUP=off)"
 	case !st.Configured:
 		c.Level, c.Detail = LevelWarn, "Pas configurée : choisir une phrase de passe"
 	case st.DirError != "":

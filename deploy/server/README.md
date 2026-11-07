@@ -10,7 +10,7 @@ Déployé sur le mini-PC le 2026-11-06 avec cette procédure : vrai certificat, 
 
 - Trois conteneurs, `hub-db-1`, `hub-hub-1` et `hub-caddy-1`, et quatre volumes, `hub_pgdata`, `hub_keys`, `hub_caddy-data` et `hub_caddy-config`.
 - Deux réseaux, `hub_db` (sans sortie) et `hub-edge`.
-- Le dossier des sauvegardes, `HUB_BACKUP_HOST_DIR`, monté dans `hub` sur `/sauvegardes`. Docker ne le crée pas.
+- Si les sauvegardes sont activées, le dossier `HUB_BACKUP_HOST_DIR`, monté dans `hub` sur `/sauvegardes` par `compose.backup.yml`. Docker ne le crée pas.
 - Les ports 8443 (agents) et 8444 (UI), sur l'IP de `HUB_BIND` seulement. Ne les redirige pas sur ta box : Hub reste en LAN.
 
 Accès depuis le VPN : pas encore en place. Le port n'écoute pas sur l'IP Tailscale, et `home.example.com` pointe vers l'IP LAN.
@@ -27,7 +27,7 @@ scripts/build-server.sh
 docker save hub-server:local hub-caddy:local | ssh hub@192.0.2.14 docker load
 ```
 
-Copier ensuite `compose.yml`, `Caddyfile` et `.env.example` de `deploy/server/` sur l'hôte, puis y faire les étapes suivantes.
+Copier ensuite `compose.yml`, `compose.backup.yml`, `Caddyfile` et `.env.example` de `deploy/server/` sur l'hôte, puis y faire les étapes suivantes.
 
 ## 2. Configurer
 
@@ -119,7 +119,7 @@ Le Pi (`GOARCH=arm64 scripts/build-agent.sh`) et le QNAP utilisent `compose.yml`
 
 ## Sauvegarder et restaurer
 
-Hub se sauvegarde lui-même, chiffré, dans un partage du QNAP monté sur l'hôte (`HUB_BACKUP_HOST_DIR` du `.env`, obligatoire). Le montage, la vérification et la restauration sont dans [docs/EXPLOITATION.md](../../docs/EXPLOITATION.md).
+Hub se sauvegarde lui-même, chiffré, dans un partage du QNAP monté sur l'hôte (`HUB_BACKUP_HOST_DIR` et `compose.backup.yml`), ou ne se sauvegarde pas du tout avec `HUB_BACKUP=off`. Le montage, la vérification et la restauration sont dans [docs/EXPLOITATION.md](../../docs/EXPLOITATION.md).
 
 ## Mettre à jour
 
