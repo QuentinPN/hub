@@ -54,6 +54,7 @@ func registerServices(mux *http.ServeMux, store Store, editor ServiceEditor, aut
 	audit := func(r *http.Request, kind, detail string) {
 		p, _ := current(r.Context())
 		authSvc.Audit(r.Context(), auth.Event{Kind: kind, UserID: &p.user.ID, IP: clientOf(r).IP, Detail: detail})
+		recordEdit(r, store, detail, kind, &p.user.ID)
 	}
 	// Answers with the service as it now is, or the error the write gave.
 	finish := func(w http.ResponseWriter, r *http.Request, slug string, err error) {

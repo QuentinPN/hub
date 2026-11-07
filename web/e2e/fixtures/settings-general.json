@@ -3,6 +3,7 @@
 	"startPage": "home",
 	"timeZone": "",
 	"widgetRefresh": "normal",
+	"historyDays": 90,
 	"about": {
 		"version": "0.4.0",
 		"origin": "https://home.example.test:8444",

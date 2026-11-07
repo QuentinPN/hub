@@ -177,11 +177,7 @@ func (s *Store) NotifyConditions(ctx context.Context, now time.Time) (notify.Sna
 			out.Held = append(out.Held, "service:"+e.Slug, "widget:"+e.Slug)
 			continue
 		}
-		down := e.Status == domain.StatusDown
-		if e.check != nil && urlcheck.Kind(e.check.Result) == urlcheck.KindUnreachable {
-			down = true
-		}
-		if down {
+		if e.failing() {
 			out.Failing = append(out.Failing, notify.Condition{Key: "service:" + e.Slug, Alert: notify.AlertService, Subject: e.Name, Detail: e.Note})
 		}
 		c, ok := p.conns[e.Slug]
@@ -220,4 +216,10 @@ func (s *Store) NotifyConditions(ctx context.Context, now time.Time) (notify.Sna
 		out.Held = append(out.Held, "disk:")
 	}
 	return out, nil
+}
+
+// failing is the outage rule of the alerts and the history: the containers are down, or the
+// address does not answer from the server.
+func (e entry) failing() bool {
+	return e.Status == domain.StatusDown || e.check != nil && urlcheck.Kind(e.check.Result) == urlcheck.KindUnreachable
 }

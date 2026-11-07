@@ -73,7 +73,11 @@ func (s *Store) ReplaceContainers(ctx context.Context, hostID string, snap agent
 			return err
 		}
 		ids := make([]string, 0, len(snap.Containers))
+		var hist containerHistory
 		for _, c := range snap.Containers {
+			if err := hist.note(ctx, tx, hostID, c); err != nil {
+				return err
+			}
 			if err := upsertContainer(ctx, tx, hostID, c, now); err != nil {
 				return err
 			}
@@ -83,13 +87,20 @@ func (s *Store) ReplaceContainers(ctx context.Context, hostID string, snap agent
 			WHERE host_id = $1 AND removed_at IS NULL AND NOT (id = ANY($2))`, hostID, ids, now); err != nil {
 			return err
 		}
-		return syncServices(ctx, tx, hostID, now)
+		if err := syncServices(ctx, tx, hostID, now); err != nil {
+			return err
+		}
+		return hist.write(ctx, tx, hostID, now)
 	})
 }
 
 func (s *Store) ApplyContainerChanges(ctx context.Context, hostID string, c agentproto.Changes, now time.Time) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		hist := containerHistory{events: c.Events}
 		for _, ct := range c.Upserted {
+			if err := hist.note(ctx, tx, hostID, ct); err != nil {
+				return err
+			}
 			if err := upsertContainer(ctx, tx, hostID, ct, now); err != nil {
 				return err
 			}
@@ -103,7 +114,10 @@ func (s *Store) ApplyContainerChanges(ctx context.Context, hostID string, c agen
 		if _, err := tx.Exec(ctx, "UPDATE hosts SET last_seen_at = $2 WHERE id = $1", hostID, now); err != nil {
 			return err
 		}
-		return syncServices(ctx, tx, hostID, now)
+		if err := syncServices(ctx, tx, hostID, now); err != nil {
+			return err
+		}
+		return hist.write(ctx, tx, hostID, now)
 	})
 }
 

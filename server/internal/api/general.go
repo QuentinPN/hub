@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -38,11 +39,13 @@ type General struct {
 	// TimeZone is an IANA name; empty for the server's own (TZ).
 	TimeZone      string `json:"timeZone"`
 	WidgetRefresh string `json:"widgetRefresh"`
+	// HistoryDays is how long the services' history is kept; 0 in a request keeps it as is.
+	HistoryDays int `json:"historyDays"`
 }
 
 // DefaultGeneral is what a server shows before anything is saved.
 func DefaultGeneral() General {
-	return General{DisplayName: DefaultDisplayName, StartPage: StartHome, WidgetRefresh: RefreshNormal}
+	return General{DisplayName: DefaultDisplayName, StartPage: StartHome, WidgetRefresh: RefreshNormal, HistoryDays: DefaultHistoryDays}
 }
 
 var zoneName = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$`)
@@ -100,6 +103,9 @@ func (g *General) Validate() string {
 	if g.WidgetRefresh != RefreshNormal && g.WidgetRefresh != RefreshEconomy {
 		return "rafraîchissement inconnu"
 	}
+	if !slices.Contains(HistoryRetentions, g.HistoryDays) {
+		return "durée de conservation inconnue"
+	}
 	return ""
 }
 
@@ -146,6 +152,14 @@ func registerGeneral(mux *http.ServeMux, gs GeneralStore, rt *Runtime, authSvc *
 		var g General
 		if !decodeJSON(w, r, &g) {
 			return
+		}
+		if g.HistoryDays == 0 {
+			cur, err := gs.General(r.Context())
+			if err != nil {
+				internalError(w, r, err)
+				return
+			}
+			g.HistoryDays = cur.HistoryDays
 		}
 		if msg := g.Validate(); msg != "" {
 			writeError(w, http.StatusBadRequest, msg)

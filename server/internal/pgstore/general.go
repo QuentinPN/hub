@@ -16,21 +16,25 @@ var _ api.GeneralStore = (*Store)(nil)
 // General reads the « Général » section; without a row, the defaults.
 func (s *Store) General(ctx context.Context) (api.General, error) {
 	g := api.DefaultGeneral()
-	err := s.pool.QueryRow(ctx, "SELECT display_name, start_page, time_zone, widget_refresh FROM general_settings").
-		Scan(&g.DisplayName, &g.StartPage, &g.TimeZone, &g.WidgetRefresh)
+	err := s.pool.QueryRow(ctx, "SELECT display_name, start_page, time_zone, widget_refresh, history_days FROM general_settings").
+		Scan(&g.DisplayName, &g.StartPage, &g.TimeZone, &g.WidgetRefresh, &g.HistoryDays)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return g, nil
 	}
 	return g, err
 }
 
+// SaveGeneral writes the section; a shorter retention erases the older history at once.
 func (s *Store) SaveGeneral(ctx context.Context, g api.General) error {
-	_, err := s.pool.Exec(ctx, `INSERT INTO general_settings (display_name, start_page, time_zone, widget_refresh)
-		VALUES ($1, $2, $3, $4)
+	if _, err := s.pool.Exec(ctx, `INSERT INTO general_settings (display_name, start_page, time_zone, widget_refresh, history_days)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (id) DO UPDATE SET display_name = excluded.display_name, start_page = excluded.start_page,
-			time_zone = excluded.time_zone, widget_refresh = excluded.widget_refresh, updated_at = now()`,
-		g.DisplayName, g.StartPage, g.TimeZone, g.WidgetRefresh)
-	return err
+			time_zone = excluded.time_zone, widget_refresh = excluded.widget_refresh,
+			history_days = excluded.history_days, updated_at = now()`,
+		g.DisplayName, g.StartPage, g.TimeZone, g.WidgetRefresh, g.HistoryDays); err != nil {
+		return err
+	}
+	return s.PurgeHistory(ctx, time.Now())
 }
 
 // TimeZone is where schedules fall (backups, quiet hours): the zone chosen in « Général »,

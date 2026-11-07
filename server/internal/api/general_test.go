@@ -46,6 +46,7 @@ func TestGeneralRoutes(t *testing.T) {
 		"unknown page":  `{"displayName":"Hub","startPage":"settings","timeZone":"","widgetRefresh":"normal"}`,
 		"unknown zone":  `{"displayName":"Hub","startPage":"home","timeZone":"Mars/Olympus","widgetRefresh":"normal"}`,
 		"unknown rate":  `{"displayName":"Hub","startPage":"home","timeZone":"","widgetRefresh":"fast"}`,
+		"retention":     `{"displayName":"Hub","startPage":"home","timeZone":"","widgetRefresh":"normal","historyDays":45}`,
 		"unknown field": `{"displayName":"Hub","startPage":"home","timeZone":"","widgetRefresh":"normal","version":"9"}`,
 	} {
 		if status, data := e.do(t, e.user, http.MethodPut, "/api/v1/settings/general", body, nil); status != http.StatusBadRequest {
@@ -62,7 +63,8 @@ func TestGeneralRoutes(t *testing.T) {
 	var got api.GeneralSettings
 	status, _ := e.sendJSON(t, http.MethodPut, "/api/v1/settings/general",
 		`{"displayName":"  Hub de Quentin ","startPage":"medias","timeZone":"Europe/Paris","widgetRefresh":"economy"}`, &got)
-	want := api.General{DisplayName: "Hub de Quentin", StartPage: api.StartMedias, TimeZone: "Europe/Paris", WidgetRefresh: api.RefreshEconomy}
+	// Without historyDays, the retention stays as it was.
+	want := api.General{DisplayName: "Hub de Quentin", StartPage: api.StartMedias, TimeZone: "Europe/Paris", WidgetRefresh: api.RefreshEconomy, HistoryDays: 90}
 	if status != http.StatusOK || got.General != want {
 		t.Fatalf("status %d, %+v", status, got)
 	}
@@ -70,6 +72,11 @@ func TestGeneralRoutes(t *testing.T) {
 	e.getJSON(t, "/api/v1/settings/general", &got)
 	if got.General != want {
 		t.Errorf("GET after save: %+v", got)
+	}
+	status, _ = e.sendJSON(t, http.MethodPut, "/api/v1/settings/general",
+		`{"displayName":"Hub de Quentin","startPage":"medias","timeZone":"Europe/Paris","widgetRefresh":"economy","historyDays":30}`, &got)
+	if want.HistoryDays = 30; status != http.StatusOK || got.General != want {
+		t.Errorf("retention: status %d, %+v", status, got)
 	}
 
 	// The login screen shows the name, and nothing else of the settings.

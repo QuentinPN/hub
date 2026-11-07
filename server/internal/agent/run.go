@@ -165,6 +165,12 @@ func (s *session) event(ctx context.Context, ev Event) error {
 		}
 		ch.Upserted = list
 	}
+	if agentproto.HistoryAction(ev.Action) {
+		e := agentproto.Event{ContainerID: ev.ID, Action: ev.Action, ExitCode: ev.ExitCode}
+		if e.Validate() == nil {
+			ch.Events = []agentproto.Event{e}
+		}
+	}
 	return s.send(ctx, http.MethodPost, agentproto.PathContainers, ch, nil)
 }
 

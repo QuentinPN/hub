@@ -24,6 +24,8 @@ import type {
 	ServiceDetail,
 	ServiceEdit,
 	ServiceContainers,
+	ServiceHistory,
+	HistoryKind,
 	ServiceSummary,
 	SessionInfo,
 	Settings,
@@ -325,3 +327,17 @@ export const testNotifyChannel = (fetchFn: Fetch, channel: NotifyChannel) =>
 /** Les conteneurs du service et de ses projets reliés ; 404 pour un service non découvert. */
 export const getServiceContainers = (fetchFn: Fetch, slug: string) =>
 	getJson<ServiceContainers>(fetchFn, `/api/v1/services/${encodeURIComponent(slug)}/containers`);
+
+/** Une page de l'historique d'un service ; sans type, tous. */
+export const getServiceHistory = (
+	fetchFn: Fetch,
+	slug: string,
+	query: { kinds?: HistoryKind[]; offset?: number; limit?: number } = {}
+) => {
+	const params = new URLSearchParams();
+	if (query.kinds?.length) params.set('kinds', query.kinds.join(','));
+	if (query.offset) params.set('offset', String(query.offset));
+	if (query.limit) params.set('limit', String(query.limit));
+	const qs = params.size ? `?${params}` : '';
+	return getJson<ServiceHistory>(fetchFn, `${servicePath(slug)}/history${qs}`);
+};
