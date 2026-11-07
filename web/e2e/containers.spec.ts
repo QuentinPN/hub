@@ -131,7 +131,7 @@ test('le chargement montre des squelettes', async ({ page }) => {
 test('un service Compose se met à part, puis se rattache à son projet', async ({ page }) => {
 	const emby = fixture('services-emby') as Record<string, unknown>;
 	const cache = { ...emby, slug: 'emby-cache', name: 'Emby Cache', url: null };
-	const base = containers();
+	const base: Record<string, unknown> = containers();
 	const own = (base.containers as Record<string, unknown>[]).find((c) => c.id === 'a07e55c19d3b');
 	let sent: unknown = null;
 	await page.route(ROUTE, (route) => route.fulfill({ json: base }));
