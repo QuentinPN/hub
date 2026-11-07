@@ -14,15 +14,24 @@
 	import StatusDot from '#lib/components/StatusDot.svelte';
 	import UrlCard from '#lib/components/UrlCard.svelte';
 	import WidgetsTab from '#lib/components/WidgetsTab.svelte';
+	import ContainersTab, { ready as containersReady } from '#lib/components/ContainersTab.svelte';
+	import HistoryTab, { ready as historyReady } from '#lib/components/HistoryTab.svelte';
 	import { statusStyle } from '#lib/status.ts';
 	import { tabTitle } from '#lib/shell.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-	// Conteneurs et Historique arrivent par jalons.
-	const later = ['Conteneurs', 'Historique'];
-	const onWidgets = $derived(page.url.hash === '#widgets');
+	// L'ancre choisit l'onglet ; un onglet pas encore prêt reste grisé.
+	const tabs = [
+		{ id: 'apercu', label: 'Aperçu', ready: true },
+		{ id: 'widgets', label: 'Widgets', ready: true },
+		{ id: 'conteneurs', label: 'Conteneurs', ready: containersReady },
+		{ id: 'historique', label: 'Historique', ready: historyReady }
+	];
+	const current = $derived(
+		tabs.find((t) => t.ready && `#${t.id}` === page.url.hash)?.id ?? 'apercu'
+	);
 
 	// Le lien retour ramène d'où l'on vient : le catalogue ou, par défaut, l'accueil.
 	let fromCatalogue = $state(false);
@@ -142,24 +151,25 @@
 
 	<div class="content">
 		<nav class="subtabs" aria-label="Sections du service">
-			<a
-				class="subtab"
-				class:on={!onWidgets}
-				href="#apercu"
-				aria-current={onWidgets ? undefined : 'page'}>Aperçu</a
-			>
-			<a
-				class="subtab"
-				class:on={onWidgets}
-				href="#widgets"
-				aria-current={onWidgets ? 'page' : undefined}>Widgets</a
-			>
-			{#each later as t (t)}
-				<span class="subtab" aria-disabled="true">{t}</span>
+			{#each tabs as t (t.id)}
+				{#if t.ready}
+					<a
+						class="subtab"
+						class:on={current === t.id}
+						href="#{t.id}"
+						aria-current={current === t.id ? 'page' : undefined}>{t.label}</a
+					>
+				{:else}
+					<span class="subtab" aria-disabled="true">{t.label}</span>
+				{/if}
 			{/each}
 		</nav>
-		{#if onWidgets}
+		{#if current === 'widgets'}
 			<WidgetsTab service={svc} onchange={(s) => (fresh = s)} />
+		{:else if current === 'conteneurs'}
+			<ContainersTab service={svc} />
+		{:else if current === 'historique'}
+			<HistoryTab service={svc} />
 		{:else}
 			{#if svc.upcoming.length > 0}
 				<Shelf title="Cette semaine" id="week" focusable>
