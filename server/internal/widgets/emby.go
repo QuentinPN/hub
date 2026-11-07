@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"slices"
 	"strconv"
+	"time"
 
 	"hub/server/internal/secrets"
 )
@@ -20,6 +21,9 @@ const (
 	embyOptionUser     = "userId"
 	embyTicksPerMinute = 600_000_000
 	embyLatestLimit    = 12
+	// embyLatestScan is how many episodes are read to fill embyLatestLimit series: a whole
+	// season added at once takes one entry.
+	embyLatestScan = 100
 )
 
 // The routes come from dev.emby.media/reference/RestAPI; the /emby prefix from its API key
@@ -197,15 +201,13 @@ func (e emby) Fetch(ctx context.Context, c *Conn, enabled []string) (map[string]
 	user := c.Option(embyOptionUser)
 	if slices.Contains(enabled, EmbyLatest) && user != "" {
 		var found []embyItem
-		query := url.Values{"Limit": {strconv.Itoa(embyLatestLimit)}, "Fields": {"DateCreated"}}
+		// Grouped, a series comes back as the series itself, dated when its first episode was
+		// added: episodes come back one by one and the newest of each series is kept.
+		query := url.Values{"Limit": {strconv.Itoa(embyLatestScan)}, "Fields": {"DateCreated"}, "GroupItems": {"false"}}
 		if err := c.GetJSON(ctx, "/emby/Users/"+url.PathEscape(user)+"/Items/Latest", query, &found); err != nil {
 			return nil, err
 		}
-		list := make([]MediaItem, 0, len(found))
-		for _, i := range found {
-			list = append(list, i.mediaItem())
-		}
-		data[EmbyLatest] = list
+		data[EmbyLatest] = latest(found)
 	}
 	if slices.Contains(enabled, EmbyLibrary) {
 		var counts struct{ MovieCount, SeriesCount, EpisodeCount int }
@@ -215,6 +217,34 @@ func (e emby) Fetch(ctx context.Context, c *Conn, enabled []string) (map[string]
 		data[EmbyLibrary] = Library{Movies: counts.MovieCount, Series: counts.SeriesCount, Episodes: counts.EpisodeCount}
 	}
 	return data, nil
+}
+
+// latest keeps the newest episode of each series, newest first, embyLatestLimit at most.
+func latest(found []embyItem) []MediaItem {
+	slices.SortStableFunc(found, func(a, b embyItem) int { return addedAt(b).Compare(addedAt(a)) })
+	list := make([]MediaItem, 0, min(len(found), embyLatestLimit))
+	seen := map[string]bool{}
+	for _, i := range found {
+		key := i.ID
+		if i.SeriesID != "" {
+			key = "series:" + i.SeriesID
+		}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		list = append(list, i.mediaItem())
+		if len(list) == embyLatestLimit {
+			break
+		}
+	}
+	return list
+}
+
+// addedAt is zero for a date it cannot read, which sorts it last.
+func addedAt(i embyItem) time.Time {
+	t, _ := time.Parse(time.RFC3339Nano, i.DateCreated)
+	return t
 }
 
 func (i embyItem) mediaItem() MediaItem {

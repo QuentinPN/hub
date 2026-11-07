@@ -105,26 +105,28 @@ test('un enregistrement refusé le dit et revient en arrière', async ({ page })
 test('sans lecture, Emby reste sur l’accueil et dans Personnaliser', async ({ page }) => {
 	await trackLayout(page);
 	const home = fixture('home') as Record<string, unknown>;
+	// Une série est datée par son dernier épisode ajouté, pas par le premier.
+	const episode = {
+		title: 'Une série',
+		detail: 'S02E06',
+		kind: 'episode',
+		addedAt: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString()
+	};
 	await page.route('**/api/v1/home', (route) =>
 		route.fulfill({
 			json: {
 				...home,
 				sessions: [],
 				sessionsSlug: 'emby',
-				lastAdded: {
-					title: 'Un film',
-					detail: 'Film',
-					kind: 'movie',
-					addedAt: new Date().toISOString()
-				},
+				lastAdded: episode,
 				library: { movies: 1240, series: 312, episodes: 8420 },
 				latest: [
-					{ title: 'Un film', detail: 'Film', kind: 'movie', addedAt: new Date().toISOString() },
+					episode,
 					{
-						title: 'Une série',
-						detail: 'S02E06',
-						kind: 'episode',
-						addedAt: new Date().toISOString()
+						title: 'Un film',
+						detail: 'Film',
+						kind: 'movie',
+						addedAt: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString()
 					}
 				],
 				latestSlug: 'emby',
@@ -135,7 +137,7 @@ test('sans lecture, Emby reste sur l’accueil et dans Personnaliser', async ({ 
 	await page.goto('/');
 	await expect(page.getByRole('heading', { level: 1, name: 'Rien en lecture' })).toBeVisible();
 	await expect(page.getByText('Emby · aucune session')).toBeVisible();
-	await expect(page.getByText('Dernier ajout : Un film')).toBeVisible();
+	await expect(page.getByText('Dernier ajout : Une série, il y a 2 j')).toBeVisible();
 	await expect(page.getByText(/1\s240 films · 312 séries/)).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Ouvrir la fiche Emby' })).toHaveAttribute(
 		'href',

@@ -41,8 +41,14 @@ func fakeEmby(t *testing.T) *httptest.Server {
 		case "/emby/Users/Query":
 			_, _ = w.Write([]byte(`{"Items":[{"Id":"u1","Name":"admin"}],"TotalRecordCount":1}`))
 		case "/emby/Users/u1/Items/Latest":
-			_, _ = w.Write([]byte(`[{"Name":"Un film","Type":"Movie","DateCreated":"2026-11-05T10:00:00Z"},
-				{"Name":"Pilote","Type":"Episode","SeriesName":"Une série","ParentIndexNumber":2,"IndexNumber":5,"DateCreated":"2026-11-04T10:00:00Z"}]`))
+			// Grouped, Emby would date the series by its first episode.
+			if r.URL.Query().Get("GroupItems") != "false" {
+				_, _ = w.Write([]byte(`[{"Id":"s1","Name":"Une série","Type":"Series","DateCreated":"2021-01-01T10:00:00.0000000Z"}]`))
+				return
+			}
+			_, _ = w.Write([]byte(`[{"Id":"e1","SeriesId":"s1","Name":"Pilote","Type":"Episode","SeriesName":"Une série","ParentIndexNumber":2,"IndexNumber":5,"DateCreated":"2026-11-04T10:00:00.0000000Z"},
+				{"Id":"m1","Name":"Un film","Type":"Movie","DateCreated":"2026-11-05T10:00:00.0000000Z"},
+				{"Id":"e2","SeriesId":"s1","Name":"Suite","Type":"Episode","SeriesName":"Une série","ParentIndexNumber":2,"IndexNumber":6,"DateCreated":"2026-11-04T12:00:00.0000000Z"}]`))
 		case "/emby/Items/Counts":
 			_, _ = w.Write([]byte(`{"MovieCount":120,"SeriesCount":30,"EpisodeCount":900,"SongCount":7}`))
 		default:
@@ -93,7 +99,9 @@ func TestEmbyReadKeepsOnlyWhatTheWidgetsShow(t *testing.T) {
 	if err := json.Unmarshal(data[widgets.EmbyLatest], &latest); err != nil {
 		t.Fatal(err)
 	}
-	if len(latest) != 2 || latest[0].Detail != "Film" || latest[1].Title != "Une série" || latest[1].Detail != "S02E05" {
+	// One entry per series, dated by its newest episode.
+	if len(latest) != 2 || latest[0].Detail != "Film" || latest[1].Title != "Une série" || latest[1].Detail != "S02E06" ||
+		latest[1].AddedAt != "2026-11-04T12:00:00.0000000Z" || latest[1].Poster != "s1" {
 		t.Errorf("%+v", latest)
 	}
 	var lib widgets.Library
