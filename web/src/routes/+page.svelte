@@ -12,7 +12,7 @@
 	import PosterCard from '#lib/components/PosterCard.svelte';
 	import Shelf from '#lib/components/Shelf.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
-	import { shell } from '#lib/shell.svelte.ts';
+	import { shell, tabTitle, widgetPollMs } from '#lib/shell.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -33,7 +33,7 @@
 			.catch(() => {});
 	}
 	$effect(() => {
-		const poll = setInterval(reload, 30_000);
+		const poll = setInterval(reload, widgetPollMs());
 		const stop = onWidgetNews(reload);
 		return () => {
 			clearInterval(poll);
@@ -56,7 +56,7 @@
 	});
 </script>
 
-<svelte:head><title>Accueil · Hub</title></svelte:head>
+<svelte:head><title>{tabTitle('Accueil')}</title></svelte:head>
 
 {#await data.home}
 	<section class="hero">

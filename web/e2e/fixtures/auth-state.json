@@ -2,5 +2,8 @@
 	"setupRequired": false,
 	"authenticated": true,
 	"username": "e2e",
-	"passkeys": true
+	"passkeys": true,
+	"displayName": "Hub",
+	"startPage": "home",
+	"widgetRefresh": "normal"
 }

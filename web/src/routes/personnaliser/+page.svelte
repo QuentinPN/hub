@@ -5,6 +5,7 @@
 	import type { HomeLayout, LayoutRow } from '#lib/api/types.ts';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
+	import { tabTitle } from '#lib/shell.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -98,7 +99,7 @@
 	}
 </script>
 
-<svelte:head><title>Personnaliser l’accueil · Hub</title></svelte:head>
+<svelte:head><title>{tabTitle('Personnaliser l’accueil')}</title></svelte:head>
 
 <div class="page">
 	<header>

@@ -1,0 +1,13 @@
+{
+	"displayName": "Hub",
+	"startPage": "home",
+	"timeZone": "",
+	"widgetRefresh": "normal",
+	"about": {
+		"version": "0.4.0",
+		"origin": "https://home.example.test:8444",
+		"agentUrl": "https://192.0.2.14:8443",
+		"host": "",
+		"serverTimeZone": "Europe/Paris"
+	}
+}

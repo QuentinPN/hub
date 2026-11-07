@@ -49,8 +49,10 @@ services:
       # compose.backup.yml (docs/EXPLOITATION.md), jamais créé ici.
       HUB_BACKUP: ${HUB_BACKUP:-on}
       HUB_BACKUP_DIR: /sauvegardes
-      # Fuseau du créneau de 03:00.
+      # Fuseau du créneau de 03:00 tant que Réglages → Général n'en choisit pas un autre.
       TZ: ${TZ:-Europe/Paris}
+      # Nom de la machine, pour « À propos » : le conteneur ne le connaît pas.
+      HUB_HOST_NAME: ${HUB_HOST_NAME:-}
     # Seul le port agents est publié, sur une seule IP. L'UI ne se joint que par le Caddy ci-dessous.
     ports:
       - '${HUB_BIND:?HUB_BIND}:8443:8443'

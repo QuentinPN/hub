@@ -9,6 +9,7 @@
 	import ErrorPanel from './ErrorPanel.svelte';
 	import ServiceIcon from './ServiceIcon.svelte';
 	import Skeleton from './Skeleton.svelte';
+	import { tabTitle, widgetPollMs } from '#lib/shell.svelte.ts';
 
 	let {
 		title,
@@ -43,7 +44,7 @@
 				.then((page) => (fresh = page))
 				.catch(() => {});
 		};
-		const poll = setInterval(refresh, 30_000);
+		const poll = setInterval(refresh, widgetPollMs());
 		const stop = onWidgetNews(refresh);
 		return () => {
 			clearInterval(poll);
@@ -52,7 +53,7 @@
 	});
 </script>
 
-<svelte:head><title>{title} · Hub</title></svelte:head>
+<svelte:head><title>{tabTitle(title)}</title></svelte:head>
 
 <section class="hero" style:--tint={tint}>
 	<div class="row">

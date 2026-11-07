@@ -46,6 +46,10 @@ const (
 // RefreshChoices are the rates the user can pick, in seconds.
 var RefreshChoices = []int{30, 60, 300}
 
+// EconomyRefresh is the shortest rate in « Économe » (Réglages, Général), which also closes
+// the live connections.
+const EconomyRefresh = 2 * time.Minute
+
 // Widget is what a connection can show.
 type Widget struct {
 	ID    string `json:"id"`

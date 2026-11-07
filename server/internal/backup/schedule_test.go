@@ -59,3 +59,21 @@ func TestExpired(t *testing.T) {
 		t.Errorf("newest expired: %v", got)
 	}
 }
+
+func TestSlotsFallInTheChosenZone(t *testing.T) {
+	ny, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 11, 7, 12, 0, 0, 0, time.UTC)
+	s := &Service{now: func() time.Time { return now }}
+	set := Settings{Frequency: Daily, UpdatedAt: now}
+	// The server's clock alone: 03:00 UTC.
+	if got := s.due(set, nil); !got.Equal(time.Date(2026, 11, 8, 3, 0, 0, 0, time.UTC)) {
+		t.Errorf("server zone: %s", got)
+	}
+	set.Location = ny
+	if got := s.due(set, nil); !got.Equal(time.Date(2026, 11, 8, 3, 0, 0, 0, ny)) {
+		t.Errorf("chosen zone: %s", got)
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"math"
 	"net"
 	"net/http"
@@ -103,6 +104,11 @@ type AuthState struct {
 	Username      string `json:"username,omitempty"`
 	// Passkeys tells the login page whether to offer them (they need HUB_ORIGIN).
 	Passkeys bool `json:"passkeys"`
+	// DisplayName is public: the login screen shows it.
+	DisplayName string `json:"displayName"`
+	// StartPage and WidgetRefresh are only told once signed in.
+	StartPage     string `json:"startPage,omitempty"`
+	WidgetRefresh string `json:"widgetRefresh,omitempty"`
 }
 
 type PasskeyInfo struct {
@@ -124,7 +130,8 @@ type SessionInfo struct {
 	LastSeenAt time.Time `json:"lastSeenAt"`
 }
 
-func registerAuth(mux *http.ServeMux, svc *auth.Service) {
+// registerAuth takes gs nil when nothing is stored: the defaults apply.
+func registerAuth(mux *http.ServeMux, svc *auth.Service, gs GeneralStore) {
 	registerPasskeys(mux, svc)
 
 	mux.HandleFunc("GET /api/v1/auth/state", func(w http.ResponseWriter, r *http.Request) {
@@ -133,9 +140,19 @@ func registerAuth(mux *http.ServeMux, svc *auth.Service) {
 			internalError(w, r, err)
 			return
 		}
-		state := AuthState{SetupRequired: required, Passkeys: svc.PasskeysEnabled()}
+		g := DefaultGeneral()
+		if gs != nil {
+			// The login screen still opens, under the default name.
+			if v, err := gs.General(r.Context()); err != nil {
+				slog.Error("general settings", "err", err)
+			} else {
+				g = v
+			}
+		}
+		state := AuthState{SetupRequired: required, Passkeys: svc.PasskeysEnabled(), DisplayName: g.DisplayName}
 		if p, ok := current(r.Context()); ok {
 			state.Authenticated, state.Username = true, p.user.Username
+			state.StartPage, state.WidgetRefresh = g.StartPage, g.WidgetRefresh
 		}
 		writeJSON(w, http.StatusOK, state)
 	})

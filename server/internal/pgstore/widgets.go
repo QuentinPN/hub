@@ -385,7 +385,11 @@ func (s *Store) liveRows(ctx context.Context) ([]liveRow, error) {
 	}), nil
 }
 
+// LiveConnections is empty in « Économe »: no connection stays open, reads keep to the clock.
 func (s *Store) LiveConnections(ctx context.Context) ([]widgets.Due, error) {
+	if economy, err := s.widgetEconomy(ctx); err != nil || economy {
+		return nil, err
+	}
 	rows, err := s.liveRows(ctx)
 	if err != nil {
 		return nil, err
@@ -397,14 +401,24 @@ func (s *Store) LiveConnections(ctx context.Context) ([]widgets.Due, error) {
 	return list, nil
 }
 
+// DueConnections reads each connection at its own rate, never more often than
+// widgets.EconomyRefresh in « Économe ».
 func (s *Store) DueConnections(ctx context.Context, now time.Time) ([]widgets.Due, error) {
+	economy, err := s.widgetEconomy(ctx)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := s.liveRows(ctx)
 	if err != nil {
 		return nil, err
 	}
 	due := []widgets.Due{}
 	for _, r := range rows {
-		if !r.checked.Add(widgets.NextDelay(time.Duration(r.refresh)*time.Second, r.failures)).After(now) {
+		refresh := time.Duration(r.refresh) * time.Second
+		if economy {
+			refresh = max(refresh, widgets.EconomyRefresh)
+		}
+		if !r.checked.Add(widgets.NextDelay(refresh, r.failures)).After(now) {
 			due = append(due, r.Due)
 		}
 	}

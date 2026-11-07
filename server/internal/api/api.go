@@ -47,7 +47,8 @@ var ErrNotFound = errors.New("not found")
 // rt is what only the running process knows, for « État de Hub »; nil in most tests.
 func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *Agents, live *Widgets, rt *Runtime, ui http.Handler, scriptHashes []string) http.Handler {
 	mux := http.NewServeMux()
-	registerAuth(mux, authSvc)
+	gs, _ := store.(GeneralStore)
+	registerAuth(mux, authSvc, gs)
 	if hr, ok := store.(HostReader); ok {
 		registerHosts(mux, hr, agents, func(r *http.Request) agentsrv.Actor {
 			p, _ := current(r.Context())
@@ -103,6 +104,9 @@ func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *
 	}
 	if editor, ok := store.(LayoutEditor); ok {
 		registerLayout(mux, editor)
+	}
+	if gs != nil {
+		registerGeneral(mux, gs, rt, authSvc)
 	}
 	if sections, ok := store.(SectionReader); ok {
 		registerSections(mux, sections)
