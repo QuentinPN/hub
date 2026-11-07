@@ -155,14 +155,17 @@ func (s *Store) RescanMinutes(ctx context.Context) (int, error) {
 
 var _ api.HostReader = (*Store)(nil)
 
+// agentFactsColumns reads api.AgentFacts in order, for host h as of $1.
+const agentFactsColumns = `h.docker_ok, h.last_seen_at,
+	(SELECT max(not_after) FROM agent_certs c WHERE c.host_id = h.id AND c.revoked_at IS NULL AND c.not_after > $1),
+	(SELECT max(expires_at) FROM agent_enrollments e WHERE e.host_id = h.id AND e.used_at IS NULL AND e.expires_at > $1),
+	EXISTS (SELECT 1 FROM agent_certs c WHERE c.host_id = h.id),
+	EXISTS (SELECT 1 FROM agent_certs c WHERE c.host_id = h.id AND c.revoked_at IS NOT NULL)`
+
 // AgentHosts lists every host with what its agent last reported, summed up as of now.
 func (s *Store) AgentHosts(ctx context.Context, now time.Time) ([]api.AgentHost, error) {
 	rows, err := s.pool.Query(ctx, `SELECT h.id, h.name, h.os, h.arch, h.agent_version, h.docker_version,
-			h.docker_ok, h.last_seen_at,
-			(SELECT max(not_after) FROM agent_certs c WHERE c.host_id = h.id AND c.revoked_at IS NULL AND c.not_after > $1),
-			(SELECT max(expires_at) FROM agent_enrollments e WHERE e.host_id = h.id AND e.used_at IS NULL AND e.expires_at > $1),
-			EXISTS (SELECT 1 FROM agent_certs c WHERE c.host_id = h.id),
-			EXISTS (SELECT 1 FROM agent_certs c WHERE c.host_id = h.id AND c.revoked_at IS NOT NULL),
+			`+agentFactsColumns+`,
 			(SELECT count(*) FROM containers ct WHERE ct.host_id = h.id AND ct.removed_at IS NULL)
 		FROM hosts h ORDER BY h.name, h.id`, now)
 	if err != nil {

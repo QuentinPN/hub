@@ -23,6 +23,7 @@ import type {
 	PasskeyInfo,
 	ServiceDetail,
 	ServiceEdit,
+	ServiceContainers,
 	ServiceSummary,
 	SessionInfo,
 	Settings,
@@ -320,3 +321,7 @@ export const saveNotifyAlerts = (
 /** Envoie un test ; l'état du canal dit comment il est parti. */
 export const testNotifyChannel = (fetchFn: Fetch, channel: NotifyChannel) =>
 	postJson<NotifyStatus>(fetchFn, `/api/v1/notifications/${channel}/test`);
+
+/** Les conteneurs du service et de ses projets reliés ; 404 pour un service non découvert. */
+export const getServiceContainers = (fetchFn: Fetch, slug: string) =>
+	getJson<ServiceContainers>(fetchFn, `/api/v1/services/${encodeURIComponent(slug)}/containers`);

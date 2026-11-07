@@ -133,6 +133,9 @@ func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *
 			respond(w, r)(store.Settings(r.Context()))
 		})
 	}
+	if cr, ok := store.(ContainerReader); ok {
+		registerContainers(mux, cr)
+	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusNotFound, "not found")
 	})

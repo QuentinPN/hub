@@ -345,3 +345,46 @@ type HiddenGroup struct {
 	Reason     string `json:"reason"`
 	Containers int    `json:"containers"`
 }
+
+// ServiceContainers is the Conteneurs tab: the containers of the service's own project,
+// then of its linked projects, on its host. Labels are only counted, never shown.
+type ServiceContainers struct {
+	HostID     string             `json:"hostId"`
+	HostName   string             `json:"hostName"`
+	HostState  AgentState         `json:"hostState"`
+	LastSeenAt *time.Time         `json:"lastSeenAt"`
+	Containers []ServiceContainer `json:"containers"`
+	// Removed are the latest containers gone from the host, newest first; RemovedTotal
+	// counts them all.
+	Removed      []ServiceContainer `json:"removed"`
+	RemovedTotal int                `json:"removedTotal"`
+}
+
+type ServiceContainer struct {
+	ID         string `json:"id"` // the 12 characters Docker shows
+	Name       string `json:"name"`
+	Image      string `json:"image"`
+	State      string `json:"state"`
+	StateLabel string `json:"stateLabel"`
+	Status     string `json:"status"`
+	// Health is healthy, unhealthy or starting, read from the status; "" without a healthcheck.
+	Health         string          `json:"health"`
+	Ports          []PublishedPort `json:"ports"`
+	Project        string          `json:"project"` // the group key: Compose project, or the name
+	Linked         bool            `json:"linked"`
+	ComposeProject string          `json:"composeProject"`
+	ComposeService string          `json:"composeService"`
+	// Role is main, support or oneshot, as reconcile sees it; "" once removed.
+	Role         string     `json:"role"`
+	Labels       int        `json:"labels"`
+	MaskedLabels int        `json:"maskedLabels"`
+	FirstSeenAt  time.Time  `json:"firstSeenAt"`
+	RemovedAt    *time.Time `json:"removedAt"`
+}
+
+type PublishedPort struct {
+	IP      string `json:"ip"`
+	Public  int    `json:"public"`
+	Private int    `json:"private"`
+	Type    string `json:"type"`
+}

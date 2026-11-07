@@ -558,3 +558,47 @@ export interface SmtpInput {
 	from: string;
 	to: string;
 }
+
+export interface PublishedPort {
+	ip: string;
+	public: number;
+	private: number;
+	type: string;
+}
+
+export type ContainerRole = 'main' | 'support' | 'oneshot' | '';
+
+/** Un conteneur de la fiche service ; ses labels ne sont que comptés. */
+export interface ServiceContainer {
+	id: string;
+	name: string;
+	image: string;
+	state: string;
+	stateLabel: string;
+	status: string;
+	/** Lu dans le statut Docker ; vide sans healthcheck. */
+	health: 'healthy' | 'unhealthy' | 'starting' | '';
+	ports: PublishedPort[];
+	/** Projet Compose, ou nom du conteneur hors Compose. */
+	project: string;
+	linked: boolean;
+	composeProject: string;
+	composeService: string;
+	/** Vide pour un conteneur disparu. */
+	role: ContainerRole;
+	labels: number;
+	maskedLabels: number;
+	firstSeenAt: string;
+	removedAt: string | null;
+}
+
+export interface ServiceContainers {
+	hostId: string;
+	hostName: string;
+	hostState: AgentState;
+	lastSeenAt: string | null;
+	containers: ServiceContainer[];
+	/** Les derniers disparus, du plus récent au plus ancien ; `removedTotal` les compte tous. */
+	removed: ServiceContainer[];
+	removedTotal: number;
+}
