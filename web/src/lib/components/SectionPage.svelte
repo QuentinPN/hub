@@ -129,8 +129,12 @@
 	.hero {
 		padding: calc(var(--shell-h) + 48px) var(--space-page) 30px;
 		background:
-			radial-gradient(90% 100% at 78% 0%, var(--tint) 0%, rgba(7, 8, 10, 0) 62%),
-			linear-gradient(180deg, #0f1218 0%, var(--bg) 100%);
+			radial-gradient(
+				90% 100% at 78% 0%,
+				color-mix(in srgb, var(--tint) var(--tint-mix), var(--bg)) 0%,
+				transparent 62%
+			),
+			linear-gradient(180deg, var(--hero-fade) 0%, var(--bg) 100%);
 	}
 	.row {
 		display: flex;
@@ -181,12 +185,12 @@
 		font-weight: 600;
 	}
 	.warn {
-		border-color: rgba(255, 214, 10, 0.3);
-		background: rgba(255, 214, 10, 0.06);
+		border-color: var(--tint-warn-border);
+		background: var(--tint-warn-bg);
 	}
 	.bad {
-		border-color: rgba(255, 69, 58, 0.32);
-		background: rgba(255, 69, 58, 0.07);
+		border-color: var(--tint-danger-border);
+		background: var(--tint-danger-bg);
 	}
 	.dot {
 		flex: none;
@@ -206,9 +210,9 @@
 		gap: 12px 14px;
 		max-width: 760px;
 		padding: 12px 12px 12px 14px;
-		border: 1px dashed rgba(232, 201, 166, 0.4);
+		border: 1px dashed var(--tint-accent-border-strong);
 		border-radius: 18px;
-		background: rgba(232, 201, 166, 0.05);
+		background: var(--tint-accent-bg);
 	}
 	.connect strong {
 		flex: 1 1 120px;

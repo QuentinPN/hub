@@ -4,6 +4,7 @@
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import PasskeysList from '#lib/components/PasskeysList.svelte';
 	import PasswordForm from '#lib/components/PasswordForm.svelte';
+	import AppearancePanel from '#lib/components/AppearancePanel.svelte';
 	import BackupPanel from '#lib/components/BackupPanel.svelte';
 	import HostsPanel from '#lib/components/HostsPanel.svelte';
 	import SessionsList from '#lib/components/SessionsList.svelte';
@@ -25,7 +26,7 @@
 		{ label: 'Découverte', id: 'discovery' },
 		{ label: 'Widgets et connexions', id: 'widgets' },
 		{ label: 'Notifications', id: null },
-		{ label: 'Apparence', id: null },
+		{ label: 'Apparence', id: 'appearance' },
 		{ label: 'Sécurité et accès', id: 'security' },
 		{ label: 'Sauvegarde', id: 'backup' }
 	] as const;
@@ -93,6 +94,10 @@
 				<WidgetRowsPanel />
 			</section>
 
+			<section class="card" id="appearance" aria-labelledby="appearance-title">
+				<AppearancePanel />
+			</section>
+
 			<section class="card" id="security" aria-labelledby="security-title">
 				<h2 id="security-title">Sécurité et accès</h2>
 				<p class="muted intro">
@@ -129,7 +134,7 @@
 		gap: 36px;
 		min-height: 100vh;
 		padding: calc(var(--shell-h) + 36px) var(--space-page) 64px;
-		background: radial-gradient(80% 40% at 75% 0%, #1b2430 0%, rgba(7, 8, 10, 0) 70%), var(--bg);
+		background: radial-gradient(80% 40% at 75% 0%, var(--hero-glow) 0%, transparent 70%), var(--bg);
 	}
 	h1 {
 		margin: 0;
@@ -164,9 +169,9 @@
 	}
 	a.sec:hover,
 	a.sec:focus-visible {
-		background: rgba(255, 255, 255, 0.92);
+		background: var(--fill-selected);
 		color: var(--text-inverse);
-		box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
+		box-shadow: var(--shadow-focus);
 		/* Moitié de l'agrandissement des cartes, nul en mouvement réduit. */
 		transform: scale(calc(1 + (var(--focus-scale) - 1) / 2));
 	}
@@ -181,7 +186,7 @@
 		box-sizing: border-box;
 		border-radius: 99px;
 		background: var(--status-degraded);
-		color: #07080a;
+		color: var(--on-warn);
 		font-size: 13px;
 		font-weight: 700;
 	}
@@ -199,9 +204,9 @@
 	.readonly {
 		margin: 0;
 		padding: 14px 18px;
-		border: 1px solid rgba(232, 201, 166, 0.25);
+		border: 1px solid var(--tint-accent-border);
 		border-radius: 16px;
-		background: rgba(232, 201, 166, 0.08);
+		background: var(--tint-accent-bg);
 		font-size: 14px;
 		line-height: 1.5;
 	}
@@ -260,7 +265,7 @@
 			flex: none;
 			min-height: 44px;
 			padding: 0 14px;
-			border: 1px solid rgba(255, 255, 255, 0.1);
+			border: 1px solid var(--border-2);
 			border-radius: var(--r-pill);
 			background: var(--surface-1);
 			font-size: 14px;

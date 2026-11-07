@@ -226,8 +226,8 @@
 	}
 	.ask {
 		flex-basis: 100%;
-		border-color: rgba(232, 201, 166, 0.28);
-		background: rgba(232, 201, 166, 0.07);
+		border-color: var(--tint-accent-border);
+		background: var(--tint-accent-bg);
 	}
 	h2 {
 		margin: 0;
@@ -345,12 +345,12 @@
 		gap: 3px;
 	}
 	.warn {
-		border-color: rgba(255, 214, 10, 0.3);
-		background: rgba(255, 214, 10, 0.06);
+		border-color: var(--tint-warn-border);
+		background: var(--tint-warn-bg);
 	}
 	.bad {
-		border-color: rgba(255, 69, 58, 0.32);
-		background: rgba(255, 69, 58, 0.07);
+		border-color: var(--tint-danger-border);
+		background: var(--tint-danger-bg);
 	}
 	.fingerprint {
 		overflow-wrap: anywhere;

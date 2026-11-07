@@ -307,8 +307,8 @@
 		flex-flow: row wrap;
 		align-items: center;
 		justify-content: space-between;
-		border: 1px dashed rgba(232, 201, 166, 0.4);
-		background: rgba(232, 201, 166, 0.05);
+		border: 1px dashed var(--tint-accent-border-strong);
+		background: var(--tint-accent-bg);
 	}
 	h2 {
 		margin: 0;
@@ -370,12 +370,12 @@
 		font-weight: 600;
 	}
 	.warn {
-		border-color: rgba(255, 214, 10, 0.3);
-		background: rgba(255, 214, 10, 0.06);
+		border-color: var(--tint-warn-border);
+		background: var(--tint-warn-bg);
 	}
 	.bad {
-		border-color: rgba(255, 69, 58, 0.32);
-		background: rgba(255, 69, 58, 0.07);
+		border-color: var(--tint-danger-border);
+		background: var(--tint-danger-bg);
 	}
 	.dot {
 		flex: none;

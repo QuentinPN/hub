@@ -294,9 +294,9 @@
 	.off {
 		margin: 8px 0;
 		padding: 14px 18px;
-		border: 1px solid rgba(232, 201, 166, 0.25);
+		border: 1px solid var(--tint-accent-border);
 		border-radius: 16px;
-		background: rgba(232, 201, 166, 0.08);
+		background: var(--tint-accent-bg);
 		font-size: 14px;
 		line-height: 1.5;
 	}
@@ -352,7 +352,8 @@
 		border-radius: var(--r-pill);
 		/* Teinte de l'état à 12 % derrière le texte, comme la maquette. */
 		background: color-mix(in srgb, var(--tone) 12%, transparent);
-		color: var(--tone);
+		/* En clair, la couleur d'état est assombrie vers le texte pour rester à 4,5:1. */
+		color: color-mix(in srgb, var(--tone) var(--tone-ink), var(--text));
 		font-weight: 600;
 		font-variant-numeric: tabular-nums;
 	}
@@ -375,7 +376,7 @@
 		font-size: 14px;
 	}
 	.status.error {
-		color: #ff8a80;
+		color: var(--text-danger);
 	}
 	.rights {
 		margin: 4px 0 0;

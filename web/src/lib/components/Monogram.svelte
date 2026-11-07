@@ -20,6 +20,6 @@
 		align-items: center;
 		justify-content: center;
 		font-weight: 700;
-		color: #fff;
+		color: var(--on-color);
 	}
 </style>

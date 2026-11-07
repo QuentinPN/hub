@@ -222,11 +222,11 @@
 		padding: 0;
 		border: 0;
 		border-left: 1px solid var(--border-2);
-		background: #121418;
+		background: var(--dialog-bg);
 		color: var(--text);
 	}
 	dialog::backdrop {
-		background: rgba(0, 0, 0, 0.6);
+		background: var(--scrim);
 	}
 	form {
 		display: flex;
@@ -290,7 +290,7 @@
 		padding: 0 14px;
 		border: 1px solid var(--border-2);
 		border-radius: 12px;
-		background: #1c1f24;
+		background: var(--field-bg);
 		color: var(--text);
 		font: inherit;
 		font-size: 16px;
@@ -336,8 +336,8 @@
 		overflow-wrap: anywhere;
 	}
 	.linked {
-		border-color: rgba(232, 201, 166, 0.3);
-		background: rgba(232, 201, 166, 0.07);
+		border-color: var(--tint-accent-border);
+		background: var(--tint-accent-bg);
 	}
 	.origin {
 		font-size: 14px;
@@ -363,7 +363,7 @@
 	}
 	.error {
 		margin: 0;
-		color: #ff8a80;
+		color: var(--text-danger);
 		font-size: 14px;
 	}
 	.error:empty {

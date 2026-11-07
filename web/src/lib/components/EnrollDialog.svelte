@@ -254,16 +254,16 @@
 		padding: 28px;
 		border: 1px solid var(--border-2);
 		border-radius: 24px;
-		background: rgba(28, 30, 36, 0.94);
+		background: var(--glass-dialog);
 		color: var(--text);
 		box-shadow: var(--shadow-lift);
-		-webkit-backdrop-filter: blur(24px);
-		backdrop-filter: blur(24px);
+		-webkit-backdrop-filter: var(--blur-strong);
+		backdrop-filter: var(--blur-strong);
 	}
 	dialog::backdrop {
-		background: rgba(0, 0, 0, 0.55);
-		-webkit-backdrop-filter: blur(8px);
-		backdrop-filter: blur(8px);
+		background: var(--scrim);
+		-webkit-backdrop-filter: var(--blur-backdrop);
+		backdrop-filter: var(--blur-backdrop);
 	}
 	.head {
 		display: flex;
@@ -314,7 +314,7 @@
 		width: 32px;
 		height: 32px;
 		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.1);
+		background: var(--track);
 		font-size: 14px;
 		font-weight: 700;
 	}
@@ -364,19 +364,19 @@
 	.chip {
 		padding: 4px 12px;
 		border-radius: var(--r-pill);
-		background: rgba(232, 201, 166, 0.12);
-		color: var(--accent-play);
+		background: var(--tint-accent-bg-strong);
+		color: var(--accent-text);
 		font-size: 13px;
 		font-weight: 600;
 		font-variant-numeric: tabular-nums;
 	}
 	.chip.gone {
-		background: rgba(255, 214, 10, 0.12);
-		color: var(--status-degraded);
+		background: var(--tint-warn-bg-strong);
+		color: var(--text-warn);
 	}
 	.chip.used {
-		background: rgba(48, 209, 88, 0.12);
-		color: var(--status-online);
+		background: var(--tint-ok-bg-strong);
+		color: var(--text-ok);
 	}
 	.code-box {
 		display: flex;
@@ -387,7 +387,7 @@
 		padding: 10px 14px;
 		border: 1px solid var(--border-1);
 		border-radius: 12px;
-		background: rgba(0, 0, 0, 0.45);
+		background: var(--code-bg);
 		overflow-wrap: anywhere;
 	}
 	/* Coupé à la ligne plutôt que défilant : rien à faire défiler au clavier, et le bouton
@@ -399,8 +399,8 @@
 		overflow-wrap: anywhere;
 		border: 1px solid var(--border-1);
 		border-radius: 12px;
-		background: rgba(0, 0, 0, 0.45);
-		color: #e6e6ea;
+		background: var(--code-bg);
+		color: var(--code-text);
 		font-family: var(--font-mono);
 		font-size: 13px;
 		line-height: 1.7;
@@ -425,7 +425,7 @@
 		animation: spin 900ms linear infinite;
 	}
 	.waiting.ok .spinner {
-		border-color: var(--status-online);
+		border-color: var(--text-ok);
 		background: var(--status-online);
 		animation: none;
 	}
@@ -453,7 +453,7 @@
 		font-size: 14px;
 	}
 	.status.error {
-		color: #ff8a80;
+		color: var(--text-danger);
 	}
 	.btn {
 		flex: none;

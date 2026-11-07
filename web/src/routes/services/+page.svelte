@@ -273,7 +273,7 @@
 		gap: 28px;
 		min-height: 100vh;
 		padding: calc(var(--shell-h) + 48px) var(--space-page) 64px;
-		background: radial-gradient(90% 40% at 70% 0%, #17222d 0%, rgba(7, 8, 10, 0) 70%), var(--bg);
+		background: radial-gradient(90% 40% at 70% 0%, var(--hero-glow) 0%, transparent 70%), var(--bg);
 	}
 	.head {
 		display: flex;
@@ -339,9 +339,9 @@
 		gap: 14px;
 		width: 100%;
 		padding: 16px 20px;
-		border: 1px solid rgba(232, 201, 166, 0.25);
+		border: 1px solid var(--tint-accent-border);
 		border-radius: 18px;
-		background: rgba(232, 201, 166, 0.08);
+		background: var(--tint-accent-bg);
 		text-align: left;
 		cursor: pointer;
 	}
@@ -382,14 +382,14 @@
 		gap: 8px;
 		min-height: 44px;
 		padding: 0 14px;
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		border: 1px solid var(--border-2);
 		border-radius: var(--r-pill);
 		background: var(--surface-1);
 		font-size: 14px;
 		cursor: pointer;
 	}
 	.chip:hover {
-		background: rgba(255, 255, 255, 0.1);
+		background: var(--track);
 	}
 	.chip b {
 		font-weight: 600;
@@ -398,7 +398,7 @@
 	.chip.on,
 	.seg .on {
 		border-color: transparent;
-		background: rgba(255, 255, 255, 0.92);
+		background: var(--fill-selected);
 		color: var(--text-inverse);
 	}
 	.dot {
@@ -418,7 +418,7 @@
 		gap: 2px;
 		padding: 4px;
 		border-radius: var(--r-pill);
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--track-soft);
 	}
 	.seg button {
 		min-height: 36px;
@@ -446,13 +446,13 @@
 	}
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(var(--app-w), 1fr));
 		gap: 22px;
 		padding: 16px 4px 8px;
 	}
 	.dashed {
 		border-style: dashed;
-		border-color: rgba(255, 255, 255, 0.25);
+		border-color: var(--border-dashed);
 		background: transparent;
 	}
 	.hidden-list {
@@ -486,7 +486,7 @@
 	}
 	.action-error {
 		margin: 0;
-		color: #ff8a80;
+		color: var(--text-danger);
 		font-size: 14px;
 	}
 	.action-error:empty {
@@ -522,7 +522,7 @@
 			flex: none;
 		}
 		.grid {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
+			grid-template-columns: repeat(var(--grid-cols-mobile), minmax(0, 1fr));
 			gap: 12px;
 			padding: 12px 0 4px;
 		}

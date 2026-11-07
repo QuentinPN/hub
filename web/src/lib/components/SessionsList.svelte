@@ -208,7 +208,7 @@
 	.badge {
 		padding: 2px 10px;
 		border-radius: 99px;
-		background: rgba(255, 255, 255, 0.12);
+		background: var(--track);
 		font-size: 12px;
 		font-weight: 600;
 	}
@@ -256,8 +256,8 @@
 		color: var(--text);
 	}
 	.danger {
-		background: #ff8a80;
-		color: #1a0b0a;
+		background: var(--danger-fill);
+		color: var(--on-danger);
 	}
 	.confirm {
 		font-size: 14px;

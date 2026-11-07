@@ -83,13 +83,13 @@
 <style>
 	.app {
 		display: flex;
-		flex: 0 0 232px;
+		flex: 0 0 var(--app-w);
 		position: relative;
 		flex-direction: column;
 		justify-content: space-between;
 		box-sizing: border-box;
-		height: 148px;
-		padding: 18px;
+		height: var(--app-h);
+		padding: var(--app-pad);
 		border: 1px solid var(--border-1);
 		border-radius: var(--r-card);
 		background: var(--surface-1);
@@ -108,7 +108,7 @@
 	/* Configuration requise : bord pointillé ; hôte injoignable : hachures grises. */
 	.cfg {
 		border-style: dashed;
-		border-color: rgba(255, 255, 255, 0.25);
+		border-color: var(--border-dashed);
 		background: transparent;
 	}
 	.unk {
@@ -139,7 +139,7 @@
 		color: var(--text);
 	}
 	.on {
-		color: var(--accent-play);
+		color: var(--accent-text);
 	}
 	/* Toute la carte ouvre la fiche ; l'étoile et la flèche restent au-dessus. */
 	.main {
@@ -166,11 +166,6 @@
 		font-size: var(--fs-small);
 	}
 	@media (max-width: 720px) {
-		.app {
-			flex-basis: 148px;
-			height: 104px;
-			padding: 12px;
-		}
 		.meta,
 		.open {
 			display: none;

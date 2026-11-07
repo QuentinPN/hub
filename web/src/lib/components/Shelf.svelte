@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { motionReduced } from '#lib/appearance.svelte.ts';
 
 	// focusable : rangée sans lien (affiches) ; le clavier doit pouvoir la faire défiler.
 	let {
@@ -34,8 +35,7 @@
 		// L'état des flèches suit la destination, sans attendre la fin de l'animation.
 		canPrev = target > 1;
 		canNext = target < end - 1;
-		const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-		shelf.scrollTo({ left: target, behavior: reduce ? 'auto' : 'smooth' });
+		shelf.scrollTo({ left: target, behavior: motionReduced() ? 'auto' : 'smooth' });
 	}
 
 	$effect(() => {

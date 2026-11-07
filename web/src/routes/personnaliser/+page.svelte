@@ -240,7 +240,7 @@
 	}
 	.error {
 		margin: 0;
-		color: #ff8a80;
+		color: var(--text-danger);
 		font-size: 14px;
 	}
 	.error:empty {
@@ -265,7 +265,7 @@
 		background: var(--surface-1);
 	}
 	.off {
-		background: rgba(255, 255, 255, 0.02);
+		background: var(--surface-0);
 	}
 	.off .what strong {
 		color: var(--text-2);
@@ -300,9 +300,9 @@
 		cursor: pointer;
 	}
 	.chip.on {
-		border-color: rgba(232, 201, 166, 0.4);
-		background: rgba(232, 201, 166, 0.12);
-		color: var(--accent-play);
+		border-color: var(--tint-accent-border-strong);
+		background: var(--tint-accent-bg-strong);
+		color: var(--accent-text);
 	}
 	.moves {
 		display: flex;
@@ -333,7 +333,7 @@
 	.visible input {
 		width: 20px;
 		height: 20px;
-		accent-color: var(--accent-play);
+		accent-color: var(--accent-text);
 	}
 	@media (max-width: 860px) {
 		li {

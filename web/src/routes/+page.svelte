@@ -275,8 +275,8 @@
 		min-height: 480px;
 		padding: calc(var(--shell-h) + 48px) var(--space-page) 48px;
 		background:
-			radial-gradient(120% 90% at 78% 30%, #3a2a1c 0%, rgba(58, 42, 28, 0) 60%),
-			linear-gradient(180deg, #14202b 0%, #0c1218 55%, var(--bg) 100%);
+			radial-gradient(120% 90% at 78% 30%, var(--hero-warm) 0%, transparent 60%),
+			linear-gradient(180deg, var(--hero-top) 0%, var(--hero-mid) 55%, var(--bg) 100%);
 	}
 	.hero-body {
 		display: flex;
@@ -300,7 +300,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 8px;
-		color: var(--accent-play);
+		color: var(--accent-text);
 		font-size: 15px;
 		font-weight: 500;
 	}
@@ -323,7 +323,7 @@
 		height: 5px;
 		overflow: hidden;
 		border-radius: 99px;
-		background: rgba(255, 255, 255, 0.12);
+		background: var(--track);
 	}
 	.progress span {
 		display: block;
@@ -369,7 +369,7 @@
 		padding: 14px 16px;
 		border: 1px solid var(--border-1);
 		border-radius: 16px;
-		background: rgba(0, 0, 0, 0.35);
+		background: var(--glass-scrim);
 		backdrop-filter: var(--blur);
 	}
 	.small {
@@ -391,7 +391,7 @@
 	}
 	.downloads {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
 		gap: 18px;
 	}
 	.download {
@@ -409,8 +409,8 @@
 		letter-spacing: -0.02em;
 	}
 	.stale {
-		border-color: rgba(255, 214, 10, 0.3);
-		background: rgba(255, 214, 10, 0.06);
+		border-color: var(--tint-warn-border);
+		background: var(--tint-warn-bg);
 	}
 	.late {
 		display: flex;

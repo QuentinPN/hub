@@ -5,6 +5,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { setUnauthorizedHandler } from '#lib/api/client.ts';
+	import { followDevice } from '#lib/appearance.svelte.ts';
 	import { SEARCH_INPUT_ID } from '#lib/catalogue.ts';
 	import TopNav from '#lib/components/TopNav.svelte';
 	import { shell } from '#lib/shell.svelte.ts';
@@ -22,6 +23,8 @@
 	setUnauthorizedHandler(() => {
 		if (!onLogin) void goto(resolve('/login'));
 	});
+
+	$effect(followDevice);
 
 	// Ctrl+K ouvre la recherche du catalogue depuis n'importe quelle page. Raccourci Windows
 	// voulu par l'utilisateur (DESIGN.md) : on teste ctrlKey, jamais metaKey.
