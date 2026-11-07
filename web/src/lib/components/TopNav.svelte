@@ -168,7 +168,7 @@
 		color: var(--text);
 	}
 	.tab.on {
-		background: rgba(255, 255, 255, 0.92);
+		background: var(--fill-selected);
 		color: var(--text-inverse);
 		opacity: 1;
 	}
@@ -204,7 +204,7 @@
 	}
 	.gear.on {
 		border-color: transparent;
-		background: rgba(255, 255, 255, 0.92);
+		background: var(--fill-selected);
 		color: var(--text-inverse);
 	}
 	.pill {
@@ -237,7 +237,7 @@
 			left: 12px;
 			display: flex;
 			padding: 8px 6px;
-			border: 1px solid rgba(255, 255, 255, 0.1);
+			border: 1px solid var(--border-2);
 			border-radius: 26px;
 			background: var(--glass);
 			backdrop-filter: var(--blur);

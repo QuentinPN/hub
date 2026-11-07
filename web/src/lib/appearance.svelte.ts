@@ -26,13 +26,13 @@ export function setAppearance(patch: Partial<Appearance>) {
 	} catch {
 		// stockage plein ou bloqué : le choix vaut pour cette page seulement
 	}
-	applyTo(document.documentElement, appearance, deviceMatches(LIGHT));
+	applyTo(document, appearance, deviceMatches(LIGHT));
 }
 
 // « Comme l'appareil » suit l'appareil en direct ; un autre onglet qui change l'apparence aussi.
 export function followDevice(): () => void {
 	const media = matchMedia(LIGHT);
-	const reapply = () => applyTo(document.documentElement, appearance, media.matches);
+	const reapply = () => applyTo(document, appearance, media.matches);
 	const onStorage = (event: StorageEvent) => {
 		if (event.key !== STORAGE_KEY) return;
 		Object.assign(appearance, parse(event.newValue));

@@ -67,7 +67,7 @@
 		font-size: var(--fs-small);
 	}
 	.ok {
-		color: var(--status-online);
+		color: var(--text-ok);
 	}
 	.metrics {
 		display: grid;
@@ -79,7 +79,7 @@
 		height: 6px;
 		overflow: hidden;
 		border-radius: 99px;
-		background: rgba(255, 255, 255, 0.1);
+		background: var(--track);
 	}
 	.bar span {
 		display: block;

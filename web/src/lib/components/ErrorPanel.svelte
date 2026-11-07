@@ -31,10 +31,10 @@
 		align-items: center;
 		gap: 12px;
 		padding: 14px 16px;
-		border: 1px solid rgba(255, 69, 58, 0.3);
+		border: 1px solid var(--tint-danger-border);
 		border-radius: var(--r-button);
-		background: rgba(255, 69, 58, 0.12);
-		color: #ff8a80;
+		background: var(--tint-danger-bg-strong);
+		color: var(--text-danger);
 	}
 	.text {
 		display: flex;
@@ -45,7 +45,7 @@
 		color: var(--text);
 	}
 	.text span {
-		color: #ffb4ae;
+		color: var(--text-danger-2);
 		font-size: var(--fs-small);
 	}
 	button {

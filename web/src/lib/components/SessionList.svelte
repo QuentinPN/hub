@@ -55,7 +55,7 @@
 		height: 5px;
 		overflow: hidden;
 		border-radius: 99px;
-		background: rgba(255, 255, 255, 0.12);
+		background: var(--track);
 	}
 	.progress span {
 		display: block;

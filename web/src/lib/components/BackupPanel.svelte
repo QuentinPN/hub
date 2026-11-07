@@ -401,9 +401,9 @@
 	.notice.bad {
 		margin: 16px 0 0;
 		padding: 12px 14px;
-		border: 1px solid rgba(255, 69, 58, 0.35);
+		border: 1px solid var(--tint-danger-border);
 		border-radius: 14px;
-		background: rgba(255, 69, 58, 0.08);
+		background: var(--tint-danger-bg);
 		font-size: 14px;
 		line-height: 1.5;
 	}
@@ -440,7 +440,7 @@
 	}
 	.status.error,
 	.status-line.error {
-		color: #ff8a80;
+		color: var(--text-danger);
 	}
 	label,
 	.field {
@@ -482,8 +482,8 @@
 		overflow-wrap: anywhere;
 	}
 	.value.okv {
-		border-color: rgba(48, 209, 88, 0.3);
-		background: rgba(48, 209, 88, 0.06);
+		border-color: var(--tint-ok-border);
+		background: var(--tint-ok-bg);
 	}
 	.mono {
 		font-family: ui-monospace, monospace;
@@ -539,14 +539,14 @@
 		width: 27px;
 		height: 27px;
 		border-radius: 99px;
-		background: #fff;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+		background: var(--on-color);
+		box-shadow: var(--shadow-knob);
 		transition:
 			left var(--dur) var(--ease),
 			right var(--dur) var(--ease);
 	}
 	.switch[aria-checked='false'] {
-		background: rgba(255, 255, 255, 0.16);
+		background: var(--track-strong);
 	}
 	.switch[aria-checked='false'] span {
 		right: auto;
@@ -569,15 +569,15 @@
 		padding: 14px 16px;
 		border: 1px solid var(--border-1);
 		border-radius: 16px;
-		background: rgba(0, 0, 0, 0.2);
+		background: var(--surface-inset);
 	}
 	.tile.good {
-		border-color: rgba(48, 209, 88, 0.3);
-		background: rgba(48, 209, 88, 0.07);
+		border-color: var(--tint-ok-border);
+		background: var(--tint-ok-bg);
 	}
 	.tile.fail {
-		border-color: rgba(255, 69, 58, 0.35);
-		background: rgba(255, 69, 58, 0.07);
+		border-color: var(--tint-danger-border);
+		background: var(--tint-danger-bg);
 	}
 	.tile strong {
 		font-size: 20px;

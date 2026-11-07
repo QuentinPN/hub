@@ -49,9 +49,16 @@ export function attributes(a: Appearance, deviceLight: boolean): Record<string, 
 	};
 }
 
-export function applyTo(root: HTMLElement, a: Appearance, deviceLight: boolean) {
-	for (const [name, value] of Object.entries(attributes(a, deviceLight))) {
-		if (value === null) root.removeAttribute(name);
-		else root.setAttribute(name, value);
+// Couleur de la barre du navigateur (mobile), celle de --bg.
+export const THEME_COLORS = { dark: '#07080A', light: '#F2F2F5' } as const;
+
+export function applyTo(doc: Document, a: Appearance, deviceLight: boolean) {
+	const attrs = attributes(a, deviceLight);
+	for (const [name, value] of Object.entries(attrs)) {
+		if (value === null) doc.documentElement.removeAttribute(name);
+		else doc.documentElement.setAttribute(name, value);
 	}
+	doc
+		.querySelector('meta[name="theme-color"]')
+		?.setAttribute('content', THEME_COLORS[attrs['data-theme'] === 'light' ? 'light' : 'dark']);
 }

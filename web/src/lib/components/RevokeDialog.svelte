@@ -78,7 +78,7 @@
 		backdrop-filter: var(--blur-strong);
 	}
 	dialog::backdrop {
-		background: rgba(0, 0, 0, 0.55);
+		background: var(--scrim);
 	}
 	.grabber {
 		display: none;
@@ -95,7 +95,7 @@
 	}
 	.error {
 		margin: 0;
-		color: #ff8a80;
+		color: var(--text-danger);
 		font-size: 14px;
 	}
 	.error:empty {
@@ -126,8 +126,8 @@
 		color: var(--text);
 	}
 	.danger {
-		background: #ff8a80;
-		color: #1a0b0a;
+		background: var(--danger-fill);
+		color: var(--on-danger);
 	}
 	@media (max-width: 720px) {
 		dialog {
@@ -143,7 +143,7 @@
 			height: 5px;
 			margin: 0 auto 14px;
 			border-radius: 99px;
-			background: rgba(255, 255, 255, 0.25);
+			background: var(--border-dashed);
 		}
 		.actions {
 			flex-direction: column-reverse;

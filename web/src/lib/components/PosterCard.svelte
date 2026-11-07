@@ -7,7 +7,7 @@
 	let failed = $state(false);
 </script>
 
-<article class="poster" style:background="linear-gradient(160deg, {item.tone}, #0d0f12)">
+<article class="poster" style:background="linear-gradient(160deg, {item.tone}, var(--media-base))">
 	{#if item.image && !failed}
 		<img src={item.image} alt="" loading="lazy" onerror={() => (failed = true)} />
 		<span class="shade"></span>
@@ -22,6 +22,7 @@
 <style>
 	.poster {
 		position: relative;
+		color: var(--on-media);
 		display: flex;
 		flex: 0 0 var(--poster-w);
 		flex-direction: column;
@@ -52,7 +53,7 @@
 	.shade {
 		position: absolute;
 		inset: 0;
-		background: linear-gradient(180deg, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.88) 100%);
+		background: linear-gradient(180deg, transparent 45%, var(--media-shade) 100%);
 	}
 	.chip,
 	.text {
@@ -67,7 +68,7 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		border-radius: var(--r-pill);
-		background: rgba(0, 0, 0, 0.6);
+		background: var(--media-chip);
 		font-size: 12px;
 		font-weight: 600;
 	}
@@ -79,7 +80,7 @@
 		font-size: var(--fs-small);
 	}
 	.shade + .chip + .text .detail {
-		color: #d1d1d6;
+		color: var(--on-media-2);
 	}
 	@media (max-width: 720px) {
 		.poster {

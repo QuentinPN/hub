@@ -108,7 +108,7 @@
 	/* Configuration requise : bord pointillé ; hôte injoignable : hachures grises. */
 	.cfg {
 		border-style: dashed;
-		border-color: rgba(255, 255, 255, 0.25);
+		border-color: var(--border-dashed);
 		background: transparent;
 	}
 	.unk {
@@ -139,7 +139,7 @@
 		color: var(--text);
 	}
 	.on {
-		color: var(--accent-play);
+		color: var(--accent-text);
 	}
 	/* Toute la carte ouvre la fiche ; l'étoile et la flèche restent au-dessus. */
 	.main {

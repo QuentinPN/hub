@@ -6,8 +6,13 @@
 		setAppearance,
 		transparencyReducedByDevice
 	} from '#lib/appearance.svelte.ts';
-	import type { Density } from '#lib/appearance.ts';
+	import type { Density, Theme } from '#lib/appearance.ts';
 
+	const themes: { value: Theme; label: string }[] = [
+		{ value: 'dark', label: 'Sombre' },
+		{ value: 'light', label: 'Clair' },
+		{ value: 'system', label: 'Comme l’appareil' }
+	];
 	const densities: { value: Density; label: string }[] = [
 		{ value: 'comfortable', label: 'Confortable' },
 		{ value: 'compact', label: 'Compacte' }
@@ -26,6 +31,33 @@
 	<h2 id="appearance-title">Apparence</h2>
 	<p class="muted">Gardée pour ce navigateur ; chaque appareil a la sienne.</p>
 </div>
+
+<fieldset class="themes">
+	<legend>Thème</legend>
+	{#each themes as t (t.value)}
+		<label class="theme" class:on={appearance.theme === t.value}>
+			<!-- Aperçu dessiné avec les couleurs du thème, pas celles de la page. -->
+			<span class="preview {t.value}" aria-hidden="true">
+				{#if t.value === 'system'}
+					<span class="half dark"></span><span class="half light"></span>
+				{:else}
+					<span class="bar"></span>
+					<span class="tiles"><span></span><span></span></span>
+				{/if}
+			</span>
+			<span class="choice">
+				<input
+					type="radio"
+					name="theme"
+					value={t.value}
+					checked={appearance.theme === t.value}
+					onchange={() => setAppearance({ theme: t.value })}
+				/>
+				{t.label}
+			</span>
+		</label>
+	{/each}
+</fieldset>
 
 <div class="rows">
 	<div class="row">
@@ -105,6 +137,102 @@
 	.head p {
 		margin: 0;
 	}
+	/* Les aperçus montrent chaque thème tel qu'il est, quel que soit celui de la page. */
+	.themes {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 14px;
+		margin: 18px 0 0;
+		padding: 0;
+		border: 0;
+	}
+	legend {
+		margin-bottom: 10px;
+		padding: 0;
+		font-weight: 500;
+	}
+	.theme {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		padding: 12px;
+		border: 2px solid var(--border-2);
+		border-radius: 18px;
+		background: var(--surface-inset);
+		cursor: pointer;
+	}
+	.theme.on {
+		border-color: var(--text);
+	}
+	.theme:has(:focus-visible) {
+		outline: 2px solid var(--text);
+		outline-offset: 3px;
+	}
+	.preview {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		height: 110px;
+		box-sizing: border-box;
+		padding: 12px;
+		overflow: hidden;
+		border: 1px solid var(--border-1);
+		border-radius: 12px;
+	}
+	.preview.dark,
+	.half.dark {
+		--p-bg: #07080a;
+		--p-ink: #f5f5f7;
+		--p-tile: rgba(255, 255, 255, 0.1);
+	}
+	.preview.light,
+	.half.light {
+		--p-bg: #ffffff;
+		--p-ink: #1d1d1f;
+		--p-tile: rgba(0, 0, 0, 0.08);
+	}
+	.preview.dark,
+	.preview.light {
+		background: var(--p-bg);
+	}
+	.preview.system {
+		flex-direction: row;
+		gap: 0;
+		padding: 0;
+	}
+	.half {
+		flex: 1;
+		background: var(--p-bg);
+	}
+	.bar {
+		width: 40%;
+		height: 10px;
+		border-radius: 6px;
+		background: var(--p-ink);
+	}
+	.tiles {
+		display: flex;
+		flex: 1;
+		gap: 8px;
+	}
+	.tiles span {
+		flex: 1;
+		border-radius: 8px;
+		background: var(--p-tile);
+	}
+	.choice {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		font-weight: 600;
+	}
+	.choice input {
+		width: 20px;
+		height: 20px;
+		margin: 0;
+		accent-color: var(--text);
+		outline: none;
+	}
 	.rows {
 		display: flex;
 		flex-direction: column;
@@ -139,7 +267,7 @@
 		gap: 4px;
 		padding: 4px;
 		border-radius: var(--r-pill);
-		background: var(--surface-2);
+		background: var(--track-soft);
 	}
 	.segmented label {
 		position: relative;
@@ -182,6 +310,31 @@
 		cursor: default;
 	}
 	@media (max-width: 720px) {
+		.themes {
+			grid-template-columns: minmax(0, 1fr);
+			gap: 10px;
+		}
+		.theme {
+			flex-direction: row-reverse;
+			justify-content: space-between;
+			align-items: center;
+		}
+		.preview {
+			flex: none;
+			width: 64px;
+			height: 44px;
+			padding: 6px;
+			gap: 4px;
+		}
+		.bar {
+			height: 6px;
+		}
+		.tiles {
+			gap: 4px;
+		}
+		.tiles span {
+			border-radius: 4px;
+		}
 		.row {
 			flex-wrap: wrap;
 		}

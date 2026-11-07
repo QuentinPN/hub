@@ -21,6 +21,8 @@
 					a.theme === 'light' ||
 					(a.theme === 'system' && matchMedia('(prefers-color-scheme: light)').matches);
 				d.setAttribute('data-theme', light ? 'light' : 'dark');
+				var meta = document.querySelector('meta[name="theme-color"]');
+				if (meta) meta.setAttribute('content', light ? '#F2F2F5' : '#07080A');
 				if (a.density === 'compact') d.setAttribute('data-density', 'compact');
 				if (a.lessTransparency === true) d.setAttribute('data-transparency', 'reduce');
 				if (a.reduceMotion === true) d.setAttribute('data-motion', 'reduce');

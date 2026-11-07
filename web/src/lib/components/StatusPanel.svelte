@@ -157,14 +157,14 @@
 		align-items: center;
 		gap: 9px;
 		padding: 10px 14px;
-		border: 1px solid rgba(48, 209, 88, 0.3);
+		border: 1px solid var(--tint-ok-border);
 		border-radius: var(--r-pill);
-		background: rgba(48, 209, 88, 0.08);
+		background: var(--tint-ok-bg);
 		font-weight: 600;
 	}
 	.pill.warn {
-		border-color: rgba(255, 214, 10, 0.3);
-		background: rgba(255, 214, 10, 0.08);
+		border-color: var(--tint-warn-border);
+		background: var(--tint-warn-bg);
 	}
 	.dot {
 		flex: none;
@@ -174,7 +174,7 @@
 	}
 	.error {
 		margin: 8px 0 0;
-		color: #ff8a80;
+		color: var(--text-danger);
 		font-size: 14px;
 	}
 	.tiles {
@@ -191,7 +191,7 @@
 		padding: 16px;
 		border: 1px solid var(--border-1);
 		border-radius: 16px;
-		background: rgba(0, 0, 0, 0.2);
+		background: var(--surface-inset);
 	}
 	.tile strong {
 		font-size: 22px;

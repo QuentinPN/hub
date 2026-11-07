@@ -123,6 +123,55 @@ test.describe('appareil qui demande déjà moins de mouvement', () => {
 	});
 });
 
+test('thème : clair, comme l’appareil, sombre, gardés après rechargement', async ({ page }) => {
+	const theme = page.getByRole('group', { name: 'Thème' });
+	const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+	const meta = () =>
+		page.evaluate(() =>
+			document.querySelector('meta[name="theme-color"]')?.getAttribute('content')
+		);
+	await expect(theme.getByRole('radio', { name: 'Sombre' })).toBeChecked();
+	expect(await bg()).toBe('rgb(7, 8, 10)');
+
+	await theme.getByRole('radio', { name: 'Clair' }).check();
+	expect(await html(page, 'data-theme')).toBe('light');
+	expect(await bg()).toBe('rgb(242, 242, 245)');
+	await page.reload();
+	await expect(theme.getByRole('radio', { name: 'Clair' })).toBeChecked();
+	expect(await html(page, 'data-theme')).toBe('light');
+	expect(await meta()).toBe('#F2F2F5');
+
+	// « Comme l'appareil » suit l'appareil, y compris quand il change en cours de route.
+	await page.emulateMedia({ colorScheme: 'dark' });
+	await theme.getByRole('radio', { name: 'Comme l’appareil' }).check();
+	expect(await html(page, 'data-theme')).toBe('dark');
+	await page.emulateMedia({ colorScheme: 'light' });
+	await expect.poll(() => html(page, 'data-theme')).toBe('light');
+	await page.reload();
+	await expect(theme.getByRole('radio', { name: 'Comme l’appareil' })).toBeChecked();
+	expect(await html(page, 'data-theme')).toBe('light');
+
+	await theme.getByRole('radio', { name: 'Sombre' }).check();
+	await page.reload();
+	expect(await html(page, 'data-theme')).toBe('dark');
+	expect(await bg()).toBe('rgb(7, 8, 10)');
+});
+
+test('le thème est posé avant le premier rendu, sans passer par le sombre', async ({ page }) => {
+	await page.evaluate(() => localStorage.setItem('hub.appearance', '{"theme":"light"}'));
+	// Lu au moment où le document est analysé, avant tout script de l'application.
+	await page.addInitScript(() => {
+		document.addEventListener('DOMContentLoaded', () => {
+			(window as unknown as { early: string | null }).early =
+				document.documentElement.getAttribute('data-theme');
+		});
+	});
+	await page.reload();
+	expect(await page.evaluate(() => (window as unknown as { early: string | null }).early)).toBe(
+		'light'
+	);
+});
+
 test('un stockage illisible retombe sur les défauts', async ({ page }) => {
 	await page.evaluate(() => localStorage.setItem('hub.appearance', '{abîmé'));
 	await page.reload();

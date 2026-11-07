@@ -101,7 +101,7 @@
 	}
 	.error {
 		margin: 0;
-		color: #ff8a80;
+		color: var(--text-danger);
 		font-size: 14px;
 	}
 	.rows {

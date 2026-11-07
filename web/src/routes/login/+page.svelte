@@ -216,7 +216,7 @@
 		place-items: center;
 		min-height: 100vh;
 		padding: 32px var(--space-page);
-		background: radial-gradient(80% 50% at 50% 0%, #1b2430 0%, rgba(7, 8, 10, 0) 70%), var(--bg);
+		background: radial-gradient(80% 50% at 50% 0%, var(--hero-glow) 0%, transparent 70%), var(--bg);
 	}
 	.card {
 		display: flex;
@@ -227,7 +227,7 @@
 		border: 1px solid var(--border-1);
 		border-radius: var(--r-card);
 		background: var(--surface-1);
-		box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+		box-shadow: var(--shadow-card);
 		backdrop-filter: var(--blur-strong) saturate(1.2);
 	}
 	.brand {
@@ -292,12 +292,12 @@
 	.msg {
 		min-height: 1.4em;
 		margin: 0;
-		color: var(--status-online);
+		color: var(--text-ok);
 		font-size: 14px;
 		line-height: 1.4;
 	}
 	.msg.error {
-		color: #ff8a80;
+		color: var(--text-danger);
 	}
 	.btn {
 		min-height: 48px;

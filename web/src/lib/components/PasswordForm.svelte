@@ -176,7 +176,7 @@
 		font-size: 14px;
 	}
 	.status.error {
-		color: #ff8a80;
+		color: var(--text-danger);
 	}
 	.btn {
 		flex: none;

@@ -205,7 +205,7 @@
 		height: 5px;
 		overflow: hidden;
 		border-radius: 99px;
-		background: rgba(255, 255, 255, 0.12);
+		background: var(--track);
 	}
 	.progress span {
 		display: block;
@@ -249,8 +249,8 @@
 		letter-spacing: -0.02em;
 	}
 	.stale {
-		border-color: rgba(255, 214, 10, 0.3);
-		background: rgba(255, 214, 10, 0.06);
+		border-color: var(--tint-warn-border);
+		background: var(--tint-warn-bg);
 	}
 	@media (max-width: 960px) {
 		.layout {

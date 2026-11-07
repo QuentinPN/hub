@@ -145,8 +145,8 @@
 		background: var(--surface-1);
 	}
 	.watch {
-		border-color: rgba(255, 214, 10, 0.3);
-		background: rgba(255, 214, 10, 0.06);
+		border-color: var(--tint-warn-border);
+		background: var(--tint-warn-bg);
 	}
 	.watched {
 		display: flex;
@@ -221,7 +221,7 @@
 		height: 6px;
 		overflow: hidden;
 		border-radius: 99px;
-		background: rgba(255, 255, 255, 0.12);
+		background: var(--track);
 	}
 	.bar span {
 		display: block;

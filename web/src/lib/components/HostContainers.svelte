@@ -91,7 +91,7 @@
 		overflow: hidden;
 		border: 1px solid var(--border-1);
 		border-radius: 16px;
-		background: rgba(0, 0, 0, 0.25);
+		background: var(--surface-inset);
 	}
 	.pad {
 		margin: 0;
@@ -102,7 +102,7 @@
 		line-height: 1.5;
 	}
 	.error {
-		color: #ff8a80;
+		color: var(--text-danger);
 	}
 	table {
 		width: 100%;
@@ -161,9 +161,9 @@
 		cursor: pointer;
 	}
 	.danger-ghost {
-		border: 1px solid rgba(255, 138, 128, 0.35);
+		border: 1px solid var(--tint-danger-border);
 		background: transparent;
-		color: #ff8a80;
+		color: var(--text-danger);
 	}
 	@media (max-width: 720px) {
 		/* Une carte par conteneur : trois colonnes ne tiennent pas sur 390 px. */

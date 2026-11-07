@@ -185,14 +185,14 @@
 		width: 27px;
 		height: 27px;
 		border-radius: 99px;
-		background: #fff;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+		background: var(--on-color);
+		box-shadow: var(--shadow-knob);
 		transition:
 			left var(--dur) var(--ease),
 			right var(--dur) var(--ease);
 	}
 	.switch[aria-checked='false'] {
-		background: rgba(255, 255, 255, 0.16);
+		background: var(--track-strong);
 	}
 	.switch[aria-checked='false'] span {
 		right: auto;
@@ -215,11 +215,11 @@
 		flex: 1;
 		min-width: 200px;
 		margin: 0;
-		color: var(--status-online);
+		color: var(--text-ok);
 		font-size: 14px;
 	}
 	.status.error {
-		color: #ff8a80;
+		color: var(--text-danger);
 	}
 	.btn {
 		min-height: 44px;

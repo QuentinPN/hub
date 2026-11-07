@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { attributes, DEFAULTS, parse, STORAGE_KEY } from './appearance.ts';
+import { attributes, DEFAULTS, parse, STORAGE_KEY, THEME_COLORS } from './appearance.ts';
 
 describe('parse', () => {
 	it('retombe sur les défauts sans valeur ou avec une valeur abîmée', () => {
@@ -40,8 +40,10 @@ describe('script inline d’app.html', () => {
 
 	function run(stored: string | null, deviceLight: boolean) {
 		const attrs: Record<string, string> = {};
+		const meta = { setAttribute: (_k: string, v: string) => (attrs['theme-color'] = v) };
 		const document = {
-			documentElement: { setAttribute: (k: string, v: string) => (attrs[k] = v) }
+			documentElement: { setAttribute: (k: string, v: string) => (attrs[k] = v) },
+			querySelector: () => meta
 		};
 		const localStorage = { getItem: (k: string) => (k === STORAGE_KEY ? stored : null) };
 		const matchMedia = (q: string) => ({ matches: q.includes('light') && deviceLight });
@@ -63,15 +65,17 @@ describe('script inline d’app.html', () => {
 	];
 	for (const [stored, light] of cases) {
 		it(`${stored ?? 'rien'}, appareil ${light ? 'clair' : 'sombre'}`, () => {
-			const expected = Object.fromEntries(
-				Object.entries(attributes(parse(stored), light)).filter(([, v]) => v !== null)
-			);
+			const attrs = attributes(parse(stored), light);
+			const expected = {
+				...Object.fromEntries(Object.entries(attrs).filter(([, v]) => v !== null)),
+				'theme-color': THEME_COLORS[attrs['data-theme'] === 'light' ? 'light' : 'dark']
+			};
 			expect(run(stored, light)).toEqual(expected);
 		});
 	}
 
 	it('survit à un stockage bloqué', () => {
-		const document = { documentElement: { setAttribute: () => {} } };
+		const document = { documentElement: { setAttribute: () => {} }, querySelector: () => null };
 		const localStorage = {
 			getItem: () => {
 				throw new Error('SecurityError');

@@ -321,11 +321,11 @@
 		overflow: hidden;
 		border: 1px solid var(--border-2);
 		border-radius: 26px;
-		background: #15181b;
+		background: var(--dialog-bg);
 		color: var(--text);
 	}
 	dialog::backdrop {
-		background: rgba(0, 0, 0, 0.6);
+		background: var(--scrim);
 	}
 	form {
 		display: grid;
@@ -344,7 +344,7 @@
 		flex-direction: column;
 		gap: 18px;
 		padding: 30px;
-		background: rgba(255, 255, 255, 0.035);
+		background: var(--surface-0);
 		font-size: 15px;
 	}
 	aside div {
@@ -367,7 +367,7 @@
 		padding: 10px 12px;
 		overflow-wrap: anywhere;
 		border-radius: 10px;
-		background: rgba(0, 0, 0, 0.35);
+		background: var(--surface-inset);
 		font-size: 13px;
 		line-height: 1.6;
 	}
@@ -434,7 +434,7 @@
 		padding: 0 14px;
 		border: 1px solid var(--border-2);
 		border-radius: 14px;
-		background: #24282c;
+		background: var(--field-bg);
 		color: var(--text);
 		font: inherit;
 		font-size: 16px;
@@ -462,14 +462,14 @@
 		background: currentColor;
 	}
 	.good {
-		border-color: rgba(48, 209, 88, 0.3);
-		background: rgba(48, 209, 88, 0.07);
-		color: var(--status-online);
+		border-color: var(--tint-ok-border);
+		background: var(--tint-ok-bg);
+		color: var(--text-ok);
 	}
 	.bad {
-		border-color: rgba(255, 69, 58, 0.32);
-		background: rgba(255, 69, 58, 0.07);
-		color: var(--status-down);
+		border-color: var(--tint-danger-border);
+		background: var(--tint-danger-bg);
+		color: var(--text-danger);
 	}
 	.result strong {
 		color: var(--text);
@@ -508,7 +508,7 @@
 	}
 	.error {
 		margin: 0;
-		color: #ff8a80;
+		color: var(--text-danger);
 		font-size: 14px;
 	}
 	.error:empty {
