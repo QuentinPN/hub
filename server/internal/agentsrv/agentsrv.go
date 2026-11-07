@@ -286,6 +286,16 @@ func (s *Service) changes(w http.ResponseWriter, r *http.Request, a agent) {
 			return
 		}
 	}
+	if len(c.Events) > agentproto.MaxEvents {
+		writeError(w, http.StatusBadRequest, "too many events")
+		return
+	}
+	for _, e := range c.Events {
+		if e.Validate() != nil {
+			writeError(w, http.StatusBadRequest, "invalid event")
+			return
+		}
+	}
 	if err := s.repo.ApplyContainerChanges(r.Context(), a.hostID, c, s.now()); err != nil {
 		internalError(w, r, err)
 		return

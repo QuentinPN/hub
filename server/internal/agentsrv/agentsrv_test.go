@@ -259,6 +259,26 @@ func TestRejectsBadPayloads(t *testing.T) {
 	if status, _ := e.do(agent, "POST", agentproto.PathContainers, agentproto.Changes{Removed: []string{"x"}}); status != http.StatusBadRequest {
 		t.Errorf("bad removed id: %d", status)
 	}
+	id := strings.Repeat("a", 64)
+	code, neg := 1, -1
+	for name, ev := range map[string]agentproto.Event{
+		"bad id":        {ContainerID: "x", Action: agentproto.ActionStart},
+		"other action":  {ContainerID: id, Action: "exec_start"},
+		"code on start": {ContainerID: id, Action: agentproto.ActionStart, ExitCode: &code},
+		"negative code": {ContainerID: id, Action: agentproto.ActionDie, ExitCode: &neg},
+	} {
+		body := agentproto.Changes{Events: []agentproto.Event{ev}}
+		if status, _ := e.do(agent, "POST", agentproto.PathContainers, body); status != http.StatusBadRequest {
+			t.Errorf("%s: %d", name, status)
+		}
+	}
+	many := agentproto.Changes{Events: make([]agentproto.Event, agentproto.MaxEvents+1)}
+	for i := range many.Events {
+		many.Events[i] = agentproto.Event{ContainerID: id, Action: agentproto.ActionStart}
+	}
+	if status, _ := e.do(agent, "POST", agentproto.PathContainers, many); status != http.StatusBadRequest {
+		t.Errorf("too many events: %d", status)
+	}
 }
 
 // The host list follows the agent through its life: code, connection, Docker lost,

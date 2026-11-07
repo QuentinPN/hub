@@ -114,6 +114,9 @@ func NewHandler(store Store, authSvc *auth.Service, iconSrc IconSource, agents *
 	if sections, ok := store.(SectionReader); ok {
 		registerSections(mux, sections)
 	}
+	if hs, ok := store.(HistoryStore); ok {
+		registerHistory(mux, hs)
+	}
 	if sw, ok := store.(SettingsWriter); ok {
 		mux.HandleFunc("PUT /api/v1/settings/discovery", func(w http.ResponseWriter, r *http.Request) {
 			var d Discovery

@@ -197,6 +197,24 @@ type Backups interface {
 	BackupRuns(ctx context.Context, limit int) ([]backup.Run, error)
 }
 
+// AlertLog keeps the alerts sent about a service in its history; the store may offer it.
+type AlertLog interface {
+	LogAlert(ctx context.Context, slug string, a SentAlert) error
+}
+
+// SentAlert is an alert, or its recovery, that left Hub. Via names the channels that took
+// it, or "digest" when it waits for the morning summary.
+type SentAlert struct {
+	Alert    string
+	Title    string
+	Recovery bool
+	Via      []string
+	At       time.Time
+}
+
+// Via of an alert kept for the morning summary.
+const ViaDigest = "digest"
+
 // Message is what leaves Hub: names and states only, never an address, a key or a torrent.
 type Message struct {
 	Title    string
@@ -291,8 +309,13 @@ func (s *Service) Tick(ctx context.Context) error {
 		}
 		c, still := failing[inc.Key]
 		if !still {
-			if inc.NotifiedAt != nil && !s.send(ctx, set, inc.Alert, recoveryMessage(inc, now), now) {
-				continue // retried at the next tick
+			if inc.NotifiedAt != nil {
+				m := recoveryMessage(inc, now)
+				via, ok := s.send(ctx, set, inc.Alert, m, now)
+				if !ok {
+					continue // retried at the next tick
+				}
+				s.logAlert(ctx, inc, m, via, now)
 			}
 			if err := s.store.DeleteIncident(ctx, inc.Key); err != nil {
 				return err
@@ -328,9 +351,12 @@ func (s *Service) maybeAlert(ctx context.Context, set Settings, inc Incident, no
 	if inc.NotifiedAt != nil || now.Sub(inc.Since) < a.Delay {
 		return nil
 	}
-	if !s.send(ctx, set, inc.Alert, alertMessage(inc), now) {
+	m := alertMessage(inc)
+	via, ok := s.send(ctx, set, inc.Alert, m, now)
+	if !ok {
 		return nil
 	}
+	s.logAlert(ctx, inc, m, via, now)
 	inc.NotifiedAt = &now
 	return s.store.PutIncident(ctx, inc)
 }
@@ -404,7 +430,7 @@ func (s *Service) watchSessions(ctx context.Context, set Settings, now time.Time
 		}
 		if isNew && !first && set.enabled(AlertLogin) {
 			// Once only: a lost one is not sent again, the session list keeps it.
-			s.send(ctx, set, AlertLogin, Message{Title: "Nouvelle connexion à Hub",
+			_, _ = s.send(ctx, set, AlertLogin, Message{Title: "Nouvelle connexion à Hub",
 				Body: "Depuis " + label + ", un appareil jamais vu. Si ce n'est pas toi, ferme la session dans Réglages, Sécurité et accès."}, now)
 		}
 		last = max(last, sess.ID)
@@ -416,22 +442,24 @@ func (s *Service) watchSessions(ctx context.Context, set Settings, now time.Time
 }
 
 // send delivers now, or keeps the message for the morning during the quiet hours. It says
-// whether the message is taken care of: false when every channel failed.
-func (s *Service) send(ctx context.Context, set Settings, alert string, m Message, now time.Time) bool {
+// where the message went, and whether it is taken care of: false when every channel failed.
+func (s *Service) send(ctx context.Context, set Settings, alert string, m Message, now time.Time) ([]string, bool) {
 	a, _ := alertOf(alert)
 	if set.QuietHours && inQuietHours(now) && !a.Urgent {
 		if err := s.store.AddDigest(ctx, DigestLine{At: now, Title: m.Title, Body: m.Body}); err != nil {
 			slog.Error("notifications digest", "err", err)
-			return false
+			return nil, false
 		}
-		return true
+		return []string{ViaDigest}, true
 	}
 	return s.deliver(ctx, set, m, now)
 }
 
-// deliver sends to every configured channel. With none, there is nobody to tell: done.
-func (s *Service) deliver(ctx context.Context, set Settings, m Message, now time.Time) bool {
-	tried, ok := 0, 0
+// deliver sends to every configured channel and names those that took it. With none, there
+// is nobody to tell: done.
+func (s *Service) deliver(ctx context.Context, set Settings, m Message, now time.Time) ([]string, bool) {
+	tried := 0
+	var via []string
 	for _, ch := range []string{Ntfy, SMTP} {
 		if !configured(set, ch) {
 			continue
@@ -439,13 +467,30 @@ func (s *Service) deliver(ctx context.Context, set Settings, m Message, now time
 		tried++
 		err := s.sendTo(ctx, set, ch, m)
 		if err == nil {
-			ok++
+			via = append(via, ch)
 		} else {
 			slog.Warn("notification not sent", "channel", ch, "err", err)
 		}
 		s.record(ctx, ch, now, m.Test, err)
 	}
-	return tried == 0 || ok > 0
+	return via, tried == 0 || len(via) > 0
+}
+
+// logAlert adds an alert about a service or its widget to that service's history, when it
+// went somewhere and the store keeps one.
+func (s *Service) logAlert(ctx context.Context, inc Incident, m Message, via []string, now time.Time) {
+	h, ok := s.store.(AlertLog)
+	if !ok || len(via) == 0 {
+		return
+	}
+	_, slug, _ := strings.Cut(inc.Key, ":")
+	if inc.Alert != AlertService && inc.Alert != AlertWidget {
+		return
+	}
+	a := SentAlert{Alert: inc.Alert, Title: m.Title, Recovery: m.Recovery, Via: via, At: now}
+	if err := h.LogAlert(context.WithoutCancel(ctx), slug, a); err != nil {
+		slog.Error("notifications history", "err", err)
+	}
 }
 
 func (s *Service) record(ctx context.Context, ch string, now time.Time, test bool, err error) {
@@ -507,7 +552,7 @@ func (s *Service) sendDigest(ctx context.Context, set Settings, now time.Time) e
 	if len(lines) > 1 {
 		title = fmt.Sprintf("Résumé de la nuit : %d messages", len(lines))
 	}
-	if !s.deliver(ctx, set, Message{Title: title, Body: strings.TrimSpace(b.String())}, now) {
+	if _, ok := s.deliver(ctx, set, Message{Title: title, Body: strings.TrimSpace(b.String())}, now); !ok {
 		return nil
 	}
 	return s.store.ClearDigest(ctx, lines[len(lines)-1].ID)

@@ -1,4 +1,4 @@
-import type { StartPage, WidgetRefresh } from '#lib/api/types.ts';
+import type { HistoryDays, StartPage, WidgetRefresh } from '#lib/api/types.ts';
 
 type StartPath = '/' | '/medias' | '/telechargements' | '/infra';
 
@@ -16,6 +16,13 @@ export const startPath = (page: StartPage | undefined): StartPath =>
 export const REFRESH_MODES: { value: WidgetRefresh; label: string }[] = [
 	{ value: 'normal', label: 'Normal (30 s, temps réel quand possible)' },
 	{ value: 'economy', label: 'Économe (2 min)' }
+];
+
+export const HISTORY_RETENTIONS: { value: HistoryDays; label: string }[] = [
+	{ value: 30, label: '30 jours' },
+	{ value: 90, label: '90 jours' },
+	{ value: 180, label: '180 jours' },
+	{ value: 365, label: '1 an' }
 ];
 
 /** Même règle que le serveur, pour le dire avant d'envoyer. */

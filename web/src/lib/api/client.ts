@@ -23,6 +23,8 @@ import type {
 	PasskeyInfo,
 	ServiceDetail,
 	ServiceEdit,
+	ServiceHistory,
+	HistoryKind,
 	ServiceSummary,
 	SessionInfo,
 	Settings,
@@ -320,3 +322,17 @@ export const saveNotifyAlerts = (
 /** Envoie un test ; l'état du canal dit comment il est parti. */
 export const testNotifyChannel = (fetchFn: Fetch, channel: NotifyChannel) =>
 	postJson<NotifyStatus>(fetchFn, `/api/v1/notifications/${channel}/test`);
+
+/** Une page de l'historique d'un service ; sans type, tous. */
+export const getServiceHistory = (
+	fetchFn: Fetch,
+	slug: string,
+	query: { kinds?: HistoryKind[]; offset?: number; limit?: number } = {}
+) => {
+	const params = new URLSearchParams();
+	if (query.kinds?.length) params.set('kinds', query.kinds.join(','));
+	if (query.offset) params.set('offset', String(query.offset));
+	if (query.limit) params.set('limit', String(query.limit));
+	const qs = params.size ? `?${params}` : '';
+	return getJson<ServiceHistory>(fetchFn, `${servicePath(slug)}/history${qs}`);
+};

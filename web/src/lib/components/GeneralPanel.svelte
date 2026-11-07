@@ -5,6 +5,7 @@
 		browserTimeZone,
 		displayNameError,
 		DISPLAY_NAME_MAX,
+		HISTORY_RETENTIONS,
 		REFRESH_MODES,
 		START_PAGES,
 		timeZoneChoices
@@ -44,6 +45,7 @@
 			startPage: settings.startPage,
 			timeZone: settings.timeZone,
 			widgetRefresh: settings.widgetRefresh,
+			historyDays: settings.historyDays,
 			...change
 		};
 		try {
@@ -151,6 +153,22 @@
 						<option value={m.value}>{m.label}</option>
 					{/each}
 				</select>
+			</label>
+			<label
+				>Historique des services
+				<select
+					value={settings.historyDays}
+					aria-describedby="general-history-help"
+					onchange={(e) =>
+						save({ historyDays: Number(e.currentTarget.value) as General['historyDays'] })}
+				>
+					{#each HISTORY_RETENTIONS as r (r.value)}
+						<option value={r.value}>Conserver {r.label}</option>
+					{/each}
+				</select>
+				<small id="general-history-help"
+					>Pannes, événements et disponibilité. Raccourcir efface aussitôt le plus ancien.</small
+				>
 			</label>
 		</div>
 	{/if}

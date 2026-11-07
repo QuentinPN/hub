@@ -28,6 +28,8 @@ const cid = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 type fakeDocker struct {
 	mu    sync.Mutex
 	paths []string
+	// events are the lines /events sends before it waits.
+	events []string
 }
 
 func (f *fakeDocker) start(t *testing.T) string {
@@ -64,6 +66,9 @@ func (f *fakeDocker) serve(w http.ResponseWriter, r *http.Request) {
 			"Ports":[{"PrivatePort":8096,"PublicPort":8096,"Type":"tcp"}]}]`, cid)
 	case "/events":
 		w.WriteHeader(http.StatusOK)
+		for _, line := range f.events {
+			_, _ = fmt.Fprintln(w, line)
+		}
 		w.(http.Flusher).Flush()
 		<-r.Context().Done()
 	default:
@@ -92,6 +97,27 @@ func TestDockerClientRefusesOtherCalls(t *testing.T) {
 		if !strings.HasPrefix(p, "GET ") {
 			t.Fatalf("non-GET call %s", p)
 		}
+	}
+}
+
+func TestDockerEventsKeepTheExitCodeOnly(t *testing.T) {
+	f := &fakeDocker{events: []string{
+		fmt.Sprintf(`{"Type":"container","Action":"oom","Actor":{"ID":%q,"Attributes":{"name":"emby","com.docker.compose.project":"media"}}}`, cid),
+		fmt.Sprintf(`{"Type":"container","Action":"die","Actor":{"ID":%q,"Attributes":{"exitCode":"137","secret":"hunter2"}}}`, cid),
+		fmt.Sprintf(`{"Type":"container","Action":"start","Actor":{"ID":%q,"Attributes":{"exitCode":"1"}}}`, cid),
+	}}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	events, _ := agent.NewDocker(f.start(t)).Events(ctx)
+	var got []agent.Event
+	for range 3 {
+		got = append(got, <-events)
+	}
+	if got[0].Action != "oom" || got[0].ExitCode != nil || got[1].ExitCode == nil || *got[1].ExitCode != 137 || got[2].ExitCode != nil {
+		t.Fatalf("%+v", got)
+	}
+	if strings.Contains(fmt.Sprintf("%+v", got), "hunter2") {
+		t.Fatal("an attribute was kept")
 	}
 }
 

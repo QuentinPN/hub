@@ -25,6 +25,7 @@ import (
 	"hub/server/internal/backup"
 	"hub/server/internal/db"
 	"hub/server/internal/fixture"
+	"hub/server/internal/history"
 	"hub/server/internal/icons"
 	"hub/server/internal/notify"
 	"hub/server/internal/pgstore"
@@ -219,6 +220,8 @@ func main() {
 	}
 	notifier := notify.NewService(store, secretStore, backupSrc)
 	go notifier.Watch(ctx, time.Minute)
+	// Each service's state is noted once a minute for its history, kept as « Général » says.
+	go history.Watch(ctx, store, time.Minute)
 
 	ui := webui.New()
 	srv := &http.Server{

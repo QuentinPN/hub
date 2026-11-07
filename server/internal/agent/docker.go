@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -130,11 +131,12 @@ func (d *Docker) Containers(ctx context.Context, ids ...string) ([]agentproto.Co
 	return out, nil
 }
 
-// Event is a container event: only its action and container id. Its attributes (which
-// carry every label) are never read.
+// Event is a container event: its action, its container id, and the exit code of a die.
+// No other attribute is read: they carry every label.
 type Event struct {
-	Action string
-	ID     string
+	Action   string
+	ID       string
+	ExitCode *int
 }
 
 // Events streams container events until ctx ends or the stream breaks; the error channel
@@ -156,13 +158,22 @@ func (d *Docker) Events(ctx context.Context) (<-chan Event, <-chan error) {
 		for sc.Scan() {
 			var raw struct {
 				Action string
-				Actor  struct{ ID string }
+				Actor  struct {
+					ID         string
+					Attributes struct {
+						ExitCode string `json:"exitCode"`
+					}
+				}
 			}
 			if json.Unmarshal(sc.Bytes(), &raw) != nil {
 				continue
 			}
+			ev := Event{Action: raw.Action, ID: raw.Actor.ID}
+			if code, err := strconv.Atoi(raw.Actor.Attributes.ExitCode); err == nil && raw.Action == agentproto.ActionDie {
+				ev.ExitCode = &code
+			}
 			select {
-			case events <- Event{Action: raw.Action, ID: raw.Actor.ID}:
+			case events <- ev:
 			case <-ctx.Done():
 				errc <- ctx.Err()
 				return

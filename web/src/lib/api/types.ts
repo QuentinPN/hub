@@ -451,6 +451,8 @@ export interface General {
 	/** Nom IANA ; vide pour celui du serveur (TZ). */
 	timeZone: string;
 	widgetRefresh: WidgetRefresh;
+	/** Durée de conservation de l'historique des services, en jours. */
+	historyDays: HistoryDays;
 }
 
 /** Ce que le serveur a reçu de son .env, en lecture seule. Vide : il ne le sait pas. */
@@ -557,4 +559,62 @@ export interface SmtpInput {
 	password: string;
 	from: string;
 	to: string;
+}
+
+/** Durées de conservation proposées dans Réglages › Général. */
+export type HistoryDays = 30 | 90 | 180 | 365;
+
+export type HistoryKind = 'outage' | 'container' | 'version' | 'edit' | 'alert';
+
+/** Un jour de la barre de disponibilité, en minutes relevées. */
+export interface HistoryDay {
+	/** AAAA-MM-JJ, dans le fuseau du serveur. */
+	date: string;
+	upMinutes: number;
+	downMinutes: number;
+	/** Hôte injoignable : ni en ligne ni en panne. */
+	unknownMinutes: number;
+	/** Moyenne des réponses de l'adresse ce jour-là. */
+	latencyMs: number | null;
+	/** Pannes commencées ce jour-là. */
+	outages: number;
+}
+
+/** Une ligne de la chronologie ; les champs après `action` dépendent de `kind`. */
+export interface HistoryEvent {
+	id: number;
+	at: string;
+	kind: HistoryKind;
+	/**
+	 * outage : down, up ; container : start, die, restart, oom ; version : changed ;
+	 * edit : le type d'audit (service_updated…) ; alert : sent, recovery.
+	 */
+	action: string;
+	reason?: string;
+	/** Durée d'une panne, sur ses deux bouts ; absente tant qu'elle dure. */
+	minutes?: number;
+	container?: string;
+	exitCode?: number;
+	from?: string;
+	to?: string;
+	image?: string;
+	by?: string;
+	alert?: string;
+	title?: string;
+	/** ntfy, smtp, ou digest quand elle attend le résumé du matin. */
+	via?: string[];
+}
+
+/** GET /api/v1/services/{slug}/history. */
+export interface ServiceHistory {
+	since: string;
+	retentionDays: HistoryDays;
+	/** Les 90 derniers jours, du plus ancien au plus récent. */
+	days: HistoryDay[];
+	/** Événements gardés par type, quel que soit le filtre. */
+	counts: Partial<Record<HistoryKind, number>>;
+	total: number;
+	offset: number;
+	limit: number;
+	events: HistoryEvent[];
 }

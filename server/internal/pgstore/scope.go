@@ -51,19 +51,28 @@ func (s *Store) ServiceScope(ctx context.Context, slug string) (ServiceScope, er
 // ServiceOfContainer names the service a container belongs to, by its own project or a
 // linked one, even once the container is gone. ok is false when it belongs to none.
 func (s *Store) ServiceOfContainer(ctx context.Context, hostID, containerID string) (slug string, ok bool, err error) {
-	rows, err := s.pool.Query(ctx, `WITH c AS (
-			SELECT `+containerKey+` AS key FROM containers WHERE host_id = $1 AND id = $2)
-		SELECT slug FROM services, c
+	slug, _, ok, err = serviceOfContainer(ctx, s.pool, hostID, containerID)
+	return slug, ok, err
+}
+
+// serviceOfContainer also gives the container's label in its service: its Compose service,
+// or its name outside Compose.
+func serviceOfContainer(ctx context.Context, q querier, hostID, containerID string) (slug, label string, ok bool, err error) {
+	rows, err := q.Query(ctx, `WITH c AS (
+			SELECT `+containerKey+` AS key, coalesce(nullif(compose_service, ''), name) AS label
+			FROM containers WHERE host_id = $1 AND id = $2)
+		SELECT slug, c.label FROM services, c
 			WHERE host_id = $1 AND discovery_key = c.key AND archived_at IS NULL
 		UNION ALL
-		SELECT service_slug FROM service_links, c WHERE host_id = $1 AND discovery_key = c.key
+		SELECT service_slug, c.label FROM service_links, c WHERE host_id = $1 AND discovery_key = c.key
 		LIMIT 1`, hostID, containerID)
 	if err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
-	slug, err = pgx.CollectOneRow(rows, pgx.RowTo[string])
+	var row struct{ Slug, Label string }
+	row, err = pgx.CollectOneRow(rows, pgx.RowToStructByPos[struct{ Slug, Label string }])
 	if err == pgx.ErrNoRows {
-		return "", false, nil
+		return "", "", false, nil
 	}
-	return slug, err == nil, err
+	return row.Slug, row.Label, err == nil, err
 }

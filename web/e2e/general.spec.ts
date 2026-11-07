@@ -68,12 +68,39 @@ test('chaque choix s’enregistre, le nom change l’onglet', async ({ page }) =
 	await name.fill(' Hub de Quentin ');
 	await name.press('Enter');
 	await expect(page).toHaveTitle('Réglages · Hub de Quentin');
+	await panel.getByLabel('Historique des services').selectOption('30');
+	await expect(panel.getByRole('status')).toHaveText('Enregistré.');
 
-	expect(sent).toEqual([
-		{ displayName: 'Hub', startPage: 'infra', timeZone: '', widgetRefresh: 'normal' },
-		{ displayName: 'Hub', startPage: 'infra', timeZone: '', widgetRefresh: 'economy' },
-		{ displayName: 'Hub', startPage: 'infra', timeZone: 'UTC', widgetRefresh: 'economy' },
-		{ displayName: 'Hub de Quentin', startPage: 'infra', timeZone: 'UTC', widgetRefresh: 'economy' }
+	expect(sent.at(-1)).toMatchObject({ historyDays: 30 });
+	expect(sent.slice(0, -1)).toEqual([
+		{
+			displayName: 'Hub',
+			startPage: 'infra',
+			timeZone: '',
+			widgetRefresh: 'normal',
+			historyDays: 90
+		},
+		{
+			displayName: 'Hub',
+			startPage: 'infra',
+			timeZone: '',
+			widgetRefresh: 'economy',
+			historyDays: 90
+		},
+		{
+			displayName: 'Hub',
+			startPage: 'infra',
+			timeZone: 'UTC',
+			widgetRefresh: 'economy',
+			historyDays: 90
+		},
+		{
+			displayName: 'Hub de Quentin',
+			startPage: 'infra',
+			timeZone: 'UTC',
+			widgetRefresh: 'economy',
+			historyDays: 90
+		}
 	]);
 });
 

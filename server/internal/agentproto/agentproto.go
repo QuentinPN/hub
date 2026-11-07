@@ -58,10 +58,51 @@ type Snapshot struct {
 	Containers    []Container `json:"containers"`
 }
 
-// Changes is what events bring between two snapshots.
+// Changes is what events bring between two snapshots. Events is the Docker event itself,
+// for the services' history; an agent older than it sends none.
 type Changes struct {
 	Upserted []Container `json:"upserted"`
 	Removed  []string    `json:"removed"`
+	Events   []Event     `json:"events,omitempty"`
+}
+
+// Docker actions kept in the history: a start, a stop (with its exit code), an explicit
+// restart, a container killed for lack of memory.
+const (
+	ActionStart   = "start"
+	ActionDie     = "die"
+	ActionRestart = "restart"
+	ActionOOM     = "oom"
+)
+
+// MaxEvents bounds the events of one message.
+const MaxEvents = 16
+
+// Event is one container event. ExitCode is only set for die.
+type Event struct {
+	ContainerID string `json:"container_id"`
+	Action      string `json:"action"`
+	ExitCode    *int   `json:"exit_code,omitempty"`
+}
+
+// HistoryAction reports whether a Docker action is kept in the history.
+func HistoryAction(action string) bool {
+	switch action {
+	case ActionStart, ActionDie, ActionRestart, ActionOOM:
+		return true
+	}
+	return false
+}
+
+// Validate checks an event against what the server keeps.
+func (e Event) Validate() error {
+	if !ValidContainerID(e.ContainerID) || !HistoryAction(e.Action) {
+		return fmt.Errorf("%w: event", ErrInvalid)
+	}
+	if e.ExitCode != nil && (e.Action != ActionDie || *e.ExitCode < 0 || *e.ExitCode > 255) {
+		return fmt.Errorf("%w: exit code", ErrInvalid)
+	}
+	return nil
 }
 
 // Heartbeat tells the server the agent is alive and whether Docker answers.

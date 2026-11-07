@@ -21,7 +21,7 @@ func TestGeneralStartsWithTheDefaultsAndSurvivesASave(t *testing.T) {
 		t.Fatalf("zone before any choice: %v, %v", loc, err)
 	}
 
-	want := api.General{DisplayName: "Hub de Quentin", StartPage: api.StartInfra, TimeZone: "America/New_York", WidgetRefresh: api.RefreshEconomy}
+	want := api.General{DisplayName: "Hub de Quentin", StartPage: api.StartInfra, TimeZone: "America/New_York", WidgetRefresh: api.RefreshEconomy, HistoryDays: 180}
 	if err := e.store.SaveGeneral(e.ctx, want); err != nil {
 		t.Fatal(err)
 	}

@@ -26,6 +26,18 @@ type memStore struct {
 	devices   map[string]bool
 	sessions  []SessionSeen
 	snap      Snapshot
+	// logged are the alerts kept in a service's history, by slug.
+	logged map[string][]SentAlert
+}
+
+func (m *memStore) LogAlert(_ context.Context, slug string, a SentAlert) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.logged == nil {
+		m.logged = map[string][]SentAlert{}
+	}
+	m.logged[slug] = append(m.logged[slug], a)
+	return nil
 }
 
 func newMem() *memStore {
@@ -232,6 +244,27 @@ func TestAlertAfterDelayThenRecovery(t *testing.T) {
 	}
 	if st := store.states[Ntfy]; !st.OK || st.Test {
 		t.Fatalf("channel state: %+v", st)
+	}
+	// Both ends went to the service's history, with the channel that took them.
+	got := store.logged["jellyfin"]
+	if len(got) != 2 || got[0].Recovery || !got[1].Recovery || got[1].Title != "Jellyfin est revenu" ||
+		!slices.Equal(got[0].Via, []string{Ntfy}) || got[0].Alert != AlertService {
+		t.Fatalf("history: %+v", got)
+	}
+}
+
+func TestHistoryKeepsServiceAlertsOnly(t *testing.T) {
+	svc, store, _, c := setup(t)
+	c.t = time.Date(2026, 11, 4, 23, 30, 0, 0, time.Local)
+	store.snap = Snapshot{Failing: []Condition{
+		{Key: "service:emby", Alert: AlertService, Subject: "Emby", Detail: "conteneurs arrêtés"},
+		{Key: "host:pi", Alert: AlertHost, Subject: "Raspberry Pi", Detail: "offline"},
+	}}
+	tick(t, svc)
+	c.add(5 * time.Minute)
+	tick(t, svc)
+	if len(store.logged) != 1 || len(store.logged["emby"]) != 1 || !slices.Equal(store.logged["emby"][0].Via, []string{ViaDigest}) {
+		t.Fatalf("history: %+v", store.logged)
 	}
 }
 

@@ -102,6 +102,7 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live 
 	audit := func(r *http.Request, kind, detail string) {
 		p, _ := current(r.Context())
 		authSvc.Audit(r.Context(), auth.Event{Kind: kind, UserID: &p.user.ID, IP: clientOf(r).IP, Detail: detail})
+		recordEdit(r, store, detail, kind, &p.user.ID)
 	}
 	// target checks the service can be connected, and writes the refusal otherwise.
 	target := func(w http.ResponseWriter, r *http.Request) (WidgetTarget, widgets.Manifest, bool) {
