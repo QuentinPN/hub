@@ -49,6 +49,7 @@
 		if (c.link === 'hosts') return { href: '#hosts', label: 'Hôtes' };
 		if (c.link === 'widgets') return { href: '#widgets', label: 'Widgets' };
 		if (c.link === 'backup') return { href: '#backup', label: 'Sauvegarde' };
+		if (c.link === 'notifications') return { href: '#notifications', label: 'Notifications' };
 		if (c.link === 'services') return { href: resolve('/services'), label: 'Services' };
 		return null;
 	}

@@ -21,13 +21,11 @@ test('le menu des sections reste accessible et mène à la section', async ({ pa
 		'Hôtes et agents',
 		'Découverte',
 		'Widgets et connexions',
+		'Notifications',
 		'Apparence',
 		'Sécurité et accès',
 		'Sauvegarde'
 	]);
-	if (testInfo.project.name === 'mobile') {
-		await expect(nav.getByText('Notifications')).toBeHidden();
-	}
 	await links.filter({ hasText: 'Sécurité et accès' }).click();
 	await expect(page).toHaveURL(/#security$/);
 	await expect(page.getByRole('heading', { level: 2, name: 'Sécurité et accès' })).toBeInViewport();

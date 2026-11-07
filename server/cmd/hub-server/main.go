@@ -26,6 +26,7 @@ import (
 	"hub/server/internal/db"
 	"hub/server/internal/fixture"
 	"hub/server/internal/icons"
+	"hub/server/internal/notify"
 	"hub/server/internal/pgstore"
 	"hub/server/internal/pki"
 	"hub/server/internal/secrets"
@@ -211,11 +212,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Alerts go out through ntfy and e-mail; the engine looks once a minute.
+	var backupSrc notify.Backups
+	if _, on := backups.(*backup.Service); on {
+		backupSrc = store
+	}
+	notifier := notify.NewService(store, secretStore, backupSrc)
+	go notifier.Watch(ctx, time.Minute)
+
 	ui := webui.New()
 	srv := &http.Server{
 		Addr: *addr,
 		Handler: api.NewHandler(store, authSvc, iconSvc, agentsUI, &api.Widgets{Keys: secretStore, Bus: bus},
-			&api.Runtime{Version: version, StartedAt: started, Secrets: secretStore, Streams: widgets.OpenStreams, Backups: backups, About: about}, ui.Handler, ui.ScriptHashes),
+			&api.Runtime{Version: version, StartedAt: started, Secrets: secretStore, Streams: widgets.OpenStreams, Backups: backups, About: about, Notifications: notifier}, ui.Handler, ui.ScriptHashes),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

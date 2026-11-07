@@ -23,6 +23,7 @@ const routes: Record<string, string> = {
 	'auth/passkeys': 'auth-passkeys',
 	hosts: 'hosts',
 	backup: 'backup',
+	notifications: 'notifications',
 	'hosts/qnap/containers': 'hosts-qnap-containers'
 };
 

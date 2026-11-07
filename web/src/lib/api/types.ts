@@ -518,3 +518,43 @@ export interface BackupStatus {
 	keptBytes: number;
 	runs: BackupRun[];
 }
+
+export type NotifyChannel = 'ntfy' | 'smtp';
+export type NotifyAlertId = 'service' | 'host' | 'widget' | 'backup' | 'disk' | 'login';
+
+/** Dernier envoi d'un canal, test ou alerte. */
+export interface NotifySend {
+	at: string;
+	ok: boolean;
+	test: boolean;
+	error: string;
+}
+
+/** Section « Notifications ». Ni le sujet ntfy ni le mot de passe SMTP ne reviennent jamais. */
+export interface NotifyStatus {
+	ntfy: { configured: boolean; url: string; topicHint: string; last: NotifySend | null };
+	smtp: {
+		configured: boolean;
+		host: string;
+		port: number;
+		username: string;
+		passwordSet: boolean;
+		from: string;
+		to: string;
+		last: NotifySend | null;
+	};
+	alerts: { id: NotifyAlertId; enabled: boolean; delaySeconds: number }[];
+	quietHours: { enabled: boolean; from: string; to: string };
+	/** Messages gardés pour le résumé du matin. */
+	pending: number;
+}
+
+/** Formulaire « E-mail » ; un mot de passe vide garde celui enregistré. */
+export interface SmtpInput {
+	host: string;
+	port: number;
+	username: string;
+	password: string;
+	from: string;
+	to: string;
+}

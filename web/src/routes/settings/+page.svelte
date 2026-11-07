@@ -8,6 +8,7 @@
 	import AppearancePanel from '#lib/components/AppearancePanel.svelte';
 	import BackupPanel from '#lib/components/BackupPanel.svelte';
 	import HostsPanel from '#lib/components/HostsPanel.svelte';
+	import NotificationsPanel from '#lib/components/NotificationsPanel.svelte';
 	import SessionsList from '#lib/components/SessionsList.svelte';
 	import StatusPanel from '#lib/components/StatusPanel.svelte';
 	import WidgetRowsPanel from '#lib/components/WidgetRowsPanel.svelte';
@@ -27,7 +28,7 @@
 		{ label: 'Hôtes et agents', id: 'hosts' },
 		{ label: 'Découverte', id: 'discovery' },
 		{ label: 'Widgets et connexions', id: 'widgets' },
-		{ label: 'Notifications', id: null },
+		{ label: 'Notifications', id: 'notifications' },
 		{ label: 'Apparence', id: 'appearance' },
 		{ label: 'Sécurité et accès', id: 'security' },
 		{ label: 'Sauvegarde', id: 'backup' }
@@ -97,6 +98,9 @@
 			<section class="card" id="widgets" aria-labelledby="widgets-title">
 				<WidgetRowsPanel />
 			</section>
+
+			<!-- Trois cartes, comme la maquette : canaux, alertes, heures calmes. -->
+			<NotificationsPanel />
 
 			<section class="card" id="appearance" aria-labelledby="appearance-title">
 				<AppearancePanel />

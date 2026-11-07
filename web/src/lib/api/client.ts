@@ -17,12 +17,16 @@ import type {
 	InfraPage,
 	LayoutRow,
 	MediaPage,
+	NotifyAlertId,
+	NotifyChannel,
+	NotifyStatus,
 	PasskeyInfo,
 	ServiceDetail,
 	ServiceEdit,
 	ServiceSummary,
 	SessionInfo,
 	Settings,
+	SmtpInput,
 	UrlCheckResponse,
 	WidgetRow,
 	WidgetSave,
@@ -291,3 +295,28 @@ export const setBackupPassphrase = (fetchFn: Fetch, passphrase: string) =>
 
 /** Lance la sauvegarde en arrière-plan ; 409 si une autre tourne ou sans phrase de passe. */
 export const runBackup = (fetchFn: Fetch) => postJson<BackupStatus>(fetchFn, '/api/v1/backup/run');
+
+export const getNotifications = (fetchFn: Fetch) =>
+	getJson<NotifyStatus>(fetchFn, '/api/v1/notifications');
+
+/** Un sujet vide garde celui enregistré, pour le même serveur seulement. */
+export const saveNtfy = (fetchFn: Fetch, url: string, topic: string) =>
+	putJson<NotifyStatus>(fetchFn, '/api/v1/notifications/ntfy', { url, topic });
+
+export const saveSmtp = (fetchFn: Fetch, body: SmtpInput) =>
+	putJson<NotifyStatus>(fetchFn, '/api/v1/notifications/smtp', body);
+
+export const removeNotifyChannel = async (fetchFn: Fetch, channel: NotifyChannel) =>
+	(await (
+		await send(fetchFn, 'DELETE', `/api/v1/notifications/${channel}`)
+	).json()) as NotifyStatus;
+
+export const saveNotifyAlerts = (
+	fetchFn: Fetch,
+	alerts: Partial<Record<NotifyAlertId, boolean>>,
+	quietHours: boolean
+) => putJson<NotifyStatus>(fetchFn, '/api/v1/notifications/alerts', { alerts, quietHours });
+
+/** Envoie un test ; l'état du canal dit comment il est parti. */
+export const testNotifyChannel = (fetchFn: Fetch, channel: NotifyChannel) =>
+	postJson<NotifyStatus>(fetchFn, `/api/v1/notifications/${channel}/test`);
