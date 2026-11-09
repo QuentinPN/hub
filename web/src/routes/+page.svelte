@@ -4,6 +4,8 @@
 	import { getHome } from '#lib/api/client.ts';
 	import type { Home } from '#lib/api/types.ts';
 	import { ago } from '#lib/agents.ts';
+	import { troubledFavorites } from '#lib/favorites.ts';
+	import { statusStyle } from '#lib/status.ts';
 	import { onWidgetNews } from '#lib/live.ts';
 	import { mediaPoster, upcomingPoster, widgetStateView } from '#lib/widgets.ts';
 	import AppCard from '#lib/components/AppCard.svelte';
@@ -12,6 +14,7 @@
 	import PosterCard from '#lib/components/PosterCard.svelte';
 	import Shelf from '#lib/components/Shelf.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
+	import StatusDot from '#lib/components/StatusDot.svelte';
 	import { shell, tabTitle, widgetPollMs } from '#lib/shell.svelte.ts';
 	import type { PageProps } from './$types';
 
@@ -186,6 +189,30 @@
 		{#each rows as row (row)}
 			{#if row === 'favorites'}
 				{#if home.favorites.length > 0}
+					{@const troubled = troubledFavorites(home.favorites)}
+					<!-- Toujours présent : une zone live n'annonce que ce qui change après son apparition. -->
+					<div class="alert-zone" role="status">
+						{#if troubled.length > 0}
+							<div class="alert" class:down={troubled.some((s) => s.status === 'down')}>
+								<p class="alert-title">
+									{troubled.length > 1
+										? `${troubled.length} favoris ne sont pas en ligne`
+										: '1 favori n’est pas en ligne'}
+								</p>
+								<ul>
+									{#each troubled as service (service.slug)}
+										<li>
+											<a href={resolve('/services/[slug]', { slug: service.slug })}>
+												<StatusDot status={service.status} />
+												<strong>{service.name}</strong>
+												<span class="muted">{statusStyle(service.status).label}</span>
+											</a>
+										</li>
+									{/each}
+								</ul>
+							</div>
+						{/if}
+					</div>
 					<Shelf title="Favoris" id="fav">
 						{#each home.favorites as service (service.slug)}
 							<AppCard {service} />
@@ -423,6 +450,51 @@
 		height: 8px;
 		border-radius: 99px;
 		background: var(--status-degraded);
+	}
+	.alert-zone:empty {
+		display: none;
+	}
+	.alert {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 10px 20px;
+		padding: 14px 18px;
+		border: 1px solid var(--tint-warn-border);
+		border-radius: var(--r-card);
+		background: var(--tint-warn-bg);
+	}
+	.alert.down {
+		border-color: var(--tint-danger-border);
+		background: var(--tint-danger-bg);
+	}
+	.alert-title {
+		margin: 0;
+		font-size: 16px;
+		font-weight: 600;
+	}
+	.alert ul {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.alert a {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 44px;
+		padding: 0 14px;
+		border: 1px solid var(--border-1);
+		border-radius: 99px;
+		background: var(--surface-1);
+		transition: background var(--dur) var(--ease);
+	}
+	.alert a:hover,
+	.alert a:focus-visible {
+		background: var(--surface-2);
 	}
 	.hosts {
 		display: flex;
