@@ -158,6 +158,73 @@ test('sans lecture, Emby reste sur l’accueil et dans Personnaliser', async ({ 
 	await expect(row.getByRole('checkbox', { name: 'Visible : Ajoutés récemment' })).toBeChecked();
 });
 
+test('ce qui joue s’affiche avec son fond et son affiche, servis par Hub', async ({ page }) => {
+	await trackLayout(page);
+	const home = fixture('home') as { sessions: Record<string, unknown>[] };
+	const png = Buffer.from(
+		'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+		'base64'
+	);
+	const asked: string[] = [];
+	await page.route('**/api/v1/posters/emby/**', (route) => {
+		asked.push(new URL(route.request().url()).pathname);
+		return route.fulfill({ contentType: 'image/png', body: png });
+	});
+	let playing = true;
+	await page.route('**/api/v1/home', (route) =>
+		route.fulfill({
+			json: {
+				...home,
+				sessions: playing
+					? [{ ...home.sessions[0], poster: 'serie', backdrop: 'serie.backdrop' }]
+					: [],
+				sessionsSlug: 'emby',
+				rows: ['playing', 'favorites']
+			}
+		})
+	);
+	await page.goto('/');
+	await expect(page.getByText('En lecture sur Emby')).toBeVisible();
+	const backdrop = page.locator('.hero .backdrop');
+	await expect(backdrop).toHaveCSS('opacity', '1');
+	await expect(backdrop.locator('img')).toHaveAttribute(
+		'src',
+		'/api/v1/posters/emby/serie.backdrop'
+	);
+	const cover = page.locator('.hero img.cover');
+	if ((page.viewportSize()?.width ?? 0) > 640) await expect(cover).toBeVisible();
+	await expect(cover).toHaveAttribute('src', '/api/v1/posters/emby/serie');
+	expect(asked).toContain('/api/v1/posters/emby/serie.backdrop');
+
+	// La lecture s'arrête : le fond s'en va avec elle.
+	playing = false;
+	await page.reload();
+	await expect(page.getByRole('heading', { level: 1, name: 'Rien en lecture' })).toBeVisible();
+	await expect(page.locator('.hero .backdrop')).toHaveCount(0);
+});
+
+test('sans image chez Emby, le bandeau garde ses couleurs', async ({ page }) => {
+	await trackLayout(page);
+	const home = fixture('home') as { sessions: Record<string, unknown>[] };
+	await page.route('**/api/v1/posters/emby/**', (route) =>
+		route.fulfill({ status: 404, json: { error: 'not found' } })
+	);
+	await page.route('**/api/v1/home', (route) =>
+		route.fulfill({
+			json: {
+				...home,
+				sessions: [{ ...home.sessions[0], poster: 'film', backdrop: 'film.backdrop' }],
+				sessionsSlug: 'emby',
+				rows: ['playing']
+			}
+		})
+	);
+	await page.goto('/');
+	await expect(page.getByText('En lecture sur Emby')).toBeVisible();
+	await expect(page.locator('.hero .backdrop')).toHaveCount(0);
+	await expect(page.locator('.hero img.cover')).toHaveCount(0);
+});
+
 test('l’accueil suit l’ordre et masque le bandeau', async ({ page }) => {
 	await mockApi(page);
 	const home = fixture('home') as Record<string, unknown>;

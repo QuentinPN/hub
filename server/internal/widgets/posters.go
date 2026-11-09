@@ -21,16 +21,25 @@ type PosterSource interface {
 }
 
 var (
-	embyPosterRef = regexp.MustCompile(`^[A-Za-z0-9-]{1,64}$`)
+	embyPosterRef = regexp.MustCompile(`^([A-Za-z0-9-]{1,64})(\.backdrop)?$`)
 	arrPosterRef  = regexp.MustCompile(`^[0-9]{1,12}$`)
 )
 
-// Route of dev.emby.media/reference/RestAPI/ImageService.
+// embyBackdropSuffix asks for an item's backdrop rather than its poster. The dot cannot
+// appear in an item's ID.
+const embyBackdropSuffix = ".backdrop"
+
+// Route of dev.emby.media/reference/RestAPI/ImageService; Backdrop is one of the ImageType
+// values of the server's own openapi.json.
 func (emby) PosterRequest(ref string) (string, url.Values, bool) {
-	if !embyPosterRef.MatchString(ref) {
+	m := embyPosterRef.FindStringSubmatch(ref)
+	if m == nil {
 		return "", nil, false
 	}
-	return "/emby/Items/" + ref + "/Images/Primary", url.Values{"MaxHeight": {"500"}}, true
+	if m[2] != "" {
+		return "/emby/Items/" + m[1] + "/Images/Backdrop", url.Values{"MaxWidth": {"1920"}}, true
+	}
+	return "/emby/Items/" + m[1] + "/Images/Primary", url.Values{"MaxHeight": {"500"}}, true
 }
 
 // Route of their openapi.json; poster-500 is the size their own pages ask for.

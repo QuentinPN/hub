@@ -185,7 +185,10 @@ export function whenLabel(iso: string, now: Date): string {
 }
 
 /** Hub seul tient la clé : l'image passe par lui. */
-function posterUrl(slug: string | undefined, poster: string | undefined): string | undefined {
+export function posterUrl(
+	slug: string | undefined,
+	poster: string | undefined
+): string | undefined {
 	if (!slug || !poster) return undefined;
 	return `/api/v1/posters/${encodeURIComponent(slug)}/${encodeURIComponent(poster)}`;
 }

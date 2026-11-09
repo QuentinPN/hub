@@ -35,6 +35,9 @@ type Session struct {
 	Progress      float64 `json:"progress"`
 	DurationLabel string  `json:"durationLabel"`
 	Transcoding   bool    `json:"transcoding"`
+	// Poster and Backdrop name images of SessionsSlug: /api/v1/posters/{SessionsSlug}/{ref}.
+	Poster   string `json:"poster,omitempty"`
+	Backdrop string `json:"backdrop,omitempty"`
 }
 
 type UpcomingItem struct {
