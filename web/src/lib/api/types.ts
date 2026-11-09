@@ -27,6 +27,9 @@ export interface Session {
 	progress: number;
 	durationLabel: string;
 	transcoding: boolean;
+	/** Images de sessionsSlug, à demander par posterUrl : l'affiche et le fond de ce qui joue. */
+	poster?: string;
+	backdrop?: string;
 }
 
 export interface UpcomingItem {

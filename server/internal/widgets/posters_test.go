@@ -23,7 +23,7 @@ func TestPostersComeOnlyFromTheImageRoutes(t *testing.T) {
 			return
 		}
 		switch r.URL.Path {
-		case "/emby/Items/abc/Images/Primary", "/api/v3/mediacover/12/poster-500.jpg":
+		case "/emby/Items/abc/Images/Primary", "/emby/Items/abc/Images/Backdrop", "/api/v3/mediacover/12/poster-500.jpg":
 			_, _ = w.Write(pngBytes)
 		case "/api/v3/mediacover/13/poster-500.jpg":
 			_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`))
@@ -39,6 +39,9 @@ func TestPostersComeOnlyFromTheImageRoutes(t *testing.T) {
 	if !ok || p.ContentType != "image/png" {
 		t.Errorf("emby: %v %q", ok, p.ContentType)
 	}
+	if _, ok := widgets.FetchPoster(ctx, widgets.Target{Kind: "emby", URL: srv.URL}, key, "abc.backdrop"); !ok || asked[len(asked)-1] != "/emby/Items/abc/Images/Backdrop" {
+		t.Errorf("emby backdrop: %v %v", ok, asked)
+	}
 	if _, ok := widgets.FetchPoster(ctx, widgets.Target{Kind: "sonarr", URL: srv.URL}, key, "12"); !ok {
 		t.Error("sonarr poster refused")
 	}
@@ -53,6 +56,9 @@ func TestPostersComeOnlyFromTheImageRoutes(t *testing.T) {
 	for _, c := range []struct{ kind, ref string }{
 		{"emby", "../../System/Info"},
 		{"emby", "a/b"},
+		{"emby", "abc.logo"},
+		{"emby", "abc.backdrop.backdrop"},
+		{"emby", ".backdrop"},
 		{"sonarr", "12/../../queue"},
 		{"radarr", "abc"},
 		{"qbittorrent", "12"},
@@ -109,6 +115,44 @@ func TestReadsCarryPosterReferences(t *testing.T) {
 	// An episode shows its series' poster: its own image is a landscape still.
 	if len(latest) != 2 || latest[0].Poster != "film" || latest[1].Poster != "serie" {
 		t.Errorf("emby: %+v", latest)
+	}
+}
+
+func TestSessionsCarryTheImagesOfWhatPlays(t *testing.T) {
+	embySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`[
+			{"DeviceName":"Salon","NowPlayingItem":{"Id":"film","Name":"F","Type":"Movie","ImageTags":{"Primary":"t"},"BackdropImageTags":["t"]}},
+			{"DeviceName":"iPad","NowPlayingItem":{"Id":"ep","Name":"E","Type":"Episode","SeriesId":"serie","SeriesName":"S","SeriesPrimaryImageTag":"t",
+			 "ImageTags":{"Primary":"t"},"ParentBackdropItemId":"serie","ParentBackdropImageTags":["t"]}},
+			{"DeviceName":"TV","NowPlayingItem":{"Id":"nu","Name":"N","Type":"Movie","ImageTags":{}}},
+			{"DeviceName":"PC","NowPlayingItem":{"Id":"ep2","Name":"E2","Type":"Episode","SeriesId":"s2","SeriesName":"S2","BackdropImageTags":["t"]}}
+		]`))
+	}))
+	defer embySrv.Close()
+	data, state := widgets.Read(context.Background(), widgets.Target{Kind: "emby", URL: embySrv.URL}, secrets.NewValue(testKey), nil, []string{widgets.EmbySessions})
+	if state != widgets.StateOK {
+		t.Fatal(state)
+	}
+	var sessions []widgets.Session
+	if err := json.Unmarshal(data[widgets.EmbySessions], &sessions); err != nil {
+		t.Fatal(err)
+	}
+	want := [][2]string{
+		{"film", "film.backdrop"},
+		// An episode shows its series, not its own still.
+		{"serie", "serie.backdrop"},
+		// Nothing to show: the hero keeps its colors.
+		{"", ""},
+		// Without a series image, an episode's own backdrop is better than none.
+		{"", "ep2.backdrop"},
+	}
+	if len(sessions) != len(want) {
+		t.Fatalf("%+v", sessions)
+	}
+	for i, w := range want {
+		if sessions[i].Poster != w[0] || sessions[i].Backdrop != w[1] {
+			t.Errorf("%d: %q %q, want %q", i, sessions[i].Poster, sessions[i].Backdrop, w)
+		}
 	}
 }
 

@@ -4,6 +4,7 @@ import {
 	connectionLabel,
 	etaLabel,
 	mediaPoster,
+	posterUrl,
 	queueStateLabel,
 	speedLabel,
 	torrentStateLabel,
@@ -15,6 +16,12 @@ import {
 } from './widgets';
 
 describe('widgets', () => {
+	it('demande une image à Hub, jamais au service', () => {
+		expect(posterUrl('emby', 'serie.backdrop')).toBe('/api/v1/posters/emby/serie.backdrop');
+		expect(posterUrl('emby', undefined)).toBeUndefined();
+		expect(posterUrl(undefined, 'serie')).toBeUndefined();
+	});
+
 	it('dit quand il faut agir et quand Hub réessaie seul', () => {
 		expect(widgetStateView('auth').tone).toBe('bad');
 		expect(widgetStateView('unreachable').tone).toBe('warn');

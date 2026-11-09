@@ -7,9 +7,12 @@
 	import { troubledFavorites } from '#lib/favorites.ts';
 	import { statusStyle } from '#lib/status.ts';
 	import { onWidgetNews } from '#lib/live.ts';
-	import { mediaPoster, upcomingPoster, widgetStateView } from '#lib/widgets.ts';
+	import { fade } from 'svelte/transition';
+	import { mediaPoster, posterUrl, upcomingPoster, widgetStateView } from '#lib/widgets.ts';
+	import { motionReduced } from '#lib/appearance.svelte.ts';
 	import AppCard from '#lib/components/AppCard.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
+	import HeroBackdrop from '#lib/components/HeroBackdrop.svelte';
 	import HostCard from '#lib/components/HostCard.svelte';
 	import PosterCard from '#lib/components/PosterCard.svelte';
 	import Shelf from '#lib/components/Shelf.svelte';
@@ -22,6 +25,10 @@
 
 	const DEFAULT_ROWS = ['playing', 'favorites', 'latest', 'upcoming', 'downloads', 'hosts'];
 	const count = (n: number) => n.toLocaleString('fr-FR');
+	// « Rien en lecture » et la lecture se relaient en fondu, sauf mouvement réduit.
+	const swap = () => ({ duration: motionReduced() ? 0 : 300 });
+	// Une affiche que le service n'a pas laisse le titre seul.
+	let missingCover = $state<string | undefined>();
 
 	// Relu sans repasser par le squelette : la lecture en cours change sous les yeux, dès que
 	// le serveur le signale. La relecture régulière rattrape un signal perdu.
@@ -75,41 +82,57 @@
 	{@const rows = home.rows ?? DEFAULT_ROWS}
 	{@const welcome = home.summary.total === 0 && home.hosts.length === 0}
 	{@const showHero = rows.includes('playing') || welcome}
+	{@const backdrop = main ? posterUrl(home.sessionsSlug, main.backdrop) : undefined}
+	{@const cover = main ? posterUrl(home.sessionsSlug, main.poster) : undefined}
 	{#if showHero}
 		<section class="hero">
+			{#key backdrop}
+				{#if backdrop}
+					<HeroBackdrop src={backdrop} />
+				{/if}
+			{/key}
 			{#if main}
-				<div class="hero-body">
-					<div class="hero-text">
-						<span class="eyebrow">
-							<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
-								><path d="M7 4v16l13-8z"></path></svg
+				<div class="hero-body" in:fade={swap()}>
+					<div class="now">
+						{#if cover && cover !== missingCover}
+							<img class="cover" src={cover} alt="" onerror={() => (missingCover = cover)} />
+						{/if}
+						<div class="hero-text">
+							<span class="eyebrow">
+								<svg
+									width="14"
+									height="14"
+									viewBox="0 0 24 24"
+									fill="currentColor"
+									aria-hidden="true"><path d="M7 4v16l13-8z"></path></svg
+								>
+								En lecture sur Emby
+							</span>
+							<h1>{main.title}</h1>
+							<p class="muted lead">
+								{main.device} · {main.transcoding ? 'transcodage' : 'lecture directe'} · {main.durationLabel}
+							</p>
+							<div
+								class="progress"
+								role="progressbar"
+								aria-label="Progression"
+								aria-valuenow={Math.round(main.progress * 100)}
+								aria-valuemin={0}
+								aria-valuemax={100}
 							>
-							En lecture sur Emby
-						</span>
-						<h1>{main.title}</h1>
-						<p class="muted lead">
-							{main.device} · {main.transcoding ? 'transcodage' : 'lecture directe'} · {main.durationLabel}
-						</p>
-						<div
-							class="progress"
-							role="progressbar"
-							aria-label="Progression"
-							aria-valuenow={Math.round(main.progress * 100)}
-							aria-valuemin={0}
-							aria-valuemax={100}
-						>
-							<span style:width="{main.progress * 100}%"></span>
-						</div>
-						<div class="actions">
-							<a
-								class="btn primary"
-								href={resolve('/services/[slug]', { slug: home.sessionsSlug ?? 'emby' })}
-								>Ouvrir la fiche Emby</a
-							>
-							<span class="muted sessions"
-								>{home.sessions.length}
-								{home.sessions.length > 1 ? 'sessions' : 'session'} en cours</span
-							>
+								<span style:width="{main.progress * 100}%"></span>
+							</div>
+							<div class="actions">
+								<a
+									class="btn primary"
+									href={resolve('/services/[slug]', { slug: home.sessionsSlug ?? 'emby' })}
+									>Ouvrir la fiche Emby</a
+								>
+								<span class="muted sessions"
+									>{home.sessions.length}
+									{home.sessions.length > 1 ? 'sessions' : 'session'} en cours</span
+								>
+							</div>
 						</div>
 					</div>
 					<ul class="others">
@@ -134,7 +157,7 @@
 					</div>
 				</div>
 			{:else if home.sessionsSlug}
-				<div class="hero-body">
+				<div class="hero-body" in:fade={swap()}>
 					<div class="hero-text">
 						<span class="eyebrow idle">
 							<svg
@@ -296,6 +319,8 @@
 
 <style>
 	.hero {
+		position: relative;
+		overflow: hidden;
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-end;
@@ -306,6 +331,7 @@
 			linear-gradient(180deg, var(--hero-top) 0%, var(--hero-mid) 55%, var(--bg) 100%);
 	}
 	.hero-body {
+		position: relative;
 		display: flex;
 		flex-wrap: wrap;
 		align-items: flex-end;
@@ -316,6 +342,26 @@
 		flex-direction: column;
 		align-items: flex-start;
 		gap: 14px;
+	}
+	.now {
+		display: flex;
+		align-items: flex-end;
+		gap: 28px;
+	}
+	/* L'affiche de ce qui joue, posée à côté du titre comme sur un écran d'accueil de TV. */
+	.cover {
+		flex: none;
+		width: 148px;
+		aspect-ratio: 2 / 3;
+		object-fit: cover;
+		border: 1px solid var(--border-1);
+		border-radius: var(--r-poster);
+		box-shadow: var(--shadow-lift);
+	}
+	@media (max-width: 640px) {
+		.cover {
+			display: none;
+		}
 	}
 	.hero-text {
 		display: flex;

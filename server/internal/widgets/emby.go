@@ -35,7 +35,7 @@ func (emby) Manifest() Manifest {
 		Kind:    "emby",
 		Name:    "Emby",
 		KeyHelp: "Dans Emby : tableau de bord du serveur, Clés d’API. Crée une clé réservée à Hub : tu pourras la révoquer seule.",
-		Reads:   []string{"GET /emby/Sessions", "GET /emby/Users/Query", "GET /emby/Users/…/Items/Latest", "GET /emby/Items/Counts", "GET /emby/Items/…/Images/Primary : affiches", "WebSocket : signaux de changement"},
+		Reads:   []string{"GET /emby/Sessions", "GET /emby/Users/Query", "GET /emby/Users/…/Items/Latest", "GET /emby/Items/Counts", "GET /emby/Items/…/Images/Primary et Backdrop : affiches et fonds", "WebSocket : signaux de changement"},
 		Widgets: []Widget{
 			{ID: EmbySessions, Label: "Sessions en cours", Where: "accueil et fiche"},
 			{ID: EmbyLatest, Label: "Ajoutés récemment", Where: "accueil et fiche"},
@@ -58,6 +58,12 @@ type embyItem struct {
 	IndexNumber       int
 	RunTimeTicks      int64
 	DateCreated       string
+	// Images: an empty tag list means the item has none of that kind.
+	ImageTags               map[string]string
+	BackdropImageTags       []string
+	SeriesPrimaryImageTag   string
+	ParentBackdropItemID    string `json:"ParentBackdropItemId"`
+	ParentBackdropImageTags []string
 }
 
 type embySession struct {
@@ -78,6 +84,9 @@ type Session struct {
 	Progress      float64 `json:"progress"`
 	DurationLabel string  `json:"durationLabel"`
 	Transcoding   bool    `json:"transcoding"`
+	// Poster and Backdrop name the images to ask for: see PosterRequest.
+	Poster   string `json:"poster,omitempty"`
+	Backdrop string `json:"backdrop,omitempty"`
 }
 
 // MediaItem is an entry of a library.
@@ -122,6 +131,7 @@ func (s embySession) session() Session {
 		out.Title = item.SeriesName + ", " + episodeCode(*item)
 		out.Subtitle = item.Name
 	}
+	out.Poster, out.Backdrop = item.images()
 	if item.RunTimeTicks > 0 {
 		out.Progress = min(1, max(0, float64(s.PlayState.PositionTicks)/float64(item.RunTimeTicks)))
 		left := max(0, (item.RunTimeTicks-s.PlayState.PositionTicks+embyTicksPerMinute-1)/embyTicksPerMinute)
@@ -135,6 +145,29 @@ func (s embySession) session() Session {
 		}
 	}
 	return out
+}
+
+// images names what plays. An episode shows its series: its own image is a still of the
+// episode, and it seldom has a backdrop of its own.
+func (i embyItem) images() (poster, backdrop string) {
+	if i.SeriesID != "" {
+		if i.SeriesPrimaryImageTag != "" {
+			poster = i.SeriesID
+		}
+	} else if i.ImageTags["Primary"] != "" {
+		poster = i.ID
+	}
+	switch {
+	case i.SeriesID != "" && i.ParentBackdropItemID != "" && len(i.ParentBackdropImageTags) > 0:
+		backdrop = i.ParentBackdropItemID
+	case len(i.BackdropImageTags) > 0:
+		backdrop = i.ID
+	case i.ParentBackdropItemID != "" && len(i.ParentBackdropImageTags) > 0:
+		backdrop = i.ParentBackdropItemID
+	default:
+		return poster, ""
+	}
+	return poster, backdrop + embyBackdropSuffix
 }
 
 func remaining(minutes int64) string {
