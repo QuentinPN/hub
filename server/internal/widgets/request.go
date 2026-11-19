@@ -31,8 +31,9 @@ const (
 // HubWakeSpacing coalesces a write and the webhook that follows it into two reads at most.
 var HubWakeSpacing = 5 * time.Second
 
-// Routes and formats from Request's own source (docs/API.md, src/shared). The key acts as
-// the owner who made it: Hub reads every demand, and writes only what the user asks for here.
+// Routes and formats from Request's own source (docs/API.md, src/shared). The key has the
+// scope its owner gave it: Hub reads every demand, and writes only what the user asks for here,
+// which a "read" key cannot.
 // No X-Request header: that one is for cookie sessions, and mixing them is refused.
 type request struct{}
 
@@ -44,7 +45,7 @@ func (request) Manifest() Manifest {
 	return Manifest{
 		Kind:    "request",
 		Name:    "Request",
-		KeyHelp: "Dans Request : Réglages, API, Créer une clé. Elle agit avec les droits de qui la crée : crée-la avec le compte propriétaire, réservée à Hub.",
+		KeyHelp: "Dans Request : Réglages › API, Créer une clé avec la portée « Demandes » (lire, approuver, refuser, demander), réservée à Hub. « Lecture » suffit si tu ne veux qu'afficher.",
 		Reads: []string{
 			"GET /api/auth/me", "GET /api/requests/counts", "GET /api/issues/counts", "GET /api/requests", "GET /api/issues",
 			"GET /api/stats", "GET /api/images/w342/… : affiches", "GET /api/search : quand tu cherches un titre depuis Hub",
@@ -82,11 +83,12 @@ func (request) PosterRequest(ref string) (string, url.Values, bool) {
 }
 
 // Requests counts what waits for the owner. PendingApprovals is null for a key that cannot
-// approve.
+// approve. CanAct is false only for a key limited to reading.
 type Requests struct {
 	PendingApprovals *int `json:"pendingApprovals"`
 	MineActive       int  `json:"mineActive"`
 	OpenIssues       int  `json:"openIssues"`
+	CanAct           bool `json:"canAct"`
 }
 
 // RequestItem is what a demand shows in any list.
@@ -233,7 +235,24 @@ type (
 	}
 )
 
-func (request) counts(ctx context.Context, c *Conn) (Requests, error) {
+// hubReadScope is the API key scope that opens GETs only (src/shared/api-keys.ts).
+const hubReadScope = "read"
+
+// canAct is whether the key may approve, decline or ask: /api/auth/me names its scope. An older
+// Request sends none, and its keys acted as their owner.
+func (request) canAct(ctx context.Context, c *Conn) (bool, error) {
+	var me struct{ APIKeyScope string }
+	if err := c.GetJSON(ctx, "/api/auth/me", nil, &me); err != nil {
+		return false, err
+	}
+	return me.APIKeyScope != hubReadScope, nil
+}
+
+func (u request) counts(ctx context.Context, c *Conn) (Requests, error) {
+	canAct, err := u.canAct(ctx, c)
+	if err != nil {
+		return Requests{}, err
+	}
 	var counts hubCounts
 	if err := c.GetJSON(ctx, "/api/requests/counts", nil, &counts); err != nil {
 		return Requests{}, err
@@ -242,14 +261,10 @@ func (request) counts(ctx context.Context, c *Conn) (Requests, error) {
 	if err := c.GetJSON(ctx, "/api/issues/counts", nil, &issues); err != nil {
 		return Requests{}, err
 	}
-	return Requests{PendingApprovals: counts.PendingApprovals, MineActive: counts.MineActive, OpenIssues: issues.Open}, nil
+	return Requests{PendingApprovals: counts.PendingApprovals, MineActive: counts.MineActive, OpenIssues: issues.Open, CanAct: canAct}, nil
 }
 
 func (u request) Probe(ctx context.Context, c *Conn) (Probe, error) {
-	var me struct{}
-	if err := c.GetJSON(ctx, "/api/auth/me", nil, &me); err != nil {
-		return Probe{}, err
-	}
 	r, err := u.counts(ctx, c)
 	if err != nil {
 		return Probe{}, err

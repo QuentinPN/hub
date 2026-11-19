@@ -2,12 +2,16 @@
 	import { tick } from 'svelte';
 	import { errorMessage, approveRequest, declineRequest } from '#lib/api/client.ts';
 	import type { PendingRequest, PendingRequests } from '#lib/api/types.ts';
-	import { REASON_MAX, cleanReason, pendingPoster } from '#lib/request.ts';
+	import { REASON_MAX, cleanReason, pendingPoster, readOnlyHint } from '#lib/request.ts';
 	import PosterWithActions from './PosterWithActions.svelte';
 	import Shelf from './Shelf.svelte';
 
-	let { slug, pending, onwrite }: { slug: string; pending: PendingRequests; onwrite?: () => void } =
-		$props();
+	let {
+		slug,
+		pending,
+		canAct = true,
+		onwrite
+	}: { slug: string; pending: PendingRequests; canAct?: boolean; onwrite?: () => void } = $props();
 
 	// Les demandes traitées d'ici : la relecture du serveur les retire à son tour, mais une
 	// relecture arrivée trop tôt ne doit pas les faire revenir.
@@ -89,26 +93,31 @@
 		<Shelf title="À approuver" id="w-pending">
 			{#each items as item (item.id)}
 				<PosterWithActions item={pendingPoster(item, slug)}>
-					<button
-						type="button"
-						class="btn btn-base primary"
-						data-approve
-						aria-label="Approuver {item.title}"
-						disabled={busy}
-						onclick={() => approve(item)}>Approuver</button
-					>
-					<button
-						type="button"
-						class="btn btn-base"
-						data-decline={item.id}
-						aria-label="Refuser {item.title}"
-						aria-expanded={declining?.id === item.id}
-						disabled={busy}
-						onclick={() => openDecline(item)}>Refuser</button
-					>
+					{#if canAct}
+						<button
+							type="button"
+							class="btn btn-base primary"
+							data-approve
+							aria-label="Approuver {item.title}"
+							disabled={busy}
+							onclick={() => approve(item)}>Approuver</button
+						>
+						<button
+							type="button"
+							class="btn btn-base"
+							data-decline={item.id}
+							aria-label="Refuser {item.title}"
+							aria-expanded={declining?.id === item.id}
+							disabled={busy}
+							onclick={() => openDecline(item)}>Refuser</button
+						>
+					{/if}
 				</PosterWithActions>
 			{/each}
 		</Shelf>
+		{#if !canAct}
+			<p class="muted more">{readOnlyHint('approuver')}</p>
+		{/if}
 		{#if overflow > 0}
 			<p class="muted more">
 				{overflow === 1 ? '1 autre demande attend' : `${overflow} autres demandes attendent`} dans Request.
