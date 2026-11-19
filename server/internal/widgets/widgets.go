@@ -109,6 +109,9 @@ type Probe struct {
 	Options []Option `json:"options"`
 	// Systems names what a MapHosts connector found.
 	Systems []string `json:"-"`
+	// CanAct is whether the key may write, for a connector whose keys have a scope; nil when
+	// the service does not say. It is kept with the connection, not read again at each refresh.
+	CanAct *bool `json:"-"`
 }
 
 // Connector reads one kind of service.

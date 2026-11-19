@@ -165,26 +165,72 @@ func TestRowsListWhatHubKnowsFirstTheActionable(t *testing.T) {
 	}
 }
 
-func TestRowsSayWhetherARequestKeyCanAct(t *testing.T) {
+// The key's permission is kept with the connection: it shows in the row and in the fiche
+// whatever widgets are on, and a refresh leaves it be.
+func TestConnectionKeepsWhetherTheKeyCanAct(t *testing.T) {
 	e := newDiscoveryEnv(t, "mini")
 	e.snapshot(t, "mini", e.container("request", "request", "ghcr.io/quentinpn/request", "running"))
+	if err := e.store.SaveServiceURL(e.ctx, "request", "http://request", "", urlcheck.Result{Kind: urlcheck.KindOK, Status: 200}); err != nil {
+		t.Fatal(err)
+	}
 	for _, c := range []struct {
-		data string
-		want *bool
+		canAct *bool
+		want   *bool
 	}{
-		{`{"pendingApprovals":1,"mineActive":0,"openIssues":0,"canAct":false}`, new(false)},
-		{`{"pendingApprovals":1,"mineActive":0,"openIssues":0,"canAct":true}`, new(true)},
-		// Stored before the field existed: unknown, never "cannot act".
-		{`{"pendingApprovals":1,"mineActive":0,"openIssues":0}`, nil},
+		{new(false), new(false)},
+		{new(true), new(true)},
+		// Saved before the column existed, or by a connector that does not say: unknown, never "cannot act".
+		{nil, nil},
 	} {
-		e.connect(t, "request", "request", []string{"requests"}, map[string]string{"requests": c.data})
+		// The requests widget is off: only the stored permission can tell.
+		err := e.store.SaveWidgetConnection(e.ctx, "request", api.NewConnection{Kind: "request", URL: "http://request", KeyHint: "abcd",
+			Options: map[string]string{}, Enabled: []string{"pending"}, RefreshSeconds: 60, State: widgets.StateOK, CanAct: c.canAct, At: time.Now(),
+			Data: map[string]json.RawMessage{"pending": json.RawMessage(`{"total":0,"items":[]}`)}})
+		if err != nil {
+			t.Fatal(err)
+		}
 		rows, err := e.store.WidgetRows(e.ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
 		i := slices.IndexFunc(rows, func(r api.WidgetRow) bool { return r.Slug == "request" })
-		if i < 0 || (rows[i].CanAct == nil) != (c.want == nil) || c.want != nil && *rows[i].CanAct != *c.want {
-			t.Errorf("%s: %+v", c.data, rows)
+		if i < 0 || !sameFlag(rows[i].CanAct, c.want) {
+			t.Errorf("row: want %v, got %+v", c.want, rows)
+		}
+		d, err := e.store.Service(e.ctx, "request")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !sameFlag(d.Widget.Connection.CanAct, c.want) {
+			t.Errorf("fiche: want %v, got %v", c.want, d.Widget.Connection.CanAct)
+		}
+	}
+}
+
+func sameFlag(a, b *bool) bool { return a == nil && b == nil || a != nil && b != nil && *a == *b }
+
+func TestARefreshLeavesWhetherTheKeyCanActAlone(t *testing.T) {
+	e := newDiscoveryEnv(t, "mini")
+	e.snapshot(t, "mini", e.container("request", "request", "ghcr.io/quentinpn/request", "running"))
+	if err := e.store.SaveServiceURL(e.ctx, "request", "http://request", "", urlcheck.Result{Kind: urlcheck.KindOK, Status: 200}); err != nil {
+		t.Fatal(err)
+	}
+	err := e.store.SaveWidgetConnection(e.ctx, "request", api.NewConnection{Kind: "request", URL: "http://request", KeyHint: "abcd",
+		Options: map[string]string{}, Enabled: []string{"pending"}, RefreshSeconds: 60, State: widgets.StateOK, CanAct: new(false), At: time.Now()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	due := widgets.Due{Slug: "request", Generation: 1}
+	for _, state := range []widgets.State{widgets.StateOK, widgets.StateUnreachable} {
+		if err := e.store.RecordRead(e.ctx, due, map[string]json.RawMessage{}, state, time.Now()); err != nil {
+			t.Fatal(err)
+		}
+		d, err := e.store.Service(e.ctx, "request")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c := d.Widget.Connection.CanAct; c == nil || *c {
+			t.Errorf("after a %s read: %v", state, c)
 		}
 	}
 }

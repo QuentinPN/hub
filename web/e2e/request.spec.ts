@@ -1,22 +1,23 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { fixture, mockApi } from './api.ts';
+import { emitWidgets, fixture, mockApi, mockEvents } from './api.ts';
 
 const service = fixture('services-request') as {
 	widget: { connection: { data: Record<string, unknown> } & Record<string, unknown> };
 };
 
-// La même fiche, avec une clé Request limitée à la lecture.
+// La même fiche, avec une clé Request limitée à la lecture, relevée à l'enregistrement, et
+// le widget « Demandes » éteint : la portée ne dépend pas de lui.
+const dataWithoutRequests = { ...service.widget.connection.data, requests: undefined };
 const readOnlyService = {
 	...service,
 	widget: {
 		...service.widget,
 		connection: {
 			...service.widget.connection,
-			data: {
-				...service.widget.connection.data,
-				requests: { pendingApprovals: 3, mineActive: 2, openIssues: 1, canAct: false }
-			}
+			canAct: false,
+			enabled: ['pending', 'recent', 'issues', 'stats'],
+			data: dataWithoutRequests
 		}
 	}
 };
@@ -72,7 +73,7 @@ test('la fiche montre compteurs, demandes à approuver, suivi, signalements et s
 	expect(axe.violations).toEqual([]);
 });
 
-test('une clé en lecture seule : les demandes se voient, sans Approuver ni Refuser', async ({
+test('une clé en lecture seule, widget Demandes éteint : les demandes se voient, sans Approuver ni Refuser', async ({
 	page
 }) => {
 	await openTab(page, readOnlyService);
@@ -161,6 +162,8 @@ test('un 403 du serveur s’affiche tel quel et garde la demande', async ({ page
 // La page Tous les services, avec une connexion Request (`canAct` : ce que la ligne en dit).
 async function openSearch(page: Page, canAct?: boolean) {
 	await mockApi(page);
+	await mockEvents(page);
+	const state = { canAct };
 	const rows = fixture('widgets') as Record<string, unknown>[];
 	await page.route('**/api/v1/widgets', (route) =>
 		route.fulfill({
@@ -179,7 +182,7 @@ async function openSearch(page: Page, canAct?: boolean) {
 					state: 'ok',
 					dataAt: '2026-11-06T18:00:00Z',
 					failingSince: null,
-					...(canAct === undefined ? {} : { canAct })
+					...(state.canAct === undefined ? {} : { canAct: state.canAct })
 				}
 			]
 		})
@@ -203,11 +206,11 @@ async function openSearch(page: Page, canAct?: boolean) {
 			}
 		});
 	});
-	return searches;
+	return { searches, state };
 }
 
 test('la recherche propose de demander un titre', async ({ page }) => {
-	const searches = await openSearch(page);
+	const { searches } = await openSearch(page);
 	const requests: unknown[] = [];
 	await page.route('**/api/v1/services/request/requests', (route) => {
 		requests.push(route.request().postDataJSON());
@@ -248,6 +251,21 @@ test('une clé en lecture seule : résultats et statuts, mais ni « Demander » 
 	await expect(shelf.getByText('Demandé', { exact: true })).toBeVisible();
 	await expect(shelf.getByRole('button')).toHaveCount(0);
 	await expect(page.getByText(HINT('demander'))).toHaveCount(1);
+});
+
+test('la recherche suit la clé : un signal du serveur relit la portée', async ({ page }) => {
+	const { state } = await openSearch(page, false);
+	await page.goto('/services');
+	await page.locator('#catalogue-search').fill('matrix');
+	const shelf = page.getByRole('region', { name: 'Demander dans Request' });
+	await expect(shelf.getByText('Matrix', { exact: true })).toBeVisible();
+	await expect(shelf.getByRole('button')).toHaveCount(0);
+
+	// La clé est remplacée par une clé « Demandes » : le serveur le signale.
+	state.canAct = true;
+	await emitWidgets(page, 'request');
+	await expect(shelf.getByRole('button', { name: 'Demander Matrix' })).toBeVisible();
+	await expect(page.getByText(HINT('demander'))).toHaveCount(0);
 });
 
 test('sans connexion Request, la recherche reste celle du catalogue', async ({ page }) => {

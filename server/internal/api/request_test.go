@@ -63,6 +63,8 @@ type connStore struct {
 	*fixture.Store
 	keys    *memKeys
 	targets map[string]api.WidgetTarget
+	// saved is what the last save wrote.
+	saved api.NewConnection
 }
 
 func (s *connStore) WidgetRows(context.Context) ([]api.WidgetRow, error) { return nil, nil }
@@ -75,7 +77,8 @@ func (s *connStore) WidgetTarget(_ context.Context, slug string) (api.WidgetTarg
 	return t, nil
 }
 
-func (s *connStore) SaveWidgetConnection(context.Context, string, api.NewConnection) error {
+func (s *connStore) SaveWidgetConnection(_ context.Context, _ string, c api.NewConnection) error {
+	s.saved = c
 	return nil
 }
 func (s *connStore) DeleteWidgetConnection(context.Context, string) error { return nil }
@@ -128,6 +131,12 @@ func fakeRequestAPI(t *testing.T, seen *reached) *httptest.Server {
 			_, _ = w.Write([]byte(`{"error":"` + msg + `"}`))
 		}
 		switch r.URL.Path {
+		case "/api/auth/me":
+			_, _ = w.Write([]byte(`{"viewer":{"id":"u1"},"apiKeyScope":"read"}`))
+		case "/api/requests/counts":
+			_, _ = w.Write([]byte(`{"pendingApprovals":1,"mineActive":0}`))
+		case "/api/issues/counts":
+			_, _ = w.Write([]byte(`{"open":0}`))
 		case "/api/requests/403/approve":
 			refuse(http.StatusForbidden, "Droit requis")
 		case "/api/requests/409/approve":
@@ -172,6 +181,12 @@ func (w *wakes) take() []string {
 
 func actionsEnv(t *testing.T, origin string) (*env, *memKeys, *wakes, *reached) {
 	t.Helper()
+	e, _, keys, woken, seen := actionsStore(t, origin)
+	return e, keys, woken, seen
+}
+
+func actionsStore(t *testing.T, origin string) (*env, *connStore, *memKeys, *wakes, *reached) {
+	t.Helper()
 	seen := &reached{}
 	address := fakeRequestAPI(t, seen).URL
 	keys := &memKeys{vals: map[string]string{widgets.KeyName("hub"): hubKey, widgets.KeyName("emby"): "une-cle-emby"}}
@@ -187,7 +202,19 @@ func actionsEnv(t *testing.T, origin string) (*env, *memKeys, *wakes, *reached) 
 	keys.vals[widgets.KeyName("seerr")] = "une-cle-seerr"
 	woken := &wakes{}
 	e := newFullEnv(t, store, nil, &api.Widgets{Keys: keys, Bus: widgets.NewBus(), Wake: woken.wake, Origin: origin})
-	return e, keys, woken, seen
+	return e, store, keys, woken, seen
+}
+
+// The scope of a key is read when it is saved, and kept with the connection.
+func TestSavingARequestConnectionKeepsTheKeyScope(t *testing.T) {
+	e, store, _, _, _ := actionsStore(t, "")
+	body := `{"apiKey":"` + hubKey + `","widgets":["pending"],"refreshSeconds":60}`
+	if status, data := e.do(t, e.user, http.MethodPut, "/api/v1/services/hub/connection", body, nil); status != http.StatusOK {
+		t.Fatalf("%d %s", status, data)
+	}
+	if c := store.saved.CanAct; c == nil || *c {
+		t.Errorf("saved canAct: %v", c)
+	}
 }
 
 func TestRequestActionsReachRequestAndWakeTheConnection(t *testing.T) {
