@@ -226,7 +226,7 @@ func main() {
 	ui := webui.New()
 	srv := &http.Server{
 		Addr: *addr,
-		Handler: api.NewHandler(store, authSvc, iconSvc, agentsUI, &api.Widgets{Keys: secretStore, Bus: bus},
+		Handler: api.NewHandler(store, authSvc, iconSvc, agentsUI, &api.Widgets{Keys: secretStore, Bus: bus, Wake: widgets.Wake, Origin: os.Getenv("HUB_ORIGIN")},
 			&api.Runtime{Version: version, StartedAt: started, Secrets: secretStore, Streams: widgets.OpenStreams, Backups: backups, About: about, Notifications: notifier}, ui.Handler, ui.ScriptHashes),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

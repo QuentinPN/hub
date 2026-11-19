@@ -207,3 +207,18 @@ func TestSplitServiceIsAGroupOfItsOwn(t *testing.T) {
 		t.Fatal("a project's key read as a split")
 	}
 }
+
+// Request's own Compose file runs its image beside a Caddy of its own: the application is
+// the main container, by its image.
+func TestRequestIsRecognizedByItsImage(t *testing.T) {
+	groups := reconcile.Groups([]reconcile.Container{
+		{Name: "request-caddy-1", Image: "ghcr.io/quentinpn/request-caddy:latest", State: "running", ComposeProject: "request", ComposeService: "caddy"},
+		{Name: "request-request-1", Image: "ghcr.io/quentinpn/request:latest", State: "running", ComposeProject: "request", ComposeService: "request"},
+	})
+	if len(groups) != 1 {
+		t.Fatalf("got %d groups", len(groups))
+	}
+	if g := groups[0]; g.Slug != "request" || g.Name != "Request" || g.Category != "Médias" || g.RecognizedBy != "image request" {
+		t.Errorf("%+v", g)
+	}
+}

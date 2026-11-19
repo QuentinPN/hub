@@ -78,7 +78,7 @@ func (s *Store) MediaPage(ctx context.Context) (api.MediaPage, error) {
 	if err != nil {
 		return page, err
 	}
-	page.SectionBase, err = p.base([]string{"emby", "seerr", "sonarr", "radarr"}, func(e entry, c connection, state string) error {
+	page.SectionBase, err = p.base([]string{"emby", "request", "sonarr", "radarr"}, func(e entry, c connection, state string) error {
 		// Stale playbacks would say something false: only a connection that answers counts.
 		if sessions, ok, err := decode[[]api.Session](c, widgets.EmbySessions, widgets.EmbySessions); err != nil {
 			return err

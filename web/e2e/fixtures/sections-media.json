@@ -26,9 +26,9 @@
 	"latest": [
 		{ "title": "Un film", "detail": "Film", "kind": "movie", "addedAt": "2026-11-05T10:00:00Z" }
 	],
-	"requests": { "total": 9, "pending": 4, "approved": 2, "processing": 1, "available": 2 },
-	"requestsSlug": "seerr",
-	"requestsUrl": "http://192.0.2.14:5055",
+	"requests": { "pendingApprovals": 4, "mineActive": 2, "openIssues": 1 },
+	"requestsSlug": "request",
+	"requestsUrl": "http://192.0.2.14:8085",
 	"library": { "movies": 412, "series": 86, "episodes": 3120 },
 	"services": [
 		{

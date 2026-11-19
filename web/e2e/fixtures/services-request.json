@@ -1,0 +1,184 @@
+{
+	"slug": "request",
+	"name": "Request",
+	"monogram": "U",
+	"icon": null,
+	"color": "#7a5cff",
+	"category": "Médias",
+	"hostId": "mini-pc",
+	"status": "online",
+	"latencyMs": 31,
+	"note": "en ligne",
+	"favorite": false,
+	"url": "http://192.0.2.14:8085",
+	"version": "",
+	"tint": "#1f2a36",
+	"stats": [],
+	"upcoming": [],
+	"identification": [{ "label": "Reconnu par", "value": "image request" }],
+	"access": [{ "label": "request", "value": "en cours · principal" }],
+	"connection": [{ "label": "Widget", "value": "connecté" }],
+	"discovered": true,
+	"widget": {
+		"support": "ready",
+		"refreshChoices": [60, 300],
+		"manifest": {
+			"kind": "request",
+			"name": "Request",
+			"webhook": true,
+			"writes": true,
+			"defaultRefresh": 60,
+			"keyHelp": "Dans Request : Réglages, Clés d’API.",
+			"reads": [
+				"GET /api/requests/counts",
+				"GET /api/requests",
+				"GET /api/issues",
+				"GET /api/stats",
+				"POST /api/requests/…/approve et /decline : quand tu approuves ou refuses depuis Hub",
+				"POST /api/requests : quand tu demandes un titre depuis Hub"
+			],
+			"widgets": [
+				{ "id": "requests", "label": "Compteurs de demandes", "where": "Médias et fiche" },
+				{ "id": "pending", "label": "À approuver", "where": "fiche" },
+				{ "id": "recent", "label": "Suivi des demandes", "where": "fiche" },
+				{ "id": "issues", "label": "Signalements", "where": "fiche" },
+				{ "id": "stats", "label": "Statistiques", "where": "fiche" }
+			]
+		},
+		"connection": {
+			"state": "ok",
+			"keyHint": "9c1d",
+			"refreshSeconds": 60,
+			"enabled": ["requests", "pending", "recent", "issues", "stats"],
+			"options": {},
+			"dataAt": "2026-11-06T18:00:00Z",
+			"checkedAt": "2026-11-06T18:00:00Z",
+			"failingSince": null,
+			"webhook": { "configured": false },
+			"data": {
+				"requests": { "pendingApprovals": 3, "mineActive": 2, "openIssues": 1 },
+				"pending": {
+					"total": 3,
+					"items": [
+						{
+							"id": 12,
+							"mediaType": "movie",
+							"tmdbId": 603,
+							"title": "Matrix",
+							"year": 1999,
+							"poster": "matrix.jpg",
+							"requestedBy": "Alice",
+							"is4k": false,
+							"seasons": [],
+							"createdAt": "2026-11-06T10:00:00Z"
+						},
+						{
+							"id": 13,
+							"mediaType": "tv",
+							"tmdbId": 1396,
+							"title": "Breaking Bad",
+							"year": 2008,
+							"requestedBy": "Bob",
+							"is4k": true,
+							"seasons": [1, 2],
+							"createdAt": "2026-11-06T11:00:00Z"
+						},
+						{
+							"id": 14,
+							"mediaType": "movie",
+							"tmdbId": 27205,
+							"title": "Inception",
+							"year": 2010,
+							"requestedBy": "Chloé",
+							"is4k": false,
+							"seasons": [],
+							"createdAt": "2026-11-06T12:00:00Z"
+						}
+					]
+				},
+				"recent": {
+					"items": [
+						{
+							"id": 20,
+							"mediaType": "movie",
+							"tmdbId": 11,
+							"title": "Un film disponible",
+							"requestedBy": "Alice",
+							"status": "available",
+							"updatedAt": "2026-11-06T17:00:00Z"
+						},
+						{
+							"id": 21,
+							"mediaType": "tv",
+							"tmdbId": 12,
+							"title": "Une série en échec",
+							"requestedBy": "Bob",
+							"status": "failed",
+							"reason": "Sonarr injoignable",
+							"updatedAt": "2026-11-06T16:00:00Z"
+						},
+						{
+							"id": 22,
+							"mediaType": "movie",
+							"tmdbId": 13,
+							"title": "Un film refusé",
+							"requestedBy": "Chloé",
+							"status": "declined",
+							"reason": "Déjà dans la bibliothèque",
+							"updatedAt": "2026-11-06T15:00:00Z"
+						},
+						{
+							"id": 23,
+							"mediaType": "movie",
+							"tmdbId": 14,
+							"title": "Un film en attente",
+							"requestedBy": "Dan",
+							"status": "pending",
+							"updatedAt": "2026-11-06T14:00:00Z"
+						}
+					]
+				},
+				"issues": {
+					"total": 1,
+					"items": [
+						{
+							"id": 4,
+							"type": "subtitles",
+							"title": "Une série au mauvais sous-titrage",
+							"mediaType": "tv",
+							"createdBy": "Bob",
+							"season": 1,
+							"episode": 3,
+							"createdAt": "2026-11-06T09:00:00Z"
+						}
+					]
+				},
+				"stats": {
+					"total": 120,
+					"byMonth": [
+						{ "month": "2025-12", "count": 4 },
+						{ "month": "2026-01", "count": 8 },
+						{ "month": "2026-02", "count": 6 },
+						{ "month": "2026-03", "count": 20 },
+						{ "month": "2026-04", "count": 9 },
+						{ "month": "2026-05", "count": 11 },
+						{ "month": "2026-06", "count": 7 },
+						{ "month": "2026-07", "count": 10 },
+						{ "month": "2026-08", "count": 12 },
+						{ "month": "2026-09", "count": 9 },
+						{ "month": "2026-10", "count": 14 },
+						{ "month": "2026-11", "count": 10 }
+					],
+					"byType": { "movie": 80, "tv": 40 },
+					"byQuality": { "standard": 110, "fourK": 10 },
+					"medianAvailableSeconds": 93600,
+					"medianApprovalSeconds": null,
+					"topMembers": [
+						{ "name": "Alice", "count": 30 },
+						{ "name": "Bob", "count": 22 }
+					]
+				}
+			}
+		}
+	}
+}

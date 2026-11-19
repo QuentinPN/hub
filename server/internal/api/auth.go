@@ -19,7 +19,7 @@ import (
 // and no Domain, so no other host or path can plant or read it.
 const SessionCookie = "__Host-hub_session"
 
-// publicAPI are the only /api/ routes reachable without a session.
+// publicAPI are the only /api/ routes reachable without a session, with the webhooks (isHook).
 var publicAPI = map[string]bool{
 	"GET /api/v1/auth/state":  true,
 	"POST /api/v1/auth/setup": true,
@@ -74,7 +74,7 @@ func requireSession(svc *auth.Service, next http.Handler) http.Handler {
 			}
 			clearSessionCookie(w)
 		}
-		if publicAPI[r.Method+" "+r.URL.Path] {
+		if publicAPI[r.Method+" "+r.URL.Path] || isHook(r) {
 			next.ServeHTTP(w, r)
 			return
 		}

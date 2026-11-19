@@ -216,12 +216,13 @@ export interface InfraPage {
 	groups: { hostId: string; name: string; services: ServiceSummary[] }[];
 }
 
-export type WidgetSupport = 'ready' | 'planned' | 'link';
+/** Vide : Hub ne propose rien, ou n'a plus le connecteur d'une connexion gardée (Seerr). */
+export type WidgetSupport = 'ready' | 'planned' | 'link' | '';
 
 export type WidgetReadState = 'ok' | 'auth' | 'cert' | 'unreachable' | 'unexpected';
 
 /** Les deux derniers sont décidés par le serveur d'après le service tel qu'il est maintenant. */
-export type WidgetState = WidgetReadState | 'stopped' | 'address_changed';
+export type WidgetState = WidgetReadState | 'stopped' | 'address_changed' | 'unsupported';
 
 export interface WidgetManifest {
 	kind: string;
@@ -231,6 +232,12 @@ export interface WidgetManifest {
 	keyHelp: string;
 	/** Les requêtes du connecteur, et rien d'autre. */
 	reads: string[];
+	/** Une partie de ces requêtes change quelque chose chez le service. */
+	writes?: boolean;
+	/** Le service peut prévenir Hub de ses changements par webhook. */
+	webhook?: boolean;
+	/** Le rythme que le panneau propose d'abord, l'un de refreshChoices. */
+	defaultRefresh?: number;
 	widgets: { id: string; label: string; where: string }[];
 }
 
@@ -250,23 +257,117 @@ export interface WidgetConnection {
 	dataAt: string | null;
 	checkedAt: string | null;
 	failingSince: string | null;
+	/** Présent pour un connecteur qui reçoit un webhook ; jamais le secret. */
+	webhook?: { configured: boolean };
 	data: {
 		sessions?: Session[];
 		latest?: MediaItem[];
 		library?: { movies: number; series: number; episodes: number };
 		calendar?: UpcomingItem[];
 		queue?: { total: number; downloading: number; problems: number };
-		requests?: {
-			total: number;
-			pending: number;
-			approved: number;
-			processing: number;
-			available: number;
-		};
+		/** Request : les compteurs, puis ce qui se lit ensuite (voir les types plus bas). */
+		requests?: RequestCounts;
+		pending?: PendingRequests;
+		recent?: RecentRequests;
+		issues?: IssueList;
+		stats?: RequestStats;
 		indexers?: { enabled: number; failing: number };
 		systems?: { name: string; status: string; cpu: number; memory: number; disk: number }[];
 		transfer?: { downSpeed: number; upSpeed: number; downloading: number; connection: string };
 	};
+}
+
+export type RequestMediaType = 'movie' | 'tv';
+
+export type RequestStatus =
+	'pending' | 'approved' | 'declined' | 'cancelled' | 'sent' | 'failed' | 'available';
+
+/** `pendingApprovals` est null quand le compte ne voit pas les approbations. */
+export interface RequestCounts {
+	pendingApprovals: number | null;
+	mineActive: number;
+	openIssues: number;
+}
+
+export interface PendingRequest {
+	id: number;
+	mediaType: RequestMediaType;
+	tmdbId: number;
+	title: string;
+	year?: number;
+	poster?: string;
+	requestedBy: string;
+	is4k: boolean;
+	seasons: number[];
+	createdAt: string;
+}
+
+/** Une seule page : `total` peut dépasser le nombre d'éléments. */
+export interface PendingRequests {
+	total: number;
+	items: PendingRequest[];
+}
+
+export interface RecentRequests {
+	items: {
+		id: number;
+		mediaType: RequestMediaType;
+		tmdbId: number;
+		title: string;
+		year?: number;
+		poster?: string;
+		requestedBy: string;
+		status: RequestStatus;
+		/** Motif d'échec ou de refus, absent sans. */
+		reason?: string;
+		updatedAt: string;
+	}[];
+}
+
+export type IssueType = 'video' | 'audio' | 'subtitles' | 'other';
+
+export interface IssueList {
+	total: number;
+	items: {
+		id: number;
+		type: IssueType;
+		title: string;
+		mediaType: RequestMediaType;
+		poster?: string;
+		createdBy: string | null;
+		season?: number;
+		episode?: number;
+		createdAt: string;
+	}[];
+}
+
+export interface RequestStats {
+	total: number;
+	/** Douze mois, le plus ancien d'abord. */
+	byMonth: { month: string; count: number }[];
+	byType: { movie: number; tv: number };
+	byQuality: { standard: number; fourK: number };
+	medianAvailableSeconds: number | null;
+	medianApprovalSeconds: number | null;
+	topMembers: { name: string; count: number }[];
+}
+
+/** Le statut que la recherche donne à un titre ; null : pas encore demandé. */
+export type SearchStatus =
+	'available' | 'partial' | 'downloading' | 'requested' | 'pending' | 'declined';
+
+export interface RequestSearchItem {
+	mediaType: RequestMediaType;
+	tmdbId: number;
+	title: string;
+	year?: number;
+	poster?: string;
+	status: SearchStatus | null;
+}
+
+export interface WebhookSecret {
+	url: string;
+	secret: string;
 }
 
 export interface MediaItem {
@@ -293,6 +394,8 @@ export interface WidgetRow {
 	hostId: string;
 	hasUrl: boolean;
 	support: WidgetSupport;
+	/** Le connecteur de la connexion, absent tant que le service n'est pas connecté. */
+	kind?: string;
 	/** Vide tant que le service n'est pas connecté. */
 	state: WidgetState | '';
 	dataAt: string | null;
