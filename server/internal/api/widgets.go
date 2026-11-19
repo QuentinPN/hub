@@ -51,8 +51,10 @@ type NewConnection struct {
 	Enabled        []string
 	RefreshSeconds int
 	State          widgets.State
-	Data           map[string]json.RawMessage
-	At             time.Time
+	// CanAct is the key's write permission as the last test found it; nil when unknown.
+	CanAct *bool
+	Data   map[string]json.RawMessage
+	At     time.Time
 }
 
 // WidgetKeys keeps the connections' keys, sealed.
@@ -313,7 +315,7 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live 
 		}
 		err = editor.SaveWidgetConnection(r.Context(), slug, NewConnection{
 			Kind: t.Kind, URL: t.URL, KeyHint: hint, Options: options, Enabled: body.Widgets,
-			RefreshSeconds: body.RefreshSeconds, State: state, Data: data, At: time.Now(),
+			RefreshSeconds: body.RefreshSeconds, State: state, CanAct: probe.CanAct, Data: data, At: time.Now(),
 		})
 		if err != nil {
 			respond(w, r)(nil, err)

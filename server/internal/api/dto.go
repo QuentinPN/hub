@@ -266,6 +266,9 @@ type WidgetConnection struct {
 	Data map[string]json.RawMessage `json:"data"`
 	// Webhook is set for a connector the service can warn through its webhook.
 	Webhook *WebhookState `json:"webhook,omitempty"`
+	// CanAct is false for a key limited to reading, as found when the connection was saved;
+	// absent when not known, which the page takes as able to act.
+	CanAct *bool `json:"canAct,omitempty"`
 }
 
 // WebhookState never carries the secret: it is shown once, when made.
@@ -289,8 +292,7 @@ type WidgetRow struct {
 	State        string     `json:"state"`
 	DataAt       *time.Time `json:"dataAt"`
 	FailingSince *time.Time `json:"failingSince"`
-	// CanAct is false for a Request key limited to reading; absent when not known (the
-	// widget is off, or not read yet), which the page takes as able to act.
+	// CanAct is WidgetConnection's, for the pages that only list the rows.
 	CanAct *bool `json:"canAct,omitempty"`
 }
 

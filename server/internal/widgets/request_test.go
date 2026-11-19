@@ -204,7 +204,7 @@ func TestRequestReadKeepsOnlyWhatTheWidgetsShow(t *testing.T) {
 	}
 
 	r := decodeWidget[widgets.Requests](t, data, widgets.WidgetRequests)
-	if r.PendingApprovals == nil || *r.PendingApprovals != 3 || r.MineActive != 2 || r.OpenIssues != 1 || !r.CanAct {
+	if r.PendingApprovals == nil || *r.PendingApprovals != 3 || r.MineActive != 2 || r.OpenIssues != 1 {
 		t.Errorf("requests: %+v", r)
 	}
 
@@ -275,16 +275,33 @@ func TestRequestReadsOnlyTheWidgetsAsked(t *testing.T) {
 }
 
 // Only a key limited to reading cannot act; an older Request names no scope, and its keys acted.
-func TestRequestKeyScopeSaysWhetherHubCanAct(t *testing.T) {
+// The probe reads the scope, once: the connection keeps it.
+func TestRequestProbeReadsTheKeyScope(t *testing.T) {
 	for scope, want := range map[string]bool{"read": false, "requests": true, "full": true, "": true} {
 		f := &fakeRequest{scope: scope}
-		data, state := widgets.Read(context.Background(), hubTarget(f.server(t)), secrets.NewValue(testKey), nil, []string{widgets.WidgetRequests})
+		p, state := widgets.TestKey(context.Background(), hubTarget(f.server(t)), secrets.NewValue(testKey))
 		if state != widgets.StateOK {
 			t.Fatalf("%q: %s", scope, state)
 		}
-		if r := decodeWidget[widgets.Requests](t, data, widgets.WidgetRequests); r.CanAct != want {
-			t.Errorf("scope %q: canAct %v, want %v", scope, r.CanAct, want)
+		if p.CanAct == nil || *p.CanAct != want {
+			t.Errorf("scope %q: canAct %v, want %v", scope, p.CanAct, want)
 		}
+	}
+}
+
+// The scope never changes: a refresh does not ask for it again, whatever widgets are on.
+func TestRequestReadDoesNotAskTheKeyScope(t *testing.T) {
+	f := &fakeRequest{scope: "read"}
+	data, state := widgets.Read(context.Background(), hubTarget(f.server(t)), secrets.NewValue(testKey), nil, hubAll)
+	if state != widgets.StateOK {
+		t.Fatalf("%s %v", state, data)
+	}
+	_, reads := f.seen()
+	if len(reads) == 0 || slices.ContainsFunc(reads, func(r string) bool { return strings.HasPrefix(r, "/api/auth/me") }) {
+		t.Errorf("%v", reads)
+	}
+	if strings.Contains(string(data[widgets.WidgetRequests]), "canAct") {
+		t.Errorf("requests: %s", data[widgets.WidgetRequests])
 	}
 }
 

@@ -30,13 +30,14 @@ type connection struct {
 	refreshSeconds, failures        int
 	data                            map[string]json.RawMessage
 	dataAt, failingSince            *time.Time
+	canAct                          *bool
 	checkedAt                       time.Time
 	generation                      int64
 }
 
 func (s *Store) connections(ctx context.Context) (map[string]connection, error) {
 	rows, err := s.pool.Query(ctx, `SELECT service_slug, kind, url, key_hint, state, options, enabled, refresh_seconds,
-			failures, data, data_at, failing_since, checked_at, generation
+			failures, data, data_at, failing_since, checked_at, generation, can_act
 		FROM widget_connections`)
 	if err != nil {
 		return nil, err
@@ -44,7 +45,7 @@ func (s *Store) connections(ctx context.Context) (map[string]connection, error) 
 	list, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (connection, error) {
 		var c connection
 		return c, row.Scan(&c.slug, &c.kind, &c.url, &c.keyHint, &c.state, &c.options, &c.enabled, &c.refreshSeconds,
-			&c.failures, &c.data, &c.dataAt, &c.failingSince, &c.checkedAt, &c.generation)
+			&c.failures, &c.data, &c.dataAt, &c.failingSince, &c.checkedAt, &c.generation, &c.canAct)
 	})
 	if err != nil {
 		return nil, err
@@ -105,7 +106,7 @@ func (c connection) dto(e entry) *api.WidgetConnection {
 	checked := c.checkedAt
 	out := &api.WidgetConnection{
 		State: state, KeyHint: c.keyHint, RefreshSeconds: c.refreshSeconds, Enabled: c.enabled, Options: c.options,
-		DataAt: c.dataAt, CheckedAt: &checked, FailingSince: c.failingSince, Data: map[string]json.RawMessage{},
+		DataAt: c.dataAt, CheckedAt: &checked, FailingSince: c.failingSince, Data: map[string]json.RawMessage{}, CanAct: c.canAct,
 	}
 	if keepsData(state) {
 		// Names of torrents and releases stay on the Téléchargements page.
@@ -286,12 +287,7 @@ func (s *Store) WidgetRows(ctx context.Context) ([]api.WidgetRow, error) {
 			HasURL: e.URL != nil, Support: support}
 		if conn != nil {
 			row.Kind, row.State, row.DataAt, row.FailingSince = kind, conn.stateFor(e), conn.dataAt, conn.failingSince
-			// A *bool: data stored before the field existed says nothing, not "cannot act".
-			if r, ok, err := decode[struct{ CanAct *bool }](*conn, widgets.WidgetRequests, widgets.WidgetRequests); err != nil {
-				return nil, err
-			} else if ok {
-				row.CanAct = r.CanAct
-			}
+			row.CanAct = conn.canAct
 		}
 		rows = append(rows, row)
 	}
@@ -357,14 +353,14 @@ func (s *Store) SaveWidgetConnection(ctx context.Context, slug string, c api.New
 		failingSince, failures = &c.At, 1
 	}
 	_, err := s.pool.Exec(ctx, `INSERT INTO widget_connections (service_slug, kind, url, key_hint, options, enabled,
-			refresh_seconds, state, failures, data, data_at, checked_at, failing_since)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+			refresh_seconds, state, failures, data, data_at, checked_at, failing_since, can_act)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		ON CONFLICT (service_slug) DO UPDATE SET kind = excluded.kind, url = excluded.url, key_hint = excluded.key_hint,
 			options = excluded.options, enabled = excluded.enabled, refresh_seconds = excluded.refresh_seconds,
 			state = excluded.state, failures = excluded.failures, data = excluded.data, data_at = excluded.data_at,
-			checked_at = excluded.checked_at, failing_since = excluded.failing_since,
+			checked_at = excluded.checked_at, failing_since = excluded.failing_since, can_act = excluded.can_act,
 			generation = widget_connections.generation + 1, updated_at = now()`,
-		slug, c.Kind, c.URL, c.KeyHint, c.Options, c.Enabled, c.RefreshSeconds, string(c.State), failures, data, dataAt, c.At, failingSince)
+		slug, c.Kind, c.URL, c.KeyHint, c.Options, c.Enabled, c.RefreshSeconds, string(c.State), failures, data, dataAt, c.At, failingSince, c.CanAct)
 	return err
 }
 
