@@ -83,12 +83,11 @@ func (request) PosterRequest(ref string) (string, url.Values, bool) {
 }
 
 // Requests counts what waits for the owner. PendingApprovals is null for a key that cannot
-// approve. CanAct is false only for a key limited to reading.
+// approve.
 type Requests struct {
 	PendingApprovals *int `json:"pendingApprovals"`
 	MineActive       int  `json:"mineActive"`
 	OpenIssues       int  `json:"openIssues"`
-	CanAct           bool `json:"canAct"`
 }
 
 // RequestItem is what a demand shows in any list.
@@ -238,8 +237,9 @@ type (
 // hubReadScope is the API key scope that opens GETs only (src/shared/api-keys.ts).
 const hubReadScope = "read"
 
-// canAct is whether the key may approve, decline or ask: /api/auth/me names its scope. An older
-// Request sends none, and its keys acted as their owner.
+// canAct is whether the key may approve, decline or ask: /api/auth/me names its scope. A key's
+// scope is fixed when it is made, so only the probe asks. An older Request sends none, and
+// its keys acted as their owner.
 func (request) canAct(ctx context.Context, c *Conn) (bool, error) {
 	var me struct{ APIKeyScope string }
 	if err := c.GetJSON(ctx, "/api/auth/me", nil, &me); err != nil {
@@ -248,11 +248,7 @@ func (request) canAct(ctx context.Context, c *Conn) (bool, error) {
 	return me.APIKeyScope != hubReadScope, nil
 }
 
-func (u request) counts(ctx context.Context, c *Conn) (Requests, error) {
-	canAct, err := u.canAct(ctx, c)
-	if err != nil {
-		return Requests{}, err
-	}
+func (request) counts(ctx context.Context, c *Conn) (Requests, error) {
 	var counts hubCounts
 	if err := c.GetJSON(ctx, "/api/requests/counts", nil, &counts); err != nil {
 		return Requests{}, err
@@ -261,15 +257,19 @@ func (u request) counts(ctx context.Context, c *Conn) (Requests, error) {
 	if err := c.GetJSON(ctx, "/api/issues/counts", nil, &issues); err != nil {
 		return Requests{}, err
 	}
-	return Requests{PendingApprovals: counts.PendingApprovals, MineActive: counts.MineActive, OpenIssues: issues.Open, CanAct: canAct}, nil
+	return Requests{PendingApprovals: counts.PendingApprovals, MineActive: counts.MineActive, OpenIssues: issues.Open}, nil
 }
 
 func (u request) Probe(ctx context.Context, c *Conn) (Probe, error) {
+	canAct, err := u.canAct(ctx, c)
+	if err != nil {
+		return Probe{}, err
+	}
 	r, err := u.counts(ctx, c)
 	if err != nil {
 		return Probe{}, err
 	}
-	return Probe{Note: requestsHeadline(r), Options: []Option{}}, nil
+	return Probe{Note: requestsHeadline(r), Options: []Option{}, CanAct: &canAct}, nil
 }
 
 func (u request) Fetch(ctx context.Context, c *Conn, enabled []string) (map[string]any, error) {

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { setFavorite, showHidden } from '#lib/api/client.ts';
+	import { getWidgetRows, setFavorite, showHidden } from '#lib/api/client.ts';
 	import { resolve } from '$app/paths';
-	import type { HiddenGroup, ServiceSummary } from '#lib/api/types.ts';
+	import type { HiddenGroup, ServiceSummary, WidgetRow } from '#lib/api/types.ts';
 	import AppCard from '#lib/components/AppCard.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
 	import RequestSearch from '#lib/components/RequestSearch.svelte';
@@ -13,6 +13,7 @@
 		type GroupBy,
 		type StatusFilter
 	} from '#lib/catalogue.ts';
+	import { onWidgetNews } from '#lib/live.ts';
 	import { statusStyle } from '#lib/status.ts';
 	import { tabTitle } from '#lib/shell.svelte.ts';
 	import { canAct, requestRow } from '#lib/request.ts';
@@ -77,6 +78,46 @@
 		}
 	}
 
+	// Relues, sans repasser par le squelette, quand le serveur signale du nouveau : une clé changée
+	// change ce que la recherche peut faire. Les rafales sont groupées ; un signal reçu onglet caché
+	// est rattrapé au retour. Un rechargement de la page rend ses lignes, plus récentes.
+	const NEWS_DEBOUNCE_MS = 500;
+	let freshRows = $state<WidgetRow[] | null>(null);
+	$effect(() => {
+		void data.widgets;
+		freshRows = null;
+	});
+	$effect(() => {
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		let missed = false;
+		const schedule = () => {
+			clearTimeout(timer);
+			timer = setTimeout(() => {
+				getWidgetRows(fetch)
+					.then((rows) => (freshRows = rows))
+					.catch(() => {});
+			}, NEWS_DEBOUNCE_MS);
+		};
+		const stop = onWidgetNews(() => {
+			if (document.visibilityState !== 'visible') {
+				missed = true;
+				return;
+			}
+			schedule();
+		});
+		const onVisible = () => {
+			if (document.visibilityState !== 'visible' || !missed) return;
+			missed = false;
+			schedule();
+		};
+		document.addEventListener('visibilitychange', onVisible);
+		return () => {
+			stop();
+			document.removeEventListener('visibilitychange', onVisible);
+			clearTimeout(timer);
+		};
+	});
+
 	const hostCount = (list: ServiceSummary[]) => new Set(list.map((s) => s.hostId)).size;
 	const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
 </script>
@@ -127,7 +168,7 @@
 	</div>
 
 	{#await data.widgets then rows}
-		{@const request = requestRow(rows)}
+		{@const request = requestRow(freshRows ?? rows)}
 		{#if request}
 			<RequestSearch slug={request.slug} {query} canAct={canAct(request.canAct)} />
 		{/if}

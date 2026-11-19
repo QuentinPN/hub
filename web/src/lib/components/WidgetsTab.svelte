@@ -203,7 +203,7 @@
 				<RequestPending
 					slug={service.slug}
 					pending={conn.data.pending}
-					canAct={canAct(conn.data.requests?.canAct)}
+					canAct={canAct(conn.canAct)}
 					onwrite={refresh}
 				/>
 			{/if}

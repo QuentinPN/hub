@@ -40,6 +40,44 @@ export function hostsNow(): unknown {
 	);
 }
 
+/**
+ * Remplace le flux de signaux du serveur par un faux, à brancher avant la navigation ;
+ * `emitWidgets` y fait passer un signal « du nouveau pour ce service ».
+ */
+export async function mockEvents(page: Page) {
+	await page.addInitScript(() => {
+		type Listener = (event: { data: string }) => void;
+		class FakeEventSource {
+			static CLOSED = 2;
+			static sources: FakeEventSource[] = [];
+			readyState = 1;
+			listeners: Record<string, Listener[]> = {};
+			constructor() {
+				FakeEventSource.sources.push(this);
+			}
+			addEventListener(type: string, listener: Listener) {
+				(this.listeners[type] ??= []).push(listener);
+			}
+			close() {
+				this.readyState = FakeEventSource.CLOSED;
+			}
+		}
+		Object.assign(window, {
+			EventSource: FakeEventSource,
+			__emitWidgets: (slug: string) => {
+				for (const source of FakeEventSource.sources)
+					for (const listener of source.listeners.widgets ?? []) listener({ data: slug });
+			}
+		});
+	});
+}
+
+export const emitWidgets = (page: Page, slug: string) =>
+	page.evaluate(
+		(s) => (window as unknown as { __emitWidgets(slug: string): void }).__emitWidgets(s),
+		slug
+	);
+
 /** Simule l'API ; `authenticated: false` reproduit un visiteur sans session. */
 export async function mockApi(page: Page, { authenticated = true } = {}) {
 	await page.route('**/api/v1/**', async (route) => {
