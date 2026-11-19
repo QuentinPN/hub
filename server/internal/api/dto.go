@@ -289,6 +289,9 @@ type WidgetRow struct {
 	State        string     `json:"state"`
 	DataAt       *time.Time `json:"dataAt"`
 	FailingSince *time.Time `json:"failingSince"`
+	// CanAct is false for a Request key limited to reading; absent when not known (the
+	// widget is off, or not read yet), which the page takes as able to act.
+	CanAct *bool `json:"canAct,omitempty"`
 }
 
 // WidgetTest answers a key test. The options only exist for a key that works.

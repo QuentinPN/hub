@@ -96,14 +96,21 @@ export function searchTerm(raw: string): string | null {
 }
 
 /** La recherche n'existe que pour une connexion de ce connecteur, établie et encore prise en charge. */
-export const requestSlug = (rows: WidgetRow[]): string | undefined =>
+export const requestRow = (rows: WidgetRow[]): WidgetRow | undefined =>
 	rows.find(
 		(r) =>
 			r.kind === REQUEST_KIND &&
 			r.support === 'ready' &&
 			r.state !== '' &&
 			r.state !== 'unsupported'
-	)?.slug;
+	);
+
+/** Une clé en lecture seule n'approuve, ne refuse ni ne demande ; sans l'info, on laisse agir (le 403 dira non). */
+export const canAct = (flag?: boolean) => flag !== false;
+
+/** Dit une fois, à la place des boutons qu'une clé en lecture seule ne peut pas porter. */
+export const readOnlyHint = (verb: 'approuver' | 'demander') =>
+	`Clé en lecture seule : crée une clé « Demandes » dans Request pour ${verb} depuis Hub.`;
 
 /** « Demander » n'est proposé que pour un titre qu'Request ne connaît pas encore. */
 export const isRequestable = (item: RequestSearchItem) => item.status === null;

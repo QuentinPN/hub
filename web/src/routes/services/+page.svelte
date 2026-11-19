@@ -15,7 +15,7 @@
 	} from '#lib/catalogue.ts';
 	import { statusStyle } from '#lib/status.ts';
 	import { tabTitle } from '#lib/shell.svelte.ts';
-	import { requestSlug } from '#lib/request.ts';
+	import { canAct, requestRow } from '#lib/request.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -127,9 +127,9 @@
 	</div>
 
 	{#await data.widgets then rows}
-		{@const requestSlug = requestSlug(rows)}
-		{#if requestSlug}
-			<RequestSearch slug={requestSlug} {query} />
+		{@const request = requestRow(rows)}
+		{#if request}
+			<RequestSearch slug={request.slug} {query} canAct={canAct(request.canAct)} />
 		{/if}
 	{/await}
 

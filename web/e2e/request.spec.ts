@@ -3,8 +3,26 @@ import { expect, test, type Page } from '@playwright/test';
 import { fixture, mockApi } from './api.ts';
 
 const service = fixture('services-request') as {
-	widget: { connection: Record<string, unknown> };
+	widget: { connection: { data: Record<string, unknown> } & Record<string, unknown> };
 };
+
+// La même fiche, avec une clé Request limitée à la lecture.
+const readOnlyService = {
+	...service,
+	widget: {
+		...service.widget,
+		connection: {
+			...service.widget.connection,
+			data: {
+				...service.widget.connection.data,
+				requests: { pendingApprovals: 3, mineActive: 2, openIssues: 1, canAct: false }
+			}
+		}
+	}
+};
+
+const HINT = (verb: string) =>
+	`Clé en lecture seule : crée une clé « Demandes » dans Request pour ${verb} depuis Hub.`;
 
 async function openTab(page: Page, detail: unknown = service) {
 	await mockApi(page);
@@ -52,6 +70,26 @@ test('la fiche montre compteurs, demandes à approuver, suivi, signalements et s
 
 	const axe = await new AxeBuilder({ page }).include('main').analyze();
 	expect(axe.violations).toEqual([]);
+});
+
+test('une clé en lecture seule : les demandes se voient, sans Approuver ni Refuser', async ({
+	page
+}) => {
+	await openTab(page, readOnlyService);
+	const shelf = page.getByRole('region', { name: 'À approuver', exact: true });
+	await expect(shelf.getByText('Matrix')).toBeVisible();
+	await expect(shelf.getByText('Breaking Bad')).toBeVisible();
+	await expect(page.getByRole('button', { name: /Approuver|Refuser/ })).toHaveCount(0);
+	await expect(page.getByText(HINT('approuver'))).toHaveCount(1);
+});
+
+test('une clé qui peut agir garde Approuver et Refuser, sans mention de lecture seule', async ({
+	page
+}) => {
+	await openTab(page);
+	await expect(page.getByRole('button', { name: 'Approuver Matrix' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Refuser Matrix' })).toBeVisible();
+	await expect(page.getByText(HINT('approuver'))).toHaveCount(0);
 });
 
 test('approuver appelle la route et retire la demande', async ({ page }) => {
@@ -120,7 +158,8 @@ test('un 403 du serveur s’affiche tel quel et garde la demande', async ({ page
 	await expect(page.getByRole('button', { name: 'Approuver Matrix' })).toBeEnabled();
 });
 
-test('la recherche propose de demander un titre', async ({ page }) => {
+// La page Tous les services, avec une connexion Request (`canAct` : ce que la ligne en dit).
+async function openSearch(page: Page, canAct?: boolean) {
 	await mockApi(page);
 	const rows = fixture('widgets') as Record<string, unknown>[];
 	await page.route('**/api/v1/widgets', (route) =>
@@ -139,7 +178,8 @@ test('la recherche propose de demander un titre', async ({ page }) => {
 					support: 'ready',
 					state: 'ok',
 					dataAt: '2026-11-06T18:00:00Z',
-					failingSince: null
+					failingSince: null,
+					...(canAct === undefined ? {} : { canAct })
 				}
 			]
 		})
@@ -163,6 +203,11 @@ test('la recherche propose de demander un titre', async ({ page }) => {
 			}
 		});
 	});
+	return searches;
+}
+
+test('la recherche propose de demander un titre', async ({ page }) => {
+	const searches = await openSearch(page);
 	const requests: unknown[] = [];
 	await page.route('**/api/v1/services/request/requests', (route) => {
 		requests.push(route.request().postDataJSON());
@@ -188,6 +233,21 @@ test('la recherche propose de demander un titre', async ({ page }) => {
 	await expect(shelf.getByRole('button', { name: /Demander/ })).toHaveCount(0);
 	await expect(shelf.getByText('Demandé', { exact: true })).toHaveCount(2);
 	expect(requests).toEqual([{ mediaType: 'movie', tmdbId: 603 }]);
+	await expect(page.getByText(HINT('demander'))).toHaveCount(0);
+});
+
+test('une clé en lecture seule : résultats et statuts, mais ni « Demander » ni autre bouton', async ({
+	page
+}) => {
+	await openSearch(page, false);
+	await page.goto('/services');
+	await page.locator('#catalogue-search').fill('matrix');
+	const shelf = page.getByRole('region', { name: 'Demander dans Request' });
+	await expect(shelf.getByText('Matrix', { exact: true })).toBeVisible();
+	await expect(shelf.getByText('Disponible', { exact: true })).toBeVisible();
+	await expect(shelf.getByText('Demandé', { exact: true })).toBeVisible();
+	await expect(shelf.getByRole('button')).toHaveCount(0);
+	await expect(page.getByText(HINT('demander'))).toHaveCount(1);
 });
 
 test('sans connexion Request, la recherche reste celle du catalogue', async ({ page }) => {

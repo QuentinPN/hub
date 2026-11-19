@@ -4,6 +4,7 @@
 	import {
 		SEARCH_DEBOUNCE_MS,
 		isRequestable,
+		readOnlyHint,
 		searchKey,
 		searchPoster,
 		searchTerm
@@ -13,7 +14,7 @@
 	import StatusPill from './StatusPill.svelte';
 
 	// `query` est le champ de recherche de la page : Request y répond à son tour.
-	let { slug, query }: { slug: string; query: string } = $props();
+	let { slug, query, canAct = true }: { slug: string; query: string; canAct?: boolean } = $props();
 
 	const term = $derived(searchTerm(query));
 
@@ -83,19 +84,24 @@
 						{#if requested.includes(searchKey(item))}
 							<StatusPill status="requested" />
 						{:else if isRequestable(item)}
-							<button
-								type="button"
-								class="btn btn-base"
-								aria-label="Demander {item.title}"
-								disabled={busyKey !== ''}
-								onclick={() => request(item)}>Demander</button
-							>
+							{#if canAct}
+								<button
+									type="button"
+									class="btn btn-base"
+									aria-label="Demander {item.title}"
+									disabled={busyKey !== ''}
+									onclick={() => request(item)}>Demander</button
+								>
+							{/if}
 						{:else if item.status}
 							<StatusPill status={item.status} />
 						{/if}
 					</PosterWithActions>
 				{/each}
 			</Shelf>
+			{#if !canAct}
+				<p class="muted">{readOnlyHint('demander')}</p>
+			{/if}
 		{:else}
 			<section aria-labelledby="request-search-empty">
 				<h2 id="request-search-empty">Demander dans Request</h2>
