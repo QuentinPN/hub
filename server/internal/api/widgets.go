@@ -2,9 +2,13 @@ package api
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"slices"
 	"strings"
@@ -62,6 +66,10 @@ type WidgetKeys interface {
 type Widgets struct {
 	Keys WidgetKeys
 	Bus  *widgets.Bus
+	// Wake asks for a connection's read now: after a write, or on its webhook (widgets.Wake).
+	Wake func(slug string)
+	// Origin is HUB_ORIGIN, the dashboard's public address; "" to take the request's.
+	Origin string
 }
 
 // A key goes in a header: nothing that could break out of one.
@@ -100,8 +108,8 @@ func allowedOptions(asked map[string]string, offered []widgets.Option) map[strin
 func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live *Widgets, authSvc *auth.Service) {
 	keys := live.Keys
 	audit := func(r *http.Request, kind, detail string) {
+		auditEvent(r, authSvc, kind, detail)
 		p, _ := current(r.Context())
-		authSvc.Audit(r.Context(), auth.Event{Kind: kind, UserID: &p.user.ID, IP: clientOf(r).IP, Detail: detail})
 		recordEdit(r, store, detail, kind, &p.user.ID)
 	}
 	// target checks the service can be connected, and writes the refusal otherwise.
@@ -193,21 +201,29 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live 
 		streamEvents(w, r, live.Bus)
 	})
 
-	// The image goes through the server: only it holds the key. Nothing here reveals why a
-	// poster is missing: the page falls back on its flat color.
-	mux.HandleFunc("GET /api/v1/posters/{slug}/{ref}", func(w http.ResponseWriter, r *http.Request) {
+	// connected is what a stored connection may use: its key, on the address it was tested on.
+	connected := func(r *http.Request) (widgets.Target, secrets.Value, bool) {
 		slug := r.PathValue("slug")
 		t, err := editor.WidgetTarget(r.Context(), slug)
 		if err != nil || t.ConnectedURL == "" || t.ConnectedURL != t.URL {
-			writeError(w, http.StatusNotFound, "not found")
-			return
+			return widgets.Target{}, secrets.Value{}, false
 		}
 		key, err := keys.Get(r.Context(), widgets.KeyName(slug))
 		if err != nil {
+			return widgets.Target{}, secrets.Value{}, false
+		}
+		return widgets.Target{Kind: t.Kind, URL: t.URL, Pinned: t.Pinned}, key, true
+	}
+
+	// The image goes through the server: only it holds the key. Nothing here reveals why a
+	// poster is missing: the page falls back on its flat color.
+	mux.HandleFunc("GET /api/v1/posters/{slug}/{ref}", func(w http.ResponseWriter, r *http.Request) {
+		where, key, ok := connected(r)
+		if !ok {
 			writeError(w, http.StatusNotFound, "not found")
 			return
 		}
-		poster, ok := widgets.FetchPoster(r.Context(), widgets.Target{Kind: t.Kind, URL: t.URL, Pinned: t.Pinned}, key, r.PathValue("ref"))
+		poster, ok := widgets.FetchPoster(r.Context(), where, key, r.PathValue("ref"))
 		if !ok {
 			writeError(w, http.StatusNotFound, "not found")
 			return
@@ -217,6 +233,8 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live 
 		h.Set("Cache-Control", "private, max-age=86400")
 		_, _ = w.Write(poster.Body)
 	})
+
+	registerActions(mux, live, authSvc, connected)
 
 	mux.HandleFunc("GET /api/v1/widgets", func(w http.ResponseWriter, r *http.Request) {
 		respond(w, r)(editor.WidgetRows(r.Context()))
@@ -311,6 +329,87 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live 
 		writeJSON(w, http.StatusOK, WidgetSaved{Saved: true, Result: state, Service: &svc})
 	})
 
+	mux.HandleFunc("GET /api/v1/services/{slug}/connection", func(w http.ResponseWriter, r *http.Request) {
+		svc, err := store.Service(r.Context(), r.PathValue("slug"))
+		if err != nil {
+			respond(w, r)(nil, err)
+			return
+		}
+		if svc.Widget == nil || svc.Widget.Connection == nil {
+			writeError(w, http.StatusNotFound, "not found")
+			return
+		}
+		writeJSON(w, http.StatusOK, svc.Widget.Connection)
+	})
+
+	// A new secret replaces the last one at once: it is shown here, once, and never again.
+	mux.HandleFunc("POST /api/v1/services/{slug}/connection/webhook-secret", func(w http.ResponseWriter, r *http.Request) {
+		slug := r.PathValue("slug")
+		t, err := editor.WidgetTarget(r.Context(), slug)
+		if err != nil {
+			respond(w, r)(nil, err)
+			return
+		}
+		if !hasWebhook(t.Kind) || t.ConnectedURL == "" {
+			writeError(w, http.StatusBadRequest, "ce service n'a pas de webhook à relier")
+			return
+		}
+		raw := make([]byte, webhookSecretBytes)
+		if _, err := rand.Read(raw); err != nil {
+			internalError(w, r, err)
+			return
+		}
+		secret := base64.RawURLEncoding.EncodeToString(raw)
+		if err := keys.Put(r.Context(), widgets.WebhookName(slug), secrets.NewValue(secret)); err != nil {
+			internalError(w, r, err)
+			return
+		}
+		auditAction(r, authSvc, "widget_webhook_rotated")
+		live.Bus.Publish(slug)
+		writeJSON(w, http.StatusOK, WebhookSecret{URL: originOf(r, live.Origin) + hookPrefix + slug, Secret: secret})
+	})
+
+	// The service's signal that something changed: read it now. Public, behind its own secret,
+	// and the same refusal whatever is wrong, so that it tells nothing.
+	mux.HandleFunc("POST "+hookPrefix+"{slug}", func(w http.ResponseWriter, r *http.Request) {
+		ip := clientOf(r).IP
+		if err := authSvc.HookBlocked(ip); err != nil {
+			passkeyError(w, r, err)
+			return
+		}
+		refuse := func() {
+			authSvc.HookRefused(ip)
+			writeError(w, http.StatusUnauthorized, "unauthorized")
+		}
+		slug := r.PathValue("slug")
+		secret, err := keys.Get(r.Context(), widgets.WebhookName(slug))
+		if err != nil && !errors.Is(err, secrets.ErrNotFound) {
+			slog.Error("webhook", "service", slug, "err", err)
+		}
+		given := r.Header.Get("Authorization")
+		if err != nil || given == "" || subtle.ConstantTimeCompare([]byte(given), []byte(secret.Reveal())) != 1 {
+			refuse()
+			return
+		}
+		// Only now, signed: the connection must still be one that has a webhook.
+		if t, err := editor.WidgetTarget(r.Context(), slug); err != nil || !hasWebhook(t.Kind) {
+			refuse()
+			return
+		}
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxHookBody))
+		var tooLarge *http.MaxBytesError
+		switch {
+		case errors.As(err, &tooLarge):
+			writeError(w, http.StatusRequestEntityTooLarge, "body too large")
+			return
+		case err != nil || !json.Valid(body):
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		live.Wake(slug)
+		w.WriteHeader(http.StatusNoContent)
+	})
+
 	// Removing a connection erases its key, even if the row is already gone.
 	mux.HandleFunc("DELETE /api/v1/services/{slug}/connection", func(w http.ResponseWriter, r *http.Request) {
 		slug := r.PathValue("slug")
@@ -318,9 +417,11 @@ func registerWidgets(mux *http.ServeMux, store Store, editor WidgetEditor, live 
 			respond(w, r)(nil, err)
 			return
 		}
-		if err := keys.Delete(r.Context(), widgets.KeyName(slug)); err != nil && !errors.Is(err, secrets.ErrNotFound) {
-			internalError(w, r, err)
-			return
+		for _, name := range []string{widgets.KeyName(slug), widgets.WebhookName(slug)} {
+			if err := keys.Delete(r.Context(), name); err != nil && !errors.Is(err, secrets.ErrNotFound) {
+				internalError(w, r, err)
+				return
+			}
 		}
 		audit(r, "widget_disconnected", slug)
 		live.Bus.Publish(slug)

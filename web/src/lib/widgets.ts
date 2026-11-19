@@ -43,6 +43,13 @@ const views: Record<WidgetState, WidgetStateView> = {
 		color: 'var(--status-unknown)',
 		tone: 'idle'
 	},
+	unsupported: {
+		label: 'Plus pris en charge',
+		detail:
+			'Hub n’a plus le connecteur de ce service : seul le retrait de la connexion reste possible.',
+		color: 'var(--status-unknown)',
+		tone: 'idle'
+	},
 	address_changed: {
 		label: 'Adresse changée',
 		detail:
@@ -165,7 +172,7 @@ export function refreshLabel(seconds: number): string {
 // Pas encore d'affiches réelles : un aplat stable, le même pour un même titre.
 const TONES = ['#22303d', '#33293f', '#3a2a1c', '#1e3a33', '#3a2230', '#2a3347'];
 
-function toneOf(title: string): string {
+export function toneOf(title: string): string {
 	let sum = 0;
 	for (const c of title) sum = (sum + (c.codePointAt(0) ?? 0)) % TONES.length;
 	return TONES[sum] ?? '#22303d';

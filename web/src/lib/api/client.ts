@@ -21,6 +21,8 @@ import type {
 	NotifyChannel,
 	NotifyStatus,
 	PasskeyInfo,
+	RequestMediaType,
+	RequestSearchItem,
 	ServiceDetail,
 	ServiceEdit,
 	ServiceSplit,
@@ -32,6 +34,7 @@ import type {
 	Settings,
 	SmtpInput,
 	UrlCheckResponse,
+	WebhookSecret,
 	WidgetRow,
 	WidgetSave,
 	WidgetSaved,
@@ -49,6 +52,9 @@ export class ApiError extends Error {
 		super(message);
 	}
 }
+
+/** Le message à montrer pour une erreur d'appel : celui de l'API, sinon sa description. */
+export const errorMessage = (err: unknown) => (err instanceof ApiError ? err.message : String(err));
 
 type Fetch = typeof fetch;
 
@@ -210,6 +216,31 @@ export const saveWidgetConnection = (fetchFn: Fetch, slug: string, body: WidgetS
 
 export const deleteWidgetConnection = (fetchFn: Fetch, slug: string) =>
 	sendService(fetchFn, 'DELETE', `${servicePath(slug)}/connection`);
+
+/** Request : les écritures partent du serveur, qui garde la clé. 403 : la clé n'a pas le droit. */
+export const approveRequest = (fetchFn: Fetch, slug: string, id: number) =>
+	sendNoContent(fetchFn, 'POST', `${servicePath(slug)}/requests/${id}/approve`);
+
+export const declineRequest = (fetchFn: Fetch, slug: string, id: number, reason: string) =>
+	sendNoContent(fetchFn, 'POST', `${servicePath(slug)}/requests/${id}/decline`, { reason });
+
+export const requestMedia = (
+	fetchFn: Fetch,
+	slug: string,
+	media: { mediaType: RequestMediaType; tmdbId: number }
+) => sendNoContent(fetchFn, 'POST', `${servicePath(slug)}/requests`, media);
+
+export const searchRequests = async (fetchFn: Fetch, slug: string, q: string) =>
+	(
+		await getJson<{ items: RequestSearchItem[] }>(
+			fetchFn,
+			`${servicePath(slug)}/search?q=${encodeURIComponent(q)}`
+		)
+	).items;
+
+/** Le secret du webhook n'est montré qu'à cette réponse : le serveur n'en garde que le chiffré. */
+export const createWebhookSecret = (fetchFn: Fetch, slug: string) =>
+	postJson<WebhookSecret>(fetchFn, `${servicePath(slug)}/connection/webhook-secret`);
 
 export const getHiddenGroups = (fetchFn: Fetch) =>
 	getJson<HiddenGroup[]>(fetchFn, '/api/v1/hidden');

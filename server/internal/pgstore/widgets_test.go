@@ -3,10 +3,12 @@ package pgstore_test
 import (
 	"encoding/json"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"hub/server/internal/api"
+	"hub/server/internal/secrets"
 	"hub/server/internal/urlcheck"
 	"hub/server/internal/widgets"
 )
@@ -252,5 +254,70 @@ func TestHomeShowsTransfersWithTheirHost(t *testing.T) {
 	}
 	if len(home.Downloads) != 1 || home.Downloads[0].Label != "qBittorrent · qnap" || home.Downloads[0].Headline != "12,4 Mo/s" {
 		t.Errorf("%+v", home.Downloads)
+	}
+}
+
+// A connection made with a connector Hub no longer has (Seerr) stays until removed: shown as
+// such, never read, its data and cards gone, and removable.
+func TestConnectionOfAConnectorNoLongerInHub(t *testing.T) {
+	e := newDiscoveryEnv(t, "mini")
+	e.snapshot(t, "mini", e.container("seerr", "seerr", "seerr-team/seerr", "running", 5055))
+	e.connect(t, "seerr", "seerr", []string{"requests"}, map[string]string{"requests": `{"total":9,"pending":7}`})
+
+	d, err := e.store.Service(e.ctx, "seerr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Widget == nil || d.Widget.Support != widgets.SupportNone || d.Widget.Manifest != nil || d.Widget.Connection == nil ||
+		d.Widget.Connection.State != api.WidgetUnsupported || len(d.Widget.Connection.Data) != 0 || d.Widget.Connection.Webhook != nil {
+		t.Fatalf("%+v", d.Widget)
+	}
+	rows, err := e.store.WidgetRows(e.ctx)
+	if err != nil || len(rows) != 1 || rows[0].State != api.WidgetUnsupported {
+		t.Errorf("rows: %+v %v", rows, err)
+	}
+	due, err := e.store.DueConnections(e.ctx, time.Now().Add(time.Hour))
+	if err != nil || len(due) != 0 {
+		t.Errorf("due: %+v %v", due, err)
+	}
+	if live, err := e.store.LiveConnections(e.ctx); err != nil || len(live) != 0 {
+		t.Errorf("live: %+v %v", live, err)
+	}
+	home, err := e.store.Home(e.ctx)
+	if err != nil || len(home.Downloads) != 0 {
+		t.Errorf("home: %+v %v", home.Downloads, err)
+	}
+	target, err := e.store.WidgetTarget(e.ctx, "seerr")
+	if err != nil || target.Support != widgets.SupportNone {
+		t.Errorf("target: %+v %v", target, err)
+	}
+	if err := e.store.DeleteWidgetConnection(e.ctx, "seerr"); err != nil {
+		t.Fatal(err)
+	}
+	if d, err := e.store.Service(e.ctx, "seerr"); err != nil || d.Widget != nil {
+		t.Errorf("after removal: %+v %v", d.Widget, err)
+	}
+}
+
+func TestWebhookStateNeverCarriesTheSecret(t *testing.T) {
+	e := newDiscoveryEnv(t, "mini")
+	e.snapshot(t, "mini", e.container("request", "request", "ghcr.io/quentinpn/request", "running"))
+	e.connect(t, "request", "request", []string{"requests"}, map[string]string{"requests": `{"pendingApprovals":1,"mineActive":0,"openIssues":0}`})
+	webhook := func() *api.WebhookState {
+		d, err := e.store.Service(e.ctx, "request")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d.Widget.Connection.Webhook
+	}
+	if w := webhook(); w == nil || w.Configured {
+		t.Fatalf("%+v", w)
+	}
+	now := time.Now()
+	if err := e.store.PutSecretRow(e.ctx, secrets.Row{Name: widgets.WebhookName("request"), KeyID: "k", Ciphertext: []byte(strings.Repeat("x", 29)), CreatedAt: now, UpdatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	if w := webhook(); w == nil || !w.Configured {
+		t.Errorf("%+v", w)
 	}
 }

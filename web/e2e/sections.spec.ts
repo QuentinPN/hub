@@ -30,12 +30,12 @@ test('Médias rassemble lectures, demandes et bibliothèque', async ({ page }) =
 	await page.goto('/medias');
 	await expect(page.getByText('Le film du soir')).toBeVisible();
 	await expect(
-		page.getByText('1 lecture en cours · 1 à venir · 4 demandes en attente')
+		page.getByText('1 lecture en cours · 1 à venir · 4 demandes à approuver')
 	).toBeVisible();
 	await expect(page.getByRole('heading', { name: /Demandes/ })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Ouvrir Seerr' })).toHaveAttribute(
+	await expect(page.getByRole('link', { name: 'Ouvrir Request' })).toHaveAttribute(
 		'href',
-		'http://192.0.2.14:5055'
+		'http://192.0.2.14:8085'
 	);
 	await expect(page.getByText('412')).toBeVisible();
 });
@@ -101,14 +101,14 @@ test('une connexion en panne le dit sans masquer le reste', async ({ page }) => 
 		route.fulfill({
 			json: {
 				...media,
-				notices: [{ slug: 'seerr', name: 'Seerr', state: 'auth', dataAt: null }]
+				notices: [{ slug: 'request', name: 'Request', state: 'auth', dataAt: null }]
 			}
 		})
 	);
 	await page.goto('/medias');
-	await expect(page.getByRole('link', { name: /Seerr : clé refusée/ })).toHaveAttribute(
+	await expect(page.getByRole('link', { name: /Request : clé refusée/ })).toHaveAttribute(
 		'href',
-		'/services/seerr#widgets'
+		'/services/request#widgets'
 	);
 	await expect(page.getByText('Le film du soir')).toBeVisible();
 });

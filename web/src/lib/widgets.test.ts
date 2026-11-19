@@ -107,3 +107,10 @@ describe('widgets', () => {
 		expect(mediaPoster({ ...item, addedAt: '' }).when).toBe('');
 	});
 });
+
+describe('connecteurs', () => {
+	it('dit qu’une connexion sans connecteur ne peut plus que se retirer', () => {
+		expect(widgetStateView('unsupported').label).toBe('Plus pris en charge');
+		expect(widgetStateView('unsupported').tone).toBe('idle');
+	});
+});

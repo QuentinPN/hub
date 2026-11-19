@@ -5,6 +5,7 @@
 	import type { HiddenGroup, ServiceSummary } from '#lib/api/types.ts';
 	import AppCard from '#lib/components/AppCard.svelte';
 	import ErrorPanel from '#lib/components/ErrorPanel.svelte';
+	import RequestSearch from '#lib/components/RequestSearch.svelte';
 	import Skeleton from '#lib/components/Skeleton.svelte';
 	import {
 		SEARCH_INPUT_ID,
@@ -14,6 +15,7 @@
 	} from '#lib/catalogue.ts';
 	import { statusStyle } from '#lib/status.ts';
 	import { tabTitle } from '#lib/shell.svelte.ts';
+	import { requestSlug } from '#lib/request.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -123,6 +125,13 @@
 			<kbd>Ctrl+K</kbd>
 		</label>
 	</div>
+
+	{#await data.widgets then rows}
+		{@const requestSlug = requestSlug(rows)}
+		{#if requestSlug}
+			<RequestSearch slug={requestSlug} {query} />
+		{/if}
+	{/await}
 
 	{#await data.services}
 		<div class="grid" aria-busy="true">

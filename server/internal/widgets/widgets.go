@@ -1,9 +1,11 @@
-// Package widgets reads the services' own APIs, from the server. A connector only reads, a
-// key never leaves the server, and what reaches the browser is what the connector kept.
-// One failing connection never holds up another (WIDGETS.md).
+// Package widgets reads the services' own APIs, from the server. A connector reads on its own;
+// it only writes what the user asks for from Hub (Request's demands). A key never leaves
+// the server, and what reaches the browser is what the connector kept. One failing connection
+// never holds up another (WIDGETS.md).
 package widgets
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,9 +15,11 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/coder/websocket"
 
@@ -37,6 +41,11 @@ const (
 const (
 	// maxBody bounds an answer; beyond it the JSON is cut and reads as unexpected.
 	maxBody = 4 << 20
+	// maxSent bounds what a write sends, and maxRefusal what is read of a refusal.
+	maxSent    = 16 << 10
+	maxRefusal = 4 << 10
+	// refusalChars is how much of the service's own message reaches the user.
+	refusalChars = 300
 	// fetchTimeout bounds a whole read, several requests included.
 	fetchTimeout = 20 * time.Second
 	maxDelay     = 10 * time.Minute
@@ -70,9 +79,15 @@ type Manifest struct {
 	KeyHelp string `json:"keyHelp"`
 	// MapHosts asks which of the service's systems each Hub host is.
 	MapHosts bool `json:"-"`
-	// Reads lists the requests the connector makes: nothing else is ever sent.
-	Reads   []string `json:"reads"`
+	// Reads lists the requests the connector makes, writes included: nothing else is ever sent.
+	Reads []string `json:"reads"`
+	// Writes is set when some of Reads change something in the service.
+	Writes  bool     `json:"writes,omitempty"`
 	Widgets []Widget `json:"widgets"`
+	// DefaultRefresh is the rate the connection panel offers first, one of RefreshChoices.
+	DefaultRefresh int `json:"defaultRefresh,omitempty"`
+	// Webhook says the service can warn Hub of a change through POST /api/v1/hooks/{slug}.
+	Webhook bool `json:"webhook,omitempty"`
 }
 
 // Choice is one value of an Option.
@@ -117,8 +132,8 @@ const (
 )
 
 var (
-	connectors = map[string]Connector{"emby": emby{}, "sonarr": sonarr, "radarr": radarr, "qbittorrent": qbittorrent{}, "seerr": seerr{}, "prowlarr": prowlarr{}, "beszel": beszel{}}
-	planned    = map[string]bool{"jellyseerr": true}
+	connectors = map[string]Connector{"emby": emby{}, "sonarr": sonarr, "radarr": radarr, "qbittorrent": qbittorrent{}, "request": request{}, "prowlarr": prowlarr{}, "beszel": beszel{}}
+	planned    = map[string]bool{}
 	linkOnly   = map[string]bool{"dockhand": true}
 )
 
@@ -192,26 +207,9 @@ func (c *Conn) postJSON(ctx context.Context, path string, query url.Values, out 
 }
 
 func (c *Conn) requestJSON(ctx context.Context, method, path string, query url.Values, out any) error {
-	target := strings.TrimRight(c.base, "/") + path
-	if len(query) > 0 {
-		target += "?" + query.Encode()
-	}
-	req, err := http.NewRequestWithContext(ctx, method, target, nil)
+	resp, err := c.send(ctx, method, path, query, nil)
 	if err != nil {
-		return &Failure{StateUnexpected}
-	}
-	req.Header.Set("User-Agent", "Hub")
-	req.Header.Set("Accept", "application/json")
-	c.connector.Authorize(req, c.key)
-	if c.token != "" {
-		req.Header.Set("Authorization", c.token)
-	}
-	resp, err := c.client.Do(req)
-	if err != nil {
-		if c.certRefused() {
-			return &Failure{StateCert}
-		}
-		return &Failure{StateUnreachable}
+		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	switch {
@@ -222,10 +220,99 @@ func (c *Conn) requestJSON(ctx context.Context, method, path string, query url.V
 	case resp.StatusCode != http.StatusOK:
 		return &Failure{StateUnexpected}
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxBody)).Decode(out); err != nil {
+	return decodeBody(resp.Body, out)
+}
+
+// actJSON makes a request the user asked for. Unlike a read, any 2xx is a success and a 4xx
+// comes back as a Refusal in the service's own words; the connection's state never changes.
+func (c *Conn) actJSON(ctx context.Context, method, path string, query url.Values, body, out any) error {
+	resp, err := c.send(ctx, method, path, query, body)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	switch {
+	case resp.StatusCode >= 500:
+		return &Failure{StateUnreachable}
+	case resp.StatusCode >= 400:
+		return &Refusal{Status: resp.StatusCode, Message: refusalMessage(resp.Body)}
+	case resp.StatusCode < 200 || resp.StatusCode > 299:
+		return &Failure{StateUnexpected}
+	case out == nil:
+		return nil
+	}
+	return decodeBody(resp.Body, out)
+}
+
+// send makes a request under the service's address, with its key, and a JSON body if any.
+func (c *Conn) send(ctx context.Context, method, path string, query url.Values, body any) (*http.Response, error) {
+	target := strings.TrimRight(c.base, "/") + path
+	if len(query) > 0 {
+		target += "?" + query.Encode()
+	}
+	var content io.Reader
+	if body != nil {
+		raw, err := json.Marshal(body)
+		if err != nil || len(raw) > maxSent {
+			return nil, &Failure{StateUnexpected}
+		}
+		content = bytes.NewReader(raw)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, target, content)
+	if err != nil {
+		return nil, &Failure{StateUnexpected}
+	}
+	req.Header.Set("User-Agent", "Hub")
+	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	c.connector.Authorize(req, c.key)
+	if c.token != "" {
+		req.Header.Set("Authorization", c.token)
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		if c.certRefused() {
+			return nil, &Failure{StateCert}
+		}
+		return nil, &Failure{StateUnreachable}
+	}
+	return resp, nil
+}
+
+func decodeBody(body io.Reader, out any) error {
+	if err := json.NewDecoder(io.LimitReader(body, maxBody)).Decode(out); err != nil {
 		return &Failure{StateUnexpected}
 	}
 	return nil
+}
+
+// Refusal is a request the user asked for that the service turned down (4xx).
+type Refusal struct {
+	Status int
+	// Message is the service's own, cut short and without control characters; may be empty.
+	Message string
+}
+
+func (r *Refusal) Error() string { return "widget: refused with " + strconv.Itoa(r.Status) }
+
+// refusalMessage reads the {"error": "…"} most services send with a refusal.
+func refusalMessage(body io.Reader) string {
+	var e struct{ Error string }
+	if json.NewDecoder(io.LimitReader(body, maxRefusal)).Decode(&e) != nil {
+		return ""
+	}
+	msg := strings.TrimSpace(strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, e.Error))
+	if runes := []rune(msg); len(runes) > refusalChars {
+		msg = string(runes[:refusalChars]) + "…"
+	}
+	return msg
 }
 
 // dialWS opens a WebSocket under the service's address, with the rules of its client.
@@ -295,6 +382,9 @@ func Read(ctx context.Context, t Target, key secrets.Value, options map[string]s
 // KeyName is the secret holding a service's key.
 func KeyName(slug string) string { return "widget:" + slug + ":api_key" }
 
+// WebhookName is the secret a service's webhook must present.
+func WebhookName(slug string) string { return "widget:" + slug + ":webhook_secret" }
+
 // KeyHint keeps enough of a key to recognize it. A short key shows nothing.
 func KeyHint(key string) string {
 	if len(key) < 12 {
@@ -344,6 +434,27 @@ type Listener interface {
 	Listen(ctx context.Context, c *Conn, wake func())
 	// WakeSpacing keeps a chatty service from turning its signals into constant reads.
 	WakeSpacing() time.Duration
+}
+
+// woken holds, by service, the wake of a listener that only hears from outside: Hub's own
+// writes, or the service's webhook.
+var woken sync.Map // slug -> *func()
+
+// Wake asks for a connection's read now, through its listener: signals closer together than
+// its WakeSpacing make one read. Without a listener (« Économe », a connection saved a moment
+// ago, a connector that has none) it does nothing, and the next read on the clock catches up.
+func Wake(slug string) {
+	if v, ok := woken.Load(slug); ok {
+		(*v.(*func()))()
+	}
+}
+
+// holdWake lets Wake reach wake until ctx ends.
+func holdWake(ctx context.Context, slug string, wake func()) {
+	held := &wake
+	woken.Store(slug, held)
+	<-ctx.Done()
+	woken.CompareAndDelete(slug, held)
 }
 
 const (

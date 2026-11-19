@@ -22,8 +22,8 @@
 				? plural(p.sessions.length, 'lecture en cours', 'lectures en cours')
 				: '',
 			p.upcoming.length > 0 ? `${p.upcoming.length} à venir` : '',
-			p.requests?.pending
-				? plural(p.requests.pending, 'demande en attente', 'demandes en attente')
+			p.requests?.pendingApprovals
+				? plural(p.requests.pendingApprovals, 'demande à approuver', 'demandes à approuver')
 				: ''
 		].filter(Boolean);
 		return parts.join(' · ') || 'Rien en lecture';
@@ -65,20 +65,18 @@
 			<div class="column">
 				{#if page.requests}
 					<section class="card" aria-labelledby="requests">
-						<h2 id="requests">Demandes <span class="muted">· Seerr</span></h2>
-						<strong class="big">{page.requests.pending} en attente</strong>
+						<h2 id="requests">Demandes <span class="muted">· Request</span></h2>
+						<strong class="big">{page.requests.pendingApprovals ?? '—'} à approuver</strong>
 						<dl>
-							<dt class="muted">Approuvées</dt>
-							<dd class="tabular">{page.requests.approved}</dd>
-							<dt class="muted">En cours</dt>
-							<dd class="tabular">{page.requests.processing}</dd>
-							<dt class="muted">Disponibles</dt>
-							<dd class="tabular">{page.requests.available}</dd>
+							<dt class="muted">Mes demandes en cours</dt>
+							<dd class="tabular">{page.requests.mineActive}</dd>
+							<dt class="muted">Signalements ouverts</dt>
+							<dd class="tabular">{page.requests.openIssues}</dd>
 						</dl>
 						{#if page.requestsUrl}
 							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- adresse externe -->
 							<a class="btn" href={page.requestsUrl} target="_blank" rel="noopener noreferrer"
-								>Ouvrir Seerr</a
+								>Ouvrir Request</a
 							>
 						{/if}
 					</section>

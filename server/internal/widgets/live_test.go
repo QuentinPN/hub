@@ -19,6 +19,7 @@ import (
 func init() {
 	widgets.LiveFirstMessage = 500 * time.Millisecond
 	widgets.ArrWakeSpacing = 20 * time.Millisecond
+	widgets.HubWakeSpacing = 100 * time.Millisecond
 }
 
 const sessionsMsg = `{"MessageType":"Sessions","Data":[{"Id":"s1","NowPlayingItem":{"Id":"film"},"PlayState":{"IsPaused":%PAUSED%,"PositionTicks":%POS%}}]}`

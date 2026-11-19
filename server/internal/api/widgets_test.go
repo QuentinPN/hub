@@ -117,7 +117,7 @@ func TestWidgetKeyIsTestedSavedSealedAndNeverSentBack(t *testing.T) {
 
 	var rows []api.WidgetRow
 	e.sendJSON(t, http.MethodGet, "/api/v1/widgets", "", &rows)
-	if len(rows) != 1 || rows[0].Slug != "emby" || rows[0].State != "ok" {
+	if len(rows) != 1 || rows[0].Slug != "emby" || rows[0].State != "ok" || rows[0].Kind != "emby" {
 		t.Errorf("rows: %+v", rows)
 	}
 

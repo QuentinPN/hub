@@ -9,6 +9,7 @@
 	import type { ServiceDetail, WidgetManifest, WidgetTest } from '#lib/api/types.ts';
 	import { refreshLabel, testFailure } from '#lib/widgets.ts';
 	import ServiceIcon from './ServiceIcon.svelte';
+	import WebhookSetup from './WebhookSetup.svelte';
 
 	let {
 		service,
@@ -27,10 +28,12 @@
 	const choices = () => service.widget?.refreshChoices ?? [];
 	const offered = () => manifest.widgets.map((w) => w.id);
 	const needsAccount = () => manifest.auth === 'password';
+	const writes = () => manifest.writes === true;
+	const defaultRefresh = () => manifest.defaultRefresh;
 	let apiKey = $state('');
 	let identity = $state('');
 	let enabled = $state<string[]>(initial()?.enabled ?? offered());
-	let refresh = $state(initial()?.refreshSeconds ?? choices()[0] ?? 30);
+	let refresh = $state(initial()?.refreshSeconds ?? defaultRefresh() ?? choices()[0] ?? 30);
 	let options = $state<Record<string, string>>({ ...(initial()?.options ?? {}) });
 
 	let test = $state<WidgetTest | null>(null);
@@ -241,6 +244,15 @@
 				</div>
 			{/if}
 
+			<!-- Une connexion qui reçoit un webhook : déjà enregistrée, donc indépendant du test de la clé. -->
+			{#if initial()?.webhook}
+				<WebhookSetup
+					slug={service.slug}
+					configured={initial()?.webhook?.configured ?? false}
+					onrefresh={onsaved}
+				/>
+			{/if}
+
 			<p class="error" role="alert">{error}</p>
 
 			<footer>
@@ -271,16 +283,18 @@
 		<aside aria-label="Ce que Hub fera">
 			<h3>Ce que Hub fera</h3>
 			<div>
-				<strong>Lire, et rien d’autre</strong>
+				<strong>{writes() ? 'Lire, approuver, demander' : 'Lire, et rien d’autre'}</strong>
 				<code>
 					{#each manifest.reads as read (read)}
 						<span>{read}</span>
 					{/each}
 				</code>
 				<span class="muted"
-					>{needsAccount()
-						? 'Aucune écriture : c’est Hub qui se limite, et le rôle readonly le borne aussi.'
-						: 'Aucune écriture. Une clé peut sans doute faire plus : c’est Hub qui se limite.'}</span
+					>{writes()
+						? 'Hub lit les demandes et peut approuver, refuser ou demander un titre en ton nom. Il ne touche jamais aux réglages.'
+						: needsAccount()
+							? 'Aucune écriture : c’est Hub qui se limite, et le rôle readonly le borne aussi.'
+							: 'Aucune écriture. Une clé peut sans doute faire plus : c’est Hub qui se limite.'}</span
 				>
 			</div>
 			<div>

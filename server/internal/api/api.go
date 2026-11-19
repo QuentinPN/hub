@@ -187,11 +187,16 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 
 // sameOrigin rejects state-changing requests sent by another site (CSRF). Browsers set
 // Sec-Fetch-Site and Origin on such requests; a missing header is accepted for non-browser
-// clients, which still need a session cookie.
+// clients, which still need a session cookie. A webhook carries no cookie to abuse: its own
+// secret authenticates it.
 func sameOrigin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			next.ServeHTTP(w, r)
+			return
+		}
+		if isHook(r) {
 			next.ServeHTTP(w, r)
 			return
 		}

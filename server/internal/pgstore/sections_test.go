@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"hub/server/internal/agentproto"
 	"hub/server/internal/api"
 	"hub/server/internal/domain"
 	"hub/server/internal/urlcheck"
@@ -29,14 +30,20 @@ func (e *discoveryEnv) connect(t *testing.T, slug, kind string, enabled []string
 	}
 }
 
-func sectionsEnv(t *testing.T) *discoveryEnv {
-	t.Helper()
-	e := newDiscoveryEnv(t, "mini", "qnap")
-	e.snapshot(t, "mini",
+// sectionsMini is what runs on mini in sectionsEnv, plus extra.
+func (e *discoveryEnv) sectionsMini(extra ...agentproto.Container) []agentproto.Container {
+	return append([]agentproto.Container{
 		e.container("emby", "emby", "linuxserver/emby", "running", 8096),
 		e.container("sonarr", "sonarr", "linuxserver/sonarr", "running", 8989),
 		e.container("radarr", "radarr", "linuxserver/radarr", "running", 7878),
-		e.container("seerr", "seerr", "seerr-team/seerr", "running", 5055))
+		e.container("seerr", "seerr", "seerr-team/seerr", "running", 5055),
+	}, extra...)
+}
+
+func sectionsEnv(t *testing.T) *discoveryEnv {
+	t.Helper()
+	e := newDiscoveryEnv(t, "mini", "qnap")
+	e.snapshot(t, "mini", e.sectionsMini()...)
 	e.snapshot(t, "qnap", e.container("qbittorrent", "qbittorrent", "linuxserver/qbittorrent", "running", 8181))
 	return e
 }
@@ -112,12 +119,15 @@ func TestDownloadsPageSaysWhatIsRefused(t *testing.T) {
 
 func TestMediaPageGathersItsWidgets(t *testing.T) {
 	e := sectionsEnv(t)
+	e.snapshot(t, "mini", e.sectionsMini(e.container("request", "request", "ghcr.io/quentinpn/request:latest", "running"))...)
 	e.connect(t, "emby", "emby", []string{"sessions", "latest", "library"}, map[string]string{
 		"sessions": `[{"title":"Le film","device":"Salon","progress":0.5}]`,
 		"latest":   `[{"title":"Un film","detail":"Film","kind":"movie","addedAt":"2026-11-05T10:00:00Z"}]`,
 		"library":  `{"movies":412,"series":86,"episodes":3120}`,
 	})
-	e.connect(t, "seerr", "seerr", []string{"requests"}, map[string]string{"requests": `{"total":9,"pending":4}`})
+	e.connect(t, "request", "request", []string{"requests"}, map[string]string{"requests": `{"pendingApprovals":4,"mineActive":1,"openIssues":2}`})
+	// Seerr's connector is gone: its connection stays, out of every page.
+	e.connect(t, "seerr", "seerr", []string{"requests"}, map[string]string{"requests": `{"total":9,"pending":7}`})
 	e.connect(t, "radarr", "radarr", []string{"calendar"}, map[string]string{"calendar": `[{"title":"Un film","detail":"En salle · Radarr","kind":"movie","at":"2030-01-08T00:00:00Z"}]`})
 
 	page, err := e.store.MediaPage(e.ctx)
@@ -127,13 +137,14 @@ func TestMediaPageGathersItsWidgets(t *testing.T) {
 	if page.Connected != 3 || page.SessionsSlug != "emby" || len(page.Sessions) != 1 || len(page.Latest) != 1 || len(page.Upcoming) != 1 {
 		t.Errorf("%+v", page)
 	}
-	if page.Library == nil || page.Library.Movies != 412 || page.Requests == nil || page.Requests.Pending != 4 || page.RequestsSlug != "seerr" {
+	if page.Library == nil || page.Library.Movies != 412 || page.Requests == nil || page.Requests.PendingApprovals == nil ||
+		*page.Requests.PendingApprovals != 4 || page.Requests.OpenIssues != 2 || page.RequestsSlug != "request" || len(page.Notices) != 0 {
 		t.Errorf("%+v", page)
 	}
-	if page.RequestsURL == nil || *page.RequestsURL != "http://seerr" {
+	if page.RequestsURL == nil || *page.RequestsURL != "http://request" {
 		t.Errorf("%v", page.RequestsURL)
 	}
-	if len(page.Services) != 2 { // Emby and Seerr are the catalogue's media services
+	if len(page.Services) != 3 { // Emby, Seerr and Request are the catalogue's media services
 		t.Errorf("services: %+v", page.Services)
 	}
 }

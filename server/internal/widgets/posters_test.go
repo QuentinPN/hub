@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ func TestPostersComeOnlyFromTheImageRoutes(t *testing.T) {
 			return
 		}
 		switch r.URL.Path {
-		case "/emby/Items/abc/Images/Primary", "/emby/Items/abc/Images/Backdrop", "/api/v3/mediacover/12/poster-500.jpg":
+		case "/emby/Items/abc/Images/Primary", "/emby/Items/abc/Images/Backdrop", "/api/v3/mediacover/12/poster-500.jpg", "/api/images/w342/a_B-9.jpg":
 			_, _ = w.Write(pngBytes)
 		case "/api/v3/mediacover/13/poster-500.jpg":
 			_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`))
@@ -45,6 +46,9 @@ func TestPostersComeOnlyFromTheImageRoutes(t *testing.T) {
 	if _, ok := widgets.FetchPoster(ctx, widgets.Target{Kind: "sonarr", URL: srv.URL}, key, "12"); !ok {
 		t.Error("sonarr poster refused")
 	}
+	if _, ok := widgets.FetchPoster(ctx, widgets.Target{Kind: "request", URL: srv.URL}, key, "a_B-9.jpg"); !ok {
+		t.Error("request poster refused")
+	}
 	if _, ok := widgets.FetchPoster(ctx, widgets.Target{Kind: "radarr", URL: srv.URL}, key, "13"); ok {
 		t.Error("an SVG passed for a poster")
 	}
@@ -62,7 +66,18 @@ func TestPostersComeOnlyFromTheImageRoutes(t *testing.T) {
 		{"sonarr", "12/../../queue"},
 		{"radarr", "abc"},
 		{"qbittorrent", "12"},
-		{"seerr", "12"},
+		{"seerr", "12"}, // a connector Hub no longer has
+		{"request", "../x.jpg"},
+		{"request", "..%2fx.jpg"},
+		{"request", "a/b.jpg"},
+		{"request", "/abc.jpg"},
+		{"request", "abc"},
+		{"request", "abc.svg"},
+		{"request", "abc.jpg.png/x"},
+		{"request", "abc.jpg?x=1"},
+		{"request", "http:abc.jpg"},
+		{"request", `a\b.jpg`},
+		{"request", strings.Repeat("a", 101) + ".jpg"},
 	} {
 		if _, ok := widgets.FetchPoster(ctx, widgets.Target{Kind: c.kind, URL: srv.URL}, key, c.ref); ok {
 			t.Errorf("%s %q passed", c.kind, c.ref)
