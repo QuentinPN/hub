@@ -32,35 +32,6 @@ func fakeJSON(t *testing.T, routes map[string]string) *httptest.Server {
 	return srv
 }
 
-func TestSeerrCountsRequestsAndChecksTheKey(t *testing.T) {
-	srv := fakeJSON(t, map[string]string{
-		"/api/v1/auth/me":       `{"id":1,"email":"ne-doit-pas-sortir"}`,
-		"/api/v1/request/count": `{"total":9,"movie":5,"tv":4,"pending":4,"approved":2,"declined":0,"processing":1,"available":2,"completed":1}`,
-	})
-	where := widgets.Target{Kind: "seerr", URL: srv.URL}
-	p, state := widgets.TestKey(context.Background(), where, secrets.NewValue(testKey))
-	if state != widgets.StateOK || p.Note != "4 en attente" {
-		t.Errorf("%s %+v", state, p)
-	}
-	if _, state := widgets.TestKey(context.Background(), where, secrets.NewValue("mauvaise")); state != widgets.StateAuth {
-		t.Errorf("wrong key: %s", state)
-	}
-	data, state := widgets.Read(context.Background(), where, secrets.NewValue(testKey), nil, []string{widgets.WidgetRequests})
-	if state != widgets.StateOK {
-		t.Fatal(state)
-	}
-	cards, err := widgets.CardsOf("seerr", data, []string{widgets.WidgetRequests})
-	if err != nil || len(cards) != 1 {
-		t.Fatalf("%+v %v", cards, err)
-	}
-	if c := cards[0]; c.Suffix != "demandes" || c.Headline != "4 en attente" || c.Note != "2 approuvées · 1 en cours · 2 disponibles" {
-		t.Errorf("%+v", c)
-	}
-	if strings.Contains(string(data[widgets.WidgetRequests]), "ne-doit-pas-sortir") {
-		t.Error("an account reached the stored data")
-	}
-}
-
 func TestProwlarrCountsFailingEnabledIndexers(t *testing.T) {
 	later := time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
 	past := time.Now().Add(-time.Hour).UTC().Format(time.RFC3339)
@@ -96,14 +67,14 @@ func TestProwlarrCountsFailingEnabledIndexers(t *testing.T) {
 
 func TestCardsSayWhenAllIsWell(t *testing.T) {
 	data := map[string]json.RawMessage{
-		widgets.WidgetRequests: json.RawMessage(`{"pending":0}`),
+		widgets.WidgetRequests: json.RawMessage(`{"pendingApprovals":0,"mineActive":0,"openIssues":0}`),
 		widgets.WidgetIndexers: json.RawMessage(`{"enabled":1,"failing":0}`),
 	}
 	cards, err := widgets.CardsOf("x", data, []string{widgets.WidgetRequests, widgets.WidgetIndexers})
 	if err != nil || len(cards) != 2 {
 		t.Fatalf("%+v %v", cards, err)
 	}
-	if cards[0].Headline != "Aucune demande en attente" || cards[0].Note != "Rien en cours" || cards[1].Headline != "1 indexeur" || cards[1].Note != "Tous répondent" {
+	if cards[0].Headline != "Aucune demande en attente" || cards[0].Note != "Aucun signalement" || cards[1].Headline != "1 indexeur" || cards[1].Note != "Tous répondent" {
 		t.Errorf("%+v", cards)
 	}
 	// Not enabled: no card, even with data left over.

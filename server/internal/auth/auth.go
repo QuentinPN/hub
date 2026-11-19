@@ -34,6 +34,10 @@ const (
 
 	maxFailures   = 5
 	failureWindow = 10 * time.Minute
+
+	// Refusals one IP may collect on the public webhook route before it is shut out.
+	maxHookFailures   = 20
+	hookFailureWindow = time.Minute
 )
 
 var (
@@ -110,7 +114,9 @@ type Repo interface {
 type Service struct {
 	repo    Repo
 	limiter *limiter
-	now     func() time.Time
+	// hookLimiter counts refused webhook calls per IP, apart from logins.
+	hookLimiter *limiter
+	now         func() time.Time
 	// hashing bounds concurrent Argon2id runs (64 MiB each).
 	hashing chan struct{}
 	// dummyHash keeps a login for an unknown user as slow as for the real one.
@@ -130,11 +136,12 @@ func New(repo Repo) (*Service, error) {
 		return nil, err
 	}
 	return &Service{
-		repo:      repo,
-		limiter:   newLimiter(maxFailures, failureWindow),
-		now:       time.Now,
-		hashing:   make(chan struct{}, 2),
-		dummyHash: dummy,
+		repo:        repo,
+		limiter:     newLimiter(maxFailures, failureWindow),
+		hookLimiter: newLimiter(maxHookFailures, hookFailureWindow),
+		now:         time.Now,
+		hashing:     make(chan struct{}, 2),
+		dummyHash:   dummy,
 	}, nil
 }
 
@@ -386,6 +393,18 @@ func (s *Service) checkLimit(key string) error {
 	}
 	return nil
 }
+
+// HookBlocked says whether ip has been refused too often on the webhook route; cheap, so it
+// runs before anything is looked up.
+func (s *Service) HookBlocked(ip string) error {
+	if blocked, until := s.hookLimiter.blocked(ip, s.now()); blocked {
+		return &RateLimitedError{Until: until}
+	}
+	return nil
+}
+
+// HookRefused counts a refused webhook call against ip.
+func (s *Service) HookRefused(ip string) { s.hookLimiter.fail(ip, s.now()) }
 
 func (s *Service) hash(password string) (string, error) {
 	s.hashing <- struct{}{}

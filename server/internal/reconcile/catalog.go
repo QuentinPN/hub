@@ -19,6 +19,7 @@ var applications = map[string]signature{
 	"embyserver":      {"emby", "Emby", "emby", "#2e7d4f", categoryMedia},
 	"seerr":           {"seerr", "Seerr", "seerr", "#6b4e9b", categoryMedia},
 	"jellyseerr":      {"jellyseerr", "Jellyseerr", "jellyseerr", "#6b4e9b", categoryMedia},
+	"request":     {"request", "Request", "", "#5b4e9b", categoryMedia},
 	"suwayomi-server": {"suwayomi", "Suwayomi", "suwayomi", "#8c5a2f", categoryMedia},
 
 	"sonarr":       {"sonarr", "Sonarr", "sonarr", "#1f6fb2", categoryDownloads},

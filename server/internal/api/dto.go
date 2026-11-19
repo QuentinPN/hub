@@ -236,11 +236,12 @@ type ServiceDetail struct {
 	Widget     *WidgetInfo  `json:"widget,omitempty"`
 }
 
-// Widget states the UI words itself: those of the last read, plus two it decides from the
+// Widget states the UI words itself: those of the last read, plus three it decides from the
 // service as it is now.
 const (
 	WidgetStopped        = "stopped"         // its containers are stopped: its API is not asked
 	WidgetAddressChanged = "address_changed" // the key was tested on another address: it stays home
+	WidgetUnsupported    = "unsupported"     // Hub no longer has its connector (Seerr): only removing it remains
 )
 
 // WidgetInfo is what a service offers as widgets, and its connection if there is one.
@@ -263,6 +264,13 @@ type WidgetConnection struct {
 	FailingSince   *time.Time        `json:"failingSince"`
 	// Data holds the last successful read, widget by widget, while it still means something.
 	Data map[string]json.RawMessage `json:"data"`
+	// Webhook is set for a connector the service can warn through its webhook.
+	Webhook *WebhookState `json:"webhook,omitempty"`
+}
+
+// WebhookState never carries the secret: it is shown once, when made.
+type WebhookState struct {
+	Configured bool `json:"configured"`
 }
 
 // WidgetRow is a line of the settings' "Widgets et connexions".
@@ -275,6 +283,8 @@ type WidgetRow struct {
 	HostID   string          `json:"hostId"`
 	HasURL   bool            `json:"hasUrl"`
 	Support  widgets.Support `json:"support"`
+	// Kind is the connection's connector, empty while not connected.
+	Kind string `json:"kind,omitempty"`
 	// State is empty while not connected.
 	State        string     `json:"state"`
 	DataAt       *time.Time `json:"dataAt"`

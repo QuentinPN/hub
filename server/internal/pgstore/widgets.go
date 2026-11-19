@@ -59,12 +59,22 @@ func (s *Store) connections(ctx context.Context) (map[string]connection, error) 
 // stateFor says what the UI should word: the last read, unless the service changed since.
 func (c connection) stateFor(e entry) string {
 	switch {
+	case !c.known():
+		return api.WidgetUnsupported
 	case e.URL == nil || *e.URL != c.url:
 		return api.WidgetAddressChanged
 	case e.Status == domain.StatusDown:
 		return api.WidgetStopped
 	}
 	return c.state
+}
+
+// known says Hub still has the connector the connection was made with.
+func (c connection) known() bool { return knownKind(c.kind) }
+
+func knownKind(kind string) bool {
+	_, ok := widgets.ManifestOf(kind)
+	return ok
 }
 
 // The last read is shown, dated, through an outage; a refused key or a format the connector
@@ -81,8 +91,10 @@ func (e entry) app() string {
 	return ""
 }
 
+// supportOf is the connection's own, unless Hub no longer has its connector: then what the
+// catalogue offers now, and the connection stays only to be removed.
 func supportOf(e entry, c *connection) (widgets.Support, string) {
-	if c != nil {
+	if c != nil && c.known() {
 		return widgets.SupportReady, c.kind
 	}
 	return widgets.SupportOf(e.app()), e.app()
@@ -117,7 +129,7 @@ func (s *Store) widgetInfo(ctx context.Context, e entry, d *api.ServiceDetail) e
 		conn = &c
 	}
 	support, kind := supportOf(e, conn)
-	if support == widgets.SupportNone {
+	if support == widgets.SupportNone && conn == nil {
 		return nil
 	}
 	d.Widget = &api.WidgetInfo{Support: support}
@@ -128,6 +140,14 @@ func (s *Store) widgetInfo(ctx context.Context, e entry, d *api.ServiceDetail) e
 		return nil
 	}
 	d.Widget.Connection = conn.dto(e)
+	if d.Widget.Manifest != nil && d.Widget.Manifest.Webhook {
+		var configured bool
+		err := s.pool.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM secrets WHERE name = $1)", widgets.WebhookName(e.Slug)).Scan(&configured)
+		if err != nil {
+			return err
+		}
+		d.Widget.Connection.Webhook = &api.WebhookState{Configured: configured}
+	}
 	d.Connection = []api.KeyValue{{Label: "Widget", Value: stateLabel(d.Widget.Connection.State)}}
 	if conn.keyHint != "" {
 		row := api.KeyValue{Label: "Clé d’API", Value: "•••• " + conn.keyHint}
@@ -155,6 +175,8 @@ func stateLabel(state string) string {
 		return "service arrêté"
 	case api.WidgetAddressChanged:
 		return "adresse changée"
+	case api.WidgetUnsupported:
+		return "plus pris en charge"
 	}
 	return state
 }
@@ -256,14 +278,14 @@ func (s *Store) WidgetRows(ctx context.Context) ([]api.WidgetRow, error) {
 		if c, ok := conns[e.Slug]; ok {
 			conn = &c
 		}
-		support, _ := supportOf(e, conn)
-		if e.hidden || support == widgets.SupportNone {
+		support, kind := supportOf(e, conn)
+		if e.hidden || support == widgets.SupportNone && conn == nil {
 			continue
 		}
 		row := api.WidgetRow{Slug: e.Slug, Name: e.Name, Monogram: e.Monogram, Icon: e.Icon, Color: e.Color, HostID: e.HostID,
 			HasURL: e.URL != nil, Support: support}
 		if conn != nil {
-			row.State, row.DataAt, row.FailingSince = conn.stateFor(e), conn.dataAt, conn.failingSince
+			row.Kind, row.State, row.DataAt, row.FailingSince = kind, conn.stateFor(e), conn.dataAt, conn.failingSince
 		}
 		rows = append(rows, row)
 	}
@@ -359,8 +381,8 @@ type liveRow struct {
 	checked           time.Time
 }
 
-// liveRows leaves out a refused key, an address changed since the key was tested, and a
-// stopped service: its API would only time out.
+// liveRows leaves out a refused key, an address changed since the key was tested, a stopped
+// service, whose API would only time out, and a connector Hub no longer has.
 func (s *Store) liveRows(ctx context.Context) ([]liveRow, error) {
 	rows, err := s.pool.Query(ctx, `SELECT c.service_slug, c.kind, c.url, s.url_cert_sha256, c.options, c.enabled,
 			c.refresh_seconds, c.failures, c.checked_at, c.generation
@@ -381,7 +403,7 @@ func (s *Store) liveRows(ctx context.Context) ([]liveRow, error) {
 		return nil, err
 	}
 	return slices.DeleteFunc(list, func(r liveRow) bool {
-		return slices.ContainsFunc(all, func(e entry) bool { return e.Slug == r.Slug && e.Status == domain.StatusDown })
+		return !knownKind(r.Kind) || slices.ContainsFunc(all, func(e entry) bool { return e.Slug == r.Slug && e.Status == domain.StatusDown })
 	}), nil
 }
 
