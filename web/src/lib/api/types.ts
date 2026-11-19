@@ -287,6 +287,8 @@ export interface RequestCounts {
 	pendingApprovals: number | null;
 	mineActive: number;
 	openIssues: number;
+	/** Faux seulement pour une clé en lecture seule ; absent (ancienne donnée) : elle peut agir. */
+	canAct?: boolean;
 }
 
 export interface PendingRequest {
@@ -400,6 +402,8 @@ export interface WidgetRow {
 	state: WidgetState | '';
 	dataAt: string | null;
 	failingSince: string | null;
+	/** Request : faux pour une clé en lecture seule ; absent : inconnu, la clé peut agir. */
+	canAct?: boolean;
 }
 
 export interface WidgetTest {

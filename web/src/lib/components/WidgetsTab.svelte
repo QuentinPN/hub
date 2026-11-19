@@ -3,7 +3,13 @@
 	import type { ServiceDetail } from '#lib/api/types.ts';
 	import { ago } from '#lib/agents.ts';
 	import { onWidgetNews } from '#lib/live.ts';
-	import { durationLabel, episodeLabel, fourKShare, issueTypeLabel } from '#lib/request.ts';
+	import {
+		canAct,
+		durationLabel,
+		episodeLabel,
+		fourKShare,
+		issueTypeLabel
+	} from '#lib/request.ts';
 	import {
 		accountStateView,
 		connectionLabel,
@@ -194,7 +200,12 @@
 				{/if}
 			{/if}
 			{#if conn.data.pending}
-				<RequestPending slug={service.slug} pending={conn.data.pending} onwrite={refresh} />
+				<RequestPending
+					slug={service.slug}
+					pending={conn.data.pending}
+					canAct={canAct(conn.data.requests?.canAct)}
+					onwrite={refresh}
+				/>
 			{/if}
 			{#if conn.data.recent}
 				<section class="card" aria-labelledby="w-recent">

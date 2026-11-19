@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PendingRequest, RequestSearchItem, WidgetRow } from './api/types';
 import {
+	canAct,
 	cleanReason,
 	durationLabel,
 	episodeLabel,
@@ -8,13 +9,14 @@ import {
 	isRequestable,
 	issueTypeLabel,
 	pendingPoster,
+	readOnlyHint,
 	searchPoster,
 	searchTerm,
 	sparkline,
 	sparklineSummary,
 	statusLabel,
 	statusTone,
-	requestSlug
+	requestRow
 } from './request';
 
 describe('libellés', () => {
@@ -89,7 +91,7 @@ describe('saisies', () => {
 	});
 });
 
-describe('requestSlug', () => {
+describe('requestRow', () => {
 	const row = (over: Partial<WidgetRow>): WidgetRow => ({
 		slug: 'request',
 		kind: 'request',
@@ -107,13 +109,29 @@ describe('requestSlug', () => {
 	});
 
 	it('trouve la connexion Request, seulement si elle est connectée', () => {
-		expect(requestSlug([row({ slug: 'emby', kind: 'emby' }), row({ slug: 'demandes' })])).toBe(
-			'demandes'
-		);
-		expect(requestSlug([row({ state: '' })])).toBeUndefined();
-		expect(requestSlug([row({ state: 'unsupported' })])).toBeUndefined();
+		expect(
+			requestRow([row({ slug: 'emby', kind: 'emby' }), row({ slug: 'demandes' })])?.slug
+		).toBe('demandes');
+		expect(requestRow([row({ state: '' })])).toBeUndefined();
+		expect(requestRow([row({ state: 'unsupported' })])).toBeUndefined();
 		// Le nom du service ne prouve rien : seul le connecteur compte.
-		expect(requestSlug([row({ slug: 'request', kind: undefined })])).toBeUndefined();
+		expect(requestRow([row({ slug: 'request', kind: undefined })])).toBeUndefined();
+	});
+});
+
+describe('droit d’agir', () => {
+	it('ne retire les actions qu’à une clé dite en lecture seule', () => {
+		expect(canAct(false)).toBe(false);
+		expect(canAct(true)).toBe(true);
+		// Donnée d’avant le champ, ou widget éteint : rien n’est retiré.
+		expect(canAct(undefined)).toBe(true);
+	});
+
+	it('nomme la clé à créer et ce qu’elle permettrait', () => {
+		expect(readOnlyHint('approuver')).toBe(
+			'Clé en lecture seule : crée une clé « Demandes » dans Request pour approuver depuis Hub.'
+		);
+		expect(readOnlyHint('demander')).toContain('pour demander depuis Hub');
 	});
 });
 

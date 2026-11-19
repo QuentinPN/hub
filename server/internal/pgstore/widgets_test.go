@@ -165,6 +165,30 @@ func TestRowsListWhatHubKnowsFirstTheActionable(t *testing.T) {
 	}
 }
 
+func TestRowsSayWhetherARequestKeyCanAct(t *testing.T) {
+	e := newDiscoveryEnv(t, "mini")
+	e.snapshot(t, "mini", e.container("request", "request", "ghcr.io/quentinpn/request", "running"))
+	for _, c := range []struct {
+		data string
+		want *bool
+	}{
+		{`{"pendingApprovals":1,"mineActive":0,"openIssues":0,"canAct":false}`, new(false)},
+		{`{"pendingApprovals":1,"mineActive":0,"openIssues":0,"canAct":true}`, new(true)},
+		// Stored before the field existed: unknown, never "cannot act".
+		{`{"pendingApprovals":1,"mineActive":0,"openIssues":0}`, nil},
+	} {
+		e.connect(t, "request", "request", []string{"requests"}, map[string]string{"requests": c.data})
+		rows, err := e.store.WidgetRows(e.ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		i := slices.IndexFunc(rows, func(r api.WidgetRow) bool { return r.Slug == "request" })
+		if i < 0 || (rows[i].CanAct == nil) != (c.want == nil) || c.want != nil && *rows[i].CanAct != *c.want {
+			t.Errorf("%s: %+v", c.data, rows)
+		}
+	}
+}
+
 func TestHomeGathersUpcomingAndQueues(t *testing.T) {
 	e := newDiscoveryEnv(t, "mini")
 	e.snapshot(t, "mini",

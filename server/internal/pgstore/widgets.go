@@ -286,6 +286,12 @@ func (s *Store) WidgetRows(ctx context.Context) ([]api.WidgetRow, error) {
 			HasURL: e.URL != nil, Support: support}
 		if conn != nil {
 			row.Kind, row.State, row.DataAt, row.FailingSince = kind, conn.stateFor(e), conn.dataAt, conn.failingSince
+			// A *bool: data stored before the field existed says nothing, not "cannot act".
+			if r, ok, err := decode[struct{ CanAct *bool }](*conn, widgets.WidgetRequests, widgets.WidgetRequests); err != nil {
+				return nil, err
+			} else if ok {
+				row.CanAct = r.CanAct
+			}
 		}
 		rows = append(rows, row)
 	}

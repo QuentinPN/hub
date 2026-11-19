@@ -77,6 +77,8 @@ type fakeRequest struct {
 	// refuse answers a write with this status and message, when set.
 	refuse  int
 	message string
+	// scope is the key's scope /api/auth/me names; empty: an older Request, which names none.
+	scope string
 }
 
 func (f *fakeRequest) refuseWith(status int, message string) {
@@ -124,8 +126,12 @@ func (f *fakeRequest) server(t *testing.T) *httptest.Server {
 			return
 		}
 		f.reads = append(f.reads, r.URL.Path+"?"+r.URL.RawQuery)
+		me := `{"viewer":{"id":"u1","email":"ne-doit-pas-sortir"}`
+		if f.scope != "" {
+			me += `,"apiKeyScope":"` + f.scope + `"`
+		}
 		routes := map[string]string{
-			"/api/auth/me":           `{"user":{"id":"u1","email":"ne-doit-pas-sortir"}}`,
+			"/api/auth/me":           me + `}`,
 			"/api/requests/counts":   hubCountsJSON,
 			"/api/issues/counts":     hubIssueCountsJSON,
 			"/api/requests":          hubRecentJSON,
@@ -198,7 +204,7 @@ func TestRequestReadKeepsOnlyWhatTheWidgetsShow(t *testing.T) {
 	}
 
 	r := decodeWidget[widgets.Requests](t, data, widgets.WidgetRequests)
-	if r.PendingApprovals == nil || *r.PendingApprovals != 3 || r.MineActive != 2 || r.OpenIssues != 1 {
+	if r.PendingApprovals == nil || *r.PendingApprovals != 3 || r.MineActive != 2 || r.OpenIssues != 1 || !r.CanAct {
 		t.Errorf("requests: %+v", r)
 	}
 
@@ -265,6 +271,20 @@ func TestRequestReadsOnlyTheWidgetsAsked(t *testing.T) {
 	}
 	if _, reads := f.seen(); len(reads) != 1 || reads[0] != "/api/issues?status=open" {
 		t.Errorf("%v", reads)
+	}
+}
+
+// Only a key limited to reading cannot act; an older Request names no scope, and its keys acted.
+func TestRequestKeyScopeSaysWhetherHubCanAct(t *testing.T) {
+	for scope, want := range map[string]bool{"read": false, "requests": true, "full": true, "": true} {
+		f := &fakeRequest{scope: scope}
+		data, state := widgets.Read(context.Background(), hubTarget(f.server(t)), secrets.NewValue(testKey), nil, []string{widgets.WidgetRequests})
+		if state != widgets.StateOK {
+			t.Fatalf("%q: %s", scope, state)
+		}
+		if r := decodeWidget[widgets.Requests](t, data, widgets.WidgetRequests); r.CanAct != want {
+			t.Errorf("scope %q: canAct %v, want %v", scope, r.CanAct, want)
+		}
 	}
 }
 
