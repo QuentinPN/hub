@@ -1,0 +1,25 @@
+# Contexte des images : la racine du dépôt. Rien de ce qui se reconstruit ou de secret n'y entre.
+.git
+.gitattributes
+.github
+.claude
+.mcp.json
+node_modules
+**/node_modules
+web/build
+web/.svelte-kit
+web/test-results
+web/playwright-report
+test-results
+playwright-report
+# Dossier embarqué : le Dockerfile y copie web/build, rien de local ne doit s'y mêler.
+server/internal/webui/dist/*
+!server/internal/webui/dist/.gitkeep
+bin
+.env
+**/.env
+**/*.key
+**/*agent-ca.pem
+**/enroll-code
+**/__pycache__
+**/*.pyc

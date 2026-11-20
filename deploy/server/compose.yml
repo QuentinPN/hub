@@ -1,5 +1,9 @@
 # Serveur Hub et sa base PostgreSQL. Lire deploy/server/README.md avant de lancer.
 #
+# Stack Dockhand « hub » (/srv/docker/hub sur le mini-PC) : coller ce fichier et le .env
+# (.env.example). Images publiées sur GHCR depuis main ; HUB_TAG et HUB_CADDY_TAG choisissent
+# leur version (latest, ou X.Y.Z, X.Y, X pour fixer ou revenir en arrière). Données dans /srv/appdata/hub.
+#
 #   docker compose --env-file deploy/server/.env -f deploy/server/compose.yml up -d
 name: hub
 
@@ -20,7 +24,7 @@ services:
       POSTGRES_DB: hub
       POSTGRES_PASSWORD: ${HUB_DB_PASSWORD:?HUB_DB_PASSWORD}
     volumes:
-      - pgdata:/var/lib/postgresql
+      - /srv/appdata/hub/postgres:/var/lib/postgresql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U hub -d hub']
       interval: 5s
@@ -28,7 +32,7 @@ services:
       retries: 20
 
   hub:
-    image: hub-server:local
+    image: ghcr.io/quentinpn/hub-server:${HUB_TAG:-latest}
     restart: unless-stopped
     depends_on:
       db:
@@ -58,7 +62,8 @@ services:
       - '${HUB_BIND:?HUB_BIND}:8443:8443'
     networks: [db, edge]
     volumes:
-      - keys:/var/lib/hub
+      # Clé des secrets et AC des agents, à part de la base. À sauvegarder à part aussi.
+      - /srv/appdata/hub/keys:/var/lib/hub
     healthcheck:
       test: ['CMD', '/hub-server', '-healthcheck']
       interval: 15s
@@ -67,7 +72,7 @@ services:
       start_period: 15s
 
   caddy:
-    image: hub-caddy:local
+    image: ghcr.io/quentinpn/hub-caddy:${HUB_CADDY_TAG:-latest}
     restart: unless-stopped
     depends_on: [hub]
     read_only: true
@@ -81,10 +86,10 @@ services:
     ports:
       - '${HUB_BIND:?HUB_BIND}:8444:8444'
     networks: [edge]
+    # Le Caddyfile est dans l'image. Le certificat se réobtient tout seul : inutile à sauvegarder.
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
+      - /srv/appdata/hub/caddy/data:/data
+      - /srv/appdata/hub/caddy/config:/config
 
 networks:
   # La base ne sort pas et n'est jointe que par le serveur.
@@ -93,11 +98,3 @@ networks:
   # Ports publiés, accès sortant (icônes, certificat), agent de ce même hôte.
   edge:
     name: hub-edge
-
-volumes:
-  pgdata:
-  # Clé des secrets et AC des agents, à part de la base. À sauvegarder à part aussi.
-  keys:
-  # Certificat : se réobtient tout seul, inutile à sauvegarder.
-  caddy-data:
-  caddy-config:

@@ -4,6 +4,7 @@
 #   HUB_SERVER_URL  adresse du port agents du serveur, ex. https://192.0.2.14:8443
 #   HUB_CA_PIN      affiché par `hub-server -enroll-host <hôte>`
 #   DOCKER_GID       groupe propriétaire du socket Docker (`stat -c %g /var/run/docker.sock`)
+#   HUB_TAG          version de l'image sur GHCR, latest par défaut (X.Y.Z, X.Y ou X pour fixer ou revenir en arrière)
 # Le code d'enrôlement va dans ./enroll-code (inutile une fois l'agent enrôlé).
 #
 #   docker compose -f deploy/agent/compose.yml up -d
@@ -34,7 +35,7 @@ services:
       - proxy-socket:/run/hub-proxy
 
   agent:
-    image: hub-agent:local
+    image: ghcr.io/quentinpn/hub-agent:${HUB_TAG:-latest}
     restart: unless-stopped
     depends_on: [docker-proxy]
     read_only: true
