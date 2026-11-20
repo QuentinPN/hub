@@ -2,6 +2,10 @@
 # Docker du serveur, sans passer par le port publié et son filtrage (HUB_SERVER_URL=https://hub:8443).
 #
 #   docker compose -f deploy/agent/compose.yml -f deploy/agent/compose.same-host.yml up -d
+#
+# Sur le mini-PC, la stack Dockhand « hub-agent » (/srv/docker/hub-agent) est le fichier unique
+# que produit `docker compose -f compose.yml -f compose.same-host.yml config --no-interpolate`,
+# avec l'état de l'agent monté depuis /srv/appdata/hub-agent/state au lieu du volume agent-state.
 services:
   agent:
     networks: [hub-edge]

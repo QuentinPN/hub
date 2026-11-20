@@ -8,30 +8,34 @@ Déployé sur le mini-PC le 2026-11-06 avec cette procédure : vrai certificat, 
 
 ## Ce qui sera ajouté sur l'hôte
 
-- Trois conteneurs, `hub-db-1`, `hub-hub-1` et `hub-caddy-1`, et quatre volumes, `hub_pgdata`, `hub_keys`, `hub_caddy-data` et `hub_caddy-config`.
+- Trois conteneurs, `hub-db-1`, `hub-hub-1` et `hub-caddy-1`, et leurs données dans `/srv/appdata/hub` : `postgres`, `keys`, `caddy/data` et `caddy/config`.
 - Deux réseaux, `hub_db` (sans sortie) et `hub-edge`.
 - Si les sauvegardes sont activées, le dossier `HUB_BACKUP_HOST_DIR`, monté dans `hub` sur `/sauvegardes` par `compose.backup.yml`. Docker ne le crée pas.
 - Les ports 8443 (agents) et 8444 (UI), sur l'IP de `HUB_BIND` seulement. Ne les redirige pas sur ta box : Hub reste en LAN.
 
 Accès depuis le VPN : pas encore en place. Le port n'écoute pas sur l'IP Tailscale, et `home.example.com` pointe vers l'IP LAN.
 
-## 1. Construire et transférer l'image
+## 1. Les images
 
-Sur le poste de dev (Go, Node et Docker) :
+Chaque push sur `main` publie, une fois les tests passés, trois images privées sur GHCR (job `images` de `.github/workflows/ci.yml`), taguées `X.Y.Z`, `X.Y`, `X`, `latest` et `sha-<court>` (version commune à Hub, calculée depuis les commits : voir DECISIONS.md). Une release GitHub `vX.Y.Z` est créée une fois les images publiées. Seules les images dont les fichiers ont changé sont republiées (job `changes`), un lancement manuel les republie toutes :
 
-```bash
-scripts/build-server.sh
-```
+- `ghcr.io/quentinpn/hub-server` (amd64) : l'UI et le serveur ;
+- `ghcr.io/quentinpn/hub-caddy` (amd64) : Caddy avec le module Cloudflare et son `Caddyfile` (`deploy/server/caddy/`) ;
+- `ghcr.io/quentinpn/hub-agent` (amd64 et arm64, pour le Pi).
 
-```bash
-docker save hub-server:local hub-caddy:local | ssh hub@192.0.2.14 docker load
-```
+Les paquets étant privés, l'hôte doit avoir un identifiant GHCR dans Dockhand (Registres, jeton avec `read:packages`), comme pour Request.
 
-Copier ensuite `compose.yml`, `compose.backup.yml`, `Caddyfile` et `.env.example` de `deploy/server/` sur l'hôte, puis y faire les étapes suivantes.
+Construire en local, avec les mêmes Dockerfiles (Docker seul suffit, ni Go ni Node) : `scripts/build-server.sh` donne `hub-server:local` et `hub-caddy:local`, `scripts/build-agent.sh` donne `hub-agent:local`. Pour s'en servir, remplacer l'image dans le compose.
 
 ## 2. Configurer
 
-Partir de `.env.example` :
+Sur le mini-PC, Hub est la stack Dockhand `hub` (`/srv/docker/hub`) : y coller `compose.yml` (et `compose.backup.yml` si les sauvegardes sont activées) et le `.env` fait d'après `.env.example`. Les données sont dans `/srv/appdata/hub`, à créer avant le premier démarrage avec le propriétaire des utilisateurs non-root des images (un dossier monté n'hérite pas de celui de l'image) :
+
+```bash
+sudo install -d /srv/appdata/hub/postgres && sudo install -d -o 65532 -g 65532 /srv/appdata/hub/keys /srv/appdata/hub/caddy/data /srv/appdata/hub/caddy/config
+```
+
+Hors Dockhand, copier les mêmes fichiers dans un dossier de l'hôte, et y lancer les commandes `docker compose` ci-dessous. Partir de `.env.example` :
 
 ```bash
 cp .env.example .env && chmod 600 .env
@@ -78,6 +82,8 @@ sudo sh -c 'iptables-restore -n --test < /etc/ufw/after.rules' && sudo ufw reloa
 
 ## 4. Démarrer
 
+Déployer la stack dans Dockhand, ou en ligne de commande dans son dossier :
+
 ```bash
 docker compose up -d
 ```
@@ -109,13 +115,15 @@ Depuis un autre appareil du LAN, la même commande doit échouer. Sur le QNAP, `
 
 ## 7. Enrôler l'agent du mini-PC
 
-Enrôler depuis Réglages → Hôtes et agents, mais mettre `HUB_SERVER_URL=https://hub:8443` dans le `.env` de l'agent : il joint le serveur par `hub-edge`. Image à transférer comme celle du serveur, après `scripts/build-agent.sh`.
+Enrôler depuis Réglages → Hôtes et agents, mais mettre `HUB_SERVER_URL=https://hub:8443` dans le `.env` de l'agent : il joint le serveur par `hub-edge`. L'image est `ghcr.io/quentinpn/hub-agent`.
 
 ```bash
 docker compose -f compose.yml -f compose.same-host.yml up -d
 ```
 
-Le Pi (`GOARCH=arm64 scripts/build-agent.sh`) et le QNAP utilisent `compose.yml` seul, avec l'URL montrée par l'écran d'enrôlement.
+Sur le mini-PC, c'est la stack Dockhand `hub-agent` (`/srv/docker/hub-agent`) : un seul fichier, produit par `docker compose -f compose.yml -f compose.same-host.yml config --no-interpolate`, avec l'état de l'agent monté depuis `/srv/appdata/hub-agent/state` (propriétaire 65534) à la place du volume `agent-state`.
+
+Le Pi (la même image, en arm64) et le QNAP utilisent `compose.yml` seul, avec l'URL montrée par l'écran d'enrôlement, et se mettent à jour en tirant la nouvelle image.
 
 ## Sauvegarder et restaurer
 
@@ -123,14 +131,14 @@ Hub se sauvegarde lui-même, chiffré, dans un partage du QNAP monté sur l'hôt
 
 ## Mettre à jour
 
-Sauvegarder d'abord (Réglages → Sauvegarde) : les migrations s'appliquent au démarrage et ne se défont pas. Transférer la nouvelle image, puis `docker compose up -d`. Pour revenir en arrière : remettre le tag de l'ancienne image sur `hub-server:local` et restaurer la sauvegarde.
+Sauvegarder d'abord (Réglages → Sauvegarde) : les migrations s'appliquent au démarrage et ne se défont pas. Tirer les nouvelles images dans Dockhand et redéployer la stack. Pour revenir en arrière : `HUB_TAG=<X.Y.Z>` dans le `.env`, et restaurer la sauvegarde si une migration a eu lieu ([docs/EXPLOITATION.md](../../docs/EXPLOITATION.md)).
 
 ## Retirer Hub
 
 Dans cet ordre, pour rendre l'hôte dans son état d'origine :
 
 1. Arrêter l'agent de cet hôte, sinon `hub-edge` reste en place : `docker compose -f compose.yml -f compose.same-host.yml down`.
-2. Arrêter le serveur, sans toucher aux données : `docker compose down`. Ajouter `-v` efface **définitivement** la base et les clés.
+2. Arrêter le serveur, sans toucher aux données : `docker compose down`. Les données restent dans `/srv/appdata/hub` : les supprimer efface **définitivement** la base et les clés.
 3. Retirer le bloc de `/etc/ufw/after.rules`, puis `sudo ufw reload`. Si `DOCKER-USER` garde les règles, le vider avec `sudo iptables -F DOCKER-USER`.
 
 4. Supprimer l'enregistrement DNS et le token dans Cloudflare.
