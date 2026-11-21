@@ -72,7 +72,7 @@ hub-server -enroll-host rpi5 > enroll-code
 hub-server -revoke-host rpi5
 ```
 
-Sur l'hôte : l'image `ghcr.io/quentinpn/hub-agent` (amd64 et arm64, publiée à chaque push sur `main`), placer le code dans `deploy/agent/enroll-code`, puis lancer `deploy/agent/compose.yml` avec `HUB_SERVER_URL`, `HUB_CA_PIN` (affiché par `-enroll-host`) et `DOCKER_GID` (`stat -c %g /var/run/docker.sock`), tous trois donnés par l'écran d'enrôlement. `scripts/check-agent-proxy.sh` vérifie ensuite que le proxy refuse tout le reste.
+Sur l'hôte : l'image `git.example.com/quentinpn/hub-agent` (amd64 et arm64, publiée à chaque push sur `main`), placer le code dans `deploy/agent/enroll-code`, puis lancer `deploy/agent/compose.yml` avec `HUB_SERVER_URL`, `HUB_CA_PIN` (affiché par `-enroll-host`) et `DOCKER_GID` (`stat -c %g /var/run/docker.sock`), tous trois donnés par l'écran d'enrôlement. `scripts/check-agent-proxy.sh` vérifie ensuite que le proxy refuse tout le reste.
 
 ## Déployer
 
@@ -100,4 +100,4 @@ Les tests de base de données utilisent `HUB_TEST_DATABASE_URL` (chaque test cr�
 cd server && gofmt -l . && go vet ./... && HUB_TEST_DATABASE_URL="postgres://hub:hub-dev-only@127.0.0.1:55432/hub?sslmode=disable" go test ./...
 ```
 
-La CI GitHub Actions (`.github/workflows/ci.yml`) lance ces mêmes étapes, plus golangci-lint et les builds Linux amd64 et arm64.
+La CI Gitea Actions (`.gitea/workflows/ci.yml`) lance ces mêmes étapes, plus golangci-lint et les builds Linux amd64 et arm64.
