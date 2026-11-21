@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the server's image (the web UI embedded in a static binary) and its Caddy's, with the
-# same Dockerfiles as the CI (.github/workflows/release.yml, job images).
+# same Dockerfiles as the CI (.gitea/workflows/release.yml, job images).
 #   scripts/build-server.sh            # linux/amd64 (mini-PC)
 #   GOARCH=arm64 scripts/build-server.sh
 set -euo pipefail

@@ -1,7 +1,7 @@
 # Serveur Hub et sa base PostgreSQL. Lire deploy/server/README.md avant de lancer.
 #
 # Stack Dockhand « hub » (/srv/docker/hub sur le mini-PC) : coller ce fichier et le .env
-# (.env.example). Images publiées sur GHCR depuis main ; HUB_TAG et HUB_CADDY_TAG choisissent
+# (.env.example). Images publiées sur le registre Gitea depuis main ; HUB_TAG et HUB_CADDY_TAG choisissent
 # leur version (latest, ou X.Y.Z, X.Y, X pour fixer ou revenir en arrière). Données dans /srv/appdata/hub.
 #
 #   docker compose --env-file deploy/server/.env -f deploy/server/compose.yml up -d
@@ -32,7 +32,7 @@ services:
       retries: 20
 
   hub:
-    image: ghcr.io/quentinpn/hub-server:${HUB_TAG:-latest}
+    image: git.example.com/quentinpn/hub-server:${HUB_TAG:-latest}
     restart: unless-stopped
     depends_on:
       db:
@@ -72,7 +72,7 @@ services:
       start_period: 15s
 
   caddy:
-    image: ghcr.io/quentinpn/hub-caddy:${HUB_CADDY_TAG:-latest}
+    image: git.example.com/quentinpn/hub-caddy:${HUB_CADDY_TAG:-latest}
     restart: unless-stopped
     depends_on: [hub]
     read_only: true

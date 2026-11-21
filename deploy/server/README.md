@@ -17,13 +17,13 @@ Accès depuis le VPN : pas encore en place. Le port n'écoute pas sur l'IP Tails
 
 ## 1. Les images
 
-Chaque push sur `main` publie, une fois les tests passés, trois images privées sur GHCR (job `images` de `.github/workflows/ci.yml`), taguées `X.Y.Z`, `X.Y`, `X`, `latest` et `sha-<court>` (version commune à Hub, calculée depuis les commits : voir DECISIONS.md). Une release GitHub `vX.Y.Z` est créée une fois les images publiées. Seules les images dont les fichiers ont changé sont republiées (job `changes`), un lancement manuel les republie toutes :
+Chaque push sur `main` publie, une fois les tests passés, trois images sur le registre Gitea (job `images` de `.gitea/workflows/release.yml`), taguées `X.Y.Z`, `X.Y`, `X`, `latest` et `sha-<court>` (version commune à Hub, calculée depuis les commits : voir DECISIONS.md). Une release Gitea `vX.Y.Z` est créée une fois les images publiées. Seules les images dont les fichiers ont changé sont republiées (job `changes`), un lancement manuel les republie toutes :
 
-- `ghcr.io/quentinpn/hub-server` (amd64) : l'UI et le serveur ;
-- `ghcr.io/quentinpn/hub-caddy` (amd64) : Caddy avec le module Cloudflare et son `Caddyfile` (`deploy/server/caddy/`) ;
-- `ghcr.io/quentinpn/hub-agent` (amd64 et arm64, pour le Pi).
+- `git.example.com/quentinpn/hub-server` (amd64) : l'UI et le serveur ;
+- `git.example.com/quentinpn/hub-caddy` (amd64) : Caddy avec le module Cloudflare et son `Caddyfile` (`deploy/server/caddy/`) ;
+- `git.example.com/quentinpn/hub-agent` (amd64 et arm64, pour le Pi).
 
-Les paquets étant privés, l'hôte doit avoir un identifiant GHCR dans Dockhand (Registres, jeton avec `read:packages`), comme pour Request.
+Le registre Gitea est joint en `git.example.com` par le démon du mini PC (registre HTTP local admis) ; le dépôt étant public, la lecture est anonyme. Un hôte distant (le Pi) doit déclarer `git.example.com` en registre non sécurisé (`insecure-registries`) et utiliser cette adresse à la place de `git.example.com`.
 
 Construire en local, avec les mêmes Dockerfiles (Docker seul suffit, ni Go ni Node) : `scripts/build-server.sh` donne `hub-server:local` et `hub-caddy:local`, `scripts/build-agent.sh` donne `hub-agent:local`. Pour s'en servir, remplacer l'image dans le compose.
 
@@ -115,7 +115,7 @@ Depuis un autre appareil du LAN, la même commande doit échouer. Sur le QNAP, `
 
 ## 7. Enrôler l'agent du mini-PC
 
-Enrôler depuis Réglages → Hôtes et agents, mais mettre `HUB_SERVER_URL=https://hub:8443` dans le `.env` de l'agent : il joint le serveur par `hub-edge`. L'image est `ghcr.io/quentinpn/hub-agent`.
+Enrôler depuis Réglages → Hôtes et agents, mais mettre `HUB_SERVER_URL=https://hub:8443` dans le `.env` de l'agent : il joint le serveur par `hub-edge`. L'image est `git.example.com/quentinpn/hub-agent`.
 
 ```bash
 docker compose -f compose.yml -f compose.same-host.yml up -d

@@ -2,6 +2,7 @@
 .git
 .gitattributes
 .github
+.gitea
 .claude
 .mcp.json
 node_modules

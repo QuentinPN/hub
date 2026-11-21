@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the agent's image: a static binary in a scratch image, nothing else. Same Dockerfile as
-# the CI (.github/workflows/release.yml, job images).
+# the CI (.gitea/workflows/release.yml, job images).
 #   scripts/build-agent.sh            # linux/amd64 (mini-PC, QNAP)
 #   GOARCH=arm64 scripts/build-agent.sh   # Raspberry Pi
 set -euo pipefail
