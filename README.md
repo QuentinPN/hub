@@ -78,6 +78,13 @@ Sur l'hôte : l'image `git.example.com/quentinpn/hub-agent` (amd64 et arm64, pub
 
 Le serveur et sa base se déploient avec Docker Compose : procédure, pare-feu, sauvegarde, restauration et retrait dans [deploy/server/README.md](deploy/server/README.md).
 
+## Hooks git (hk)
+
+Les hooks sont gérés par [hk](https://hk.jdx.dev) (`hk.pkl`). Une seule fois par poste : installer hk 2.13.0 (Windows : `hk.exe` de la [release GitHub](https://github.com/jdx/hk/releases/tag/v2.13.0), sinon `cargo install hk --version 2.13.0 --locked`), puis lancer `hk install` dans le clone. Facultatif : `git config hk.stashUntracked false` évite environ 1 s au pre-commit quand des fichiers non suivis traînent.
+
+- `pre-commit` : Prettier et ESLint (`web/`), `gofmt` (`server/`) sur les seuls fichiers indexés, avec correction et réindexation ; une erreur restante bloque le commit. Environ 0,3 s, 4 s dès qu'un fichier ESLint est indexé (le chargement de la config ESLint prend 3 s).
+- `pre-push` : les contrôles de la CI sans service, uniquement pour le dossier modifié : `web/` (`check`, `lint`, `test`, `build`, environ 15 s) et `server/` (`gofmt`, `go vet`, `go test`, environ 25 s). Restent à la CI : e2e, `npm audit`, golangci-lint, `-race`.
+
 ## Vérifier
 
 ```bash
