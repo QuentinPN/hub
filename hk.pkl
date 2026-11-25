@@ -1,0 +1,50 @@
+amends "package://github.com/jdx/hk/releases/download/v2.13.0/hk@2.13.0#/Config.pkl"
+
+// Mêmes commandes que la CI (.gitea/workflows/ci.yml), web/ (Prettier, ESLint, svelte-check, Vitest) et server/ (Go).
+// `node …` plutôt que `npx` : même commande sous cmd.exe et sh, 0,5 s de moins. Le pre-commit corrige puis réindexe (fix = true) ; une erreur restante bloque le commit.
+hooks {
+  ["pre-commit"] {
+    fix = true
+    stash = "git"
+    steps {
+      ["prettier"] {
+        dir = "web"
+        glob = List("**/*")
+        exclude = List("package-lock.json")
+        check = "node node_modules/prettier/bin/prettier.cjs --check --ignore-unknown {{files}}"
+        fix = "node node_modules/prettier/bin/prettier.cjs --write --ignore-unknown {{files}}"
+      }
+      ["eslint"] {
+        dir = "web"
+        glob = List("**/*.{js,mjs,cjs,ts,svelte}")
+        depends = "prettier"
+        check = "node node_modules/eslint/bin/eslint.js {{files}}"
+        fix = "node node_modules/eslint/bin/eslint.js --fix {{files}}"
+      }
+      // gofmt ne renvoie pas d'erreur avec -l : seule la réécriture (-w) a un sens ici, la vérification est au pre-push.
+      ["gofmt"] {
+        dir = "server"
+        glob = List("**/*.go")
+        fix = "gofmt -w {{files}}"
+      }
+    }
+  }
+  // Les contrôles de la CI qui tournent sans service : jobs web et server, hors e2e (Playwright), `npm audit`, golangci-lint
+  // (non installé sur le poste) et `-race` (demande cgo). Les tests Go qui ont besoin de PostgreSQL se sautent sans
+  // HUB_TEST_DATABASE_URL, comme sans service.
+  ["pre-push"] {
+    steps {
+      ["web-check"] { dir = "web"; check = "npm run check" }
+      ["web-lint"] { dir = "web"; check = "npm run lint" }
+      ["web-test"] { dir = "web"; check = "npm test" }
+      ["web-build"] { dir = "web"; check = "npm run build" }
+      ["gofmt"] {
+        dir = "server"
+        shell = "sh -o errexit -c"
+        check = "test -z \"$(gofmt -l .)\" || (gofmt -l . && exit 1)"
+      }
+      ["go-vet"] { dir = "server"; check = "go vet ./..." }
+      ["go-test"] { dir = "server"; check = "go test -p 2 ./..." }
+    }
+  }
+}
